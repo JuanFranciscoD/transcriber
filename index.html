@@ -1768,12 +1768,24 @@ async function processAudio(file, groqKey) {
     try { var jm = rawText.match(/\{[\s\S]*\}/); resumenObj = JSON.parse(jm ? jm[0] : rawText); }
     catch(e) { resumenObj = { titulo: file.name, icono: '🎙️', secciones: [{ titulo: 'Resumen', puntos: [rawText] }] }; }
     setProgress(95, 'Guardando', '');
+    // Si viene del grabador, asignar a carpeta "Mis Notas" (crearla si no existe)
+    var noteFolderId = null;
+    if (_recordedFromApp) {
+      _recordedFromApp = false;
+      var misNotas = folders.find(function(f){ return f.name.toLowerCase() === 'mis notas'; });
+      if (!misNotas) {
+        misNotas = { id: 'folder_' + Date.now(), name: 'Mis Notas' };
+        folders.push(misNotas);
+      }
+      noteFolderId = misNotas.id;
+    }
     var nota = {
       id: Date.now().toString(),
       title: resumenObj.titulo || file.name,
-      icon: resumenObj.icono || '🎙️',
       date: new Date().toLocaleDateString('es-AR', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }),
-      duration: duration, resumen: resumenObj, transcripcion: transcripcion
+      createdAt: Date.now(),
+      duration: duration, resumen: resumenObj, transcripcion: transcripcion,
+      folderId: noteFolderId || undefined
     };
     notes.unshift(nota); save(); renderHome();
     currentNoteId = nota.id; detailFromFolder = false;
@@ -1844,6 +1856,7 @@ function showStatus(msg) {
 
 /* ── RECORDER ── */
 var _mediaRecorder = null;
+var _recordedFromApp = false;
 var _recChunks = [];
 var _recStream = null;
 var _recTimerInterval = null;
@@ -1954,6 +1967,7 @@ function finishRecording() {
   var blob = new Blob(_recChunks, { type: mimeType });
   var ext = mimeType.includes('mp4') ? 'm4a' : mimeType.includes('ogg') ? 'ogg' : 'webm';
   var file = new File([blob], 'grabacion-' + Date.now() + '.' + ext, { type: mimeType });
+  _recordedFromApp = true;
   showScreen('process');
   processAudio(file, GROQ_KEY);
 }
