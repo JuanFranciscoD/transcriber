@@ -800,9 +800,29 @@ function closeEmojiPickerOutside(e) {
     onAuthStateChanged(auth, async function(user) {
       currentUser = user;
       updateAuthUI(user);
-      await loadFromFirebase();
       if (user) {
-        showToast('Hola ' + (user.displayName ? user.displayName.split(' ')[0] : '') + ' ✓');
+        // Intentar cargar desde la nube
+        var { doc, getDoc, setDoc } = await import('https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js');
+        var snap = await getDoc(doc(db, 'users', user.uid));
+        if (!snap.exists()) {
+          // Primera vez con esta cuenta: migrar notas locales a la nube
+          var localNotes = JSON.parse(localStorage.getItem('transcriber-notes') || '[]');
+          var localFolders = JSON.parse(localStorage.getItem('transcriber-folders') || '[]');
+          if (localNotes.length > 0 || localFolders.length > 0) {
+            await setDoc(doc(db, 'users', user.uid), { notes: localNotes, folders: localFolders, updatedAt: Date.now() });
+            showToast('Notas migradas a tu cuenta ✓');
+          } else {
+            showToast('Hola ' + (user.displayName ? user.displayName.split(' ')[0] : '') + ' ✓');
+          }
+        } else {
+          var data = snap.data();
+          if (data.notes) { notes = data.notes; localStorage.setItem('transcriber-notes', JSON.stringify(notes)); }
+          if (data.folders) { folders = data.folders; localStorage.setItem('transcriber-folders', JSON.stringify(folders)); }
+          renderHome();
+          showToast('Hola ' + (user.displayName ? user.displayName.split(' ')[0] : '') + ' ✓');
+        }
+      } else {
+        await loadFromFirebase();
       }
     });
   } catch(e) {
