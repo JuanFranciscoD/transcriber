@@ -378,6 +378,15 @@ html, body {
   color: var(--text-disabled);
   max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+/* ── RECORDER ── */
+.rec-bar {
+  width: 2px; height: 4px;
+  background: var(--border-visible);
+  border-radius: 0;
+  transition: height 80ms ease-out, background 80ms;
+}
+.rec-bar.active { background: var(--accent); }
+
 /* ── THINKING INDICATOR ── */
 .thinking-wrap {
   display: flex; align-items: center; gap: 10px;
@@ -1027,7 +1036,7 @@ html, body {
 <div class="sheet" id="upload-sheet">
   <div class="sheet-handle"></div>
   <p class="sheet-label">Agregar audio</p>
-  <button class="sheet-option" onclick="closeAllSheets(); document.getElementById('file-input-record').click()">
+  <button class="sheet-option" onclick="closeAllSheets(); startRecorderScreen()">
     <div class="opt-icon"><svg width="16" height="16"><use href="#ic-mic"/></svg></div>
     <span class="sheet-option-label">Grabar audio</span>
   </button>
@@ -1035,6 +1044,46 @@ html, body {
     <div class="opt-icon"><svg width="16" height="16"><use href="#ic-file-text"/></svg></div>
     <span class="sheet-option-label">Elegir archivo</span>
   </button>
+</div>
+
+<!-- RECORDER SCREEN -->
+<div id="screen-recorder" class="screen">
+  <div class="topbar">
+    <button class="back-btn" onclick="cancelRecorder()">
+      <svg width="16" height="16"><use href="#ic-chevron-left"/></svg>
+    </button>
+    <span class="topbar-title">Grabar audio</span>
+  </div>
+  <div class="processing-wrap">
+    <!-- Timer -->
+    <div style="font-family:'Doto',monospace; font-size:64px; color:var(--text-display); letter-spacing:0.04em; margin-bottom:16px;" id="rec-timer">00:00</div>
+
+    <!-- Live waveform bars -->
+    <div id="rec-waveform" style="display:flex; align-items:center; justify-content:center; gap:3px; height:48px; margin-bottom:40px;">
+      <div class="rec-bar"></div><div class="rec-bar"></div><div class="rec-bar"></div>
+      <div class="rec-bar"></div><div class="rec-bar"></div><div class="rec-bar"></div>
+      <div class="rec-bar"></div><div class="rec-bar"></div><div class="rec-bar"></div>
+      <div class="rec-bar"></div><div class="rec-bar"></div><div class="rec-bar"></div>
+      <div class="rec-bar"></div><div class="rec-bar"></div><div class="rec-bar"></div>
+    </div>
+
+    <!-- Record / Stop button -->
+    <button id="rec-btn" onclick="toggleRecording()" style="
+      width:72px; height:72px; border-radius:50%;
+      border:2px solid var(--border-visible);
+      background:var(--surface);
+      display:flex; align-items:center; justify-content:center;
+      cursor:pointer; transition:border-color 150ms, background 150ms;
+      margin-bottom:20px;
+    ">
+      <div id="rec-btn-inner" style="
+        width:28px; height:28px; border-radius:50%;
+        background:var(--accent);
+        transition:border-radius 200ms cubic-bezier(0.25,0.1,0.25,1), width 200ms, height 200ms;
+      "></div>
+    </button>
+    <p id="rec-status" style="font-family:'Space Mono',monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-disabled);">Toca para grabar</p>
+  </div>
 </div>
 
 <!-- SHARE SHEET -->
@@ -1793,6 +1842,134 @@ function showStatus(msg) {
   statusTimer = setTimeout(function(){ bar.classList.remove('show'); }, 2000);
 }
 
+
+/* ── RECORDER ── */
+var _mediaRecorder = null;
+var _recChunks = [];
+var _recStream = null;
+var _recTimerInterval = null;
+var _recSeconds = 0;
+var _recAnalyser = null;
+var _recAnimFrame = null;
+var _recAudioCtx = null;
+
+function startRecorderScreen() {
+  showScreen('recorder');
+  // reset UI
+  document.getElementById('rec-timer').textContent = '00:00';
+  document.getElementById('rec-status').textContent = 'Toca para grabar';
+  document.getElementById('rec-status').style.color = 'var(--text-disabled)';
+  var inner = document.getElementById('rec-btn-inner');
+  inner.style.borderRadius = '50%';
+  inner.style.width = '28px'; inner.style.height = '28px';
+  resetRecWaveform();
+}
+
+function resetRecWaveform() {
+  document.querySelectorAll('.rec-bar').forEach(function(b) {
+    b.style.height = '4px'; b.classList.remove('active');
+  });
+}
+
+function toggleRecording() {
+  if (_mediaRecorder && _mediaRecorder.state === 'recording') {
+    stopRecording();
+  } else {
+    startRecording();
+  }
+}
+
+async function startRecording() {
+  try {
+    _recStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch(e) {
+    showStatus('[ERROR: MICRÓFONO NO DISPONIBLE]'); return;
+  }
+
+  // AnalyserNode for live waveform
+  _recAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  _recAnalyser = _recAudioCtx.createAnalyser();
+  _recAnalyser.fftSize = 64;
+  var src = _recAudioCtx.createMediaStreamSource(_recStream);
+  src.connect(_recAnalyser);
+
+  // Pick best supported format
+  var mimeType = ['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/mp4']
+    .find(function(m){ return MediaRecorder.isTypeSupported(m); }) || '';
+
+  _recChunks = [];
+  _mediaRecorder = new MediaRecorder(_recStream, mimeType ? { mimeType: mimeType } : {});
+  _mediaRecorder.ondataavailable = function(e) { if (e.data.size > 0) _recChunks.push(e.data); };
+  _mediaRecorder.onstop = finishRecording;
+  _mediaRecorder.start(100);
+
+  // Timer
+  _recSeconds = 0;
+  _recTimerInterval = setInterval(function() {
+    _recSeconds++;
+    var m = Math.floor(_recSeconds / 60);
+    var s = _recSeconds % 60;
+    document.getElementById('rec-timer').textContent =
+      String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+  }, 1000);
+
+  // Animate waveform
+  var bars = document.querySelectorAll('.rec-bar');
+  var dataArr = new Uint8Array(_recAnalyser.frequencyBinCount);
+  function drawWave() {
+    _recAnimFrame = requestAnimationFrame(drawWave);
+    _recAnalyser.getByteFrequencyData(dataArr);
+    bars.forEach(function(bar, i) {
+      var val = dataArr[i] || 0;
+      var h = Math.max(4, Math.round((val / 255) * 44));
+      bar.style.height = h + 'px';
+      bar.classList.toggle('active', val > 10);
+    });
+  }
+  drawWave();
+
+  // UI → recording state
+  var inner = document.getElementById('rec-btn-inner');
+  inner.style.borderRadius = '4px';
+  inner.style.width = '22px'; inner.style.height = '22px';
+  document.getElementById('rec-status').textContent = 'Grabando...';
+  document.getElementById('rec-status').style.color = 'var(--accent)';
+}
+
+function stopRecording() {
+  if (_mediaRecorder) _mediaRecorder.stop();
+  _recStream.getTracks().forEach(function(t){ t.stop(); });
+  clearInterval(_recTimerInterval);
+  cancelAnimationFrame(_recAnimFrame);
+  if (_recAudioCtx) _recAudioCtx.close();
+  resetRecWaveform();
+  var inner = document.getElementById('rec-btn-inner');
+  inner.style.borderRadius = '50%';
+  inner.style.width = '28px'; inner.style.height = '28px';
+  document.getElementById('rec-status').textContent = 'Procesando...';
+  document.getElementById('rec-status').style.color = 'var(--text-disabled)';
+}
+
+function finishRecording() {
+  var mimeType = _recChunks[0] ? _recChunks[0].type || 'audio/webm' : 'audio/webm';
+  var blob = new Blob(_recChunks, { type: mimeType });
+  var ext = mimeType.includes('mp4') ? 'm4a' : mimeType.includes('ogg') ? 'ogg' : 'webm';
+  var file = new File([blob], 'grabacion-' + Date.now() + '.' + ext, { type: mimeType });
+  showScreen('process');
+  processAudio(file, GROQ_KEY);
+}
+
+function cancelRecorder() {
+  if (_mediaRecorder && _mediaRecorder.state === 'recording') {
+    _mediaRecorder.onstop = null; // don't process
+    _mediaRecorder.stop();
+    _recStream.getTracks().forEach(function(t){ t.stop(); });
+    clearInterval(_recTimerInterval);
+    cancelAnimationFrame(_recAnimFrame);
+    if (_recAudioCtx) _recAudioCtx.close();
+  }
+  showScreen('home', true);
+}
 
 /* ── FIREBASE INIT ── */
 (async function() {
