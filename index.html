@@ -120,6 +120,10 @@ html, body { height: 100%; background: #fff; font-family: -apple-system, BlinkMa
 
 .toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: #000; color: #fff; border-radius: 20px; padding: 10px 20px; font-size: 13px; font-weight: 500; opacity: 0; transition: opacity 0.25s; pointer-events: none; white-space: nowrap; z-index: 300; }
 .toast.show { opacity: 1; }
+
+.auth-btn { display: flex; align-items: center; gap: 6px; background: #f5f5f5; border: 1px solid #e5e5e5; border-radius: 10px; padding: 7px 12px; font-size: 13px; font-weight: 500; color: #000; cursor: pointer; white-space: nowrap; }
+.auth-btn:active { opacity: 0.7; }
+.auth-btn img { width: 16px; height: 16px; }
 .error-detail { font-size: 13px; color: #666; margin-top: 10px; text-align: center; line-height: 1.6; max-width: 280px; }
 .emoji-picker { position: fixed; background: #fff; border-radius: 16px; border: 1px solid #e5e5e5; padding: 12px; z-index: 250; box-shadow: 0 8px 32px rgba(0,0,0,0.12); width: 264px; }
 .emoji-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
@@ -133,7 +137,12 @@ html, body { height: 100%; background: #fff; font-family: -apple-system, BlinkMa
 <div id="screen-home" class="screen active">
   <div class="topbar">
     <h1>Transcriber</h1>
+    <button class="icon-btn" onclick="loadFromFirebase()" title="Sincronizar">🔄</button>
     <button class="icon-btn" onclick="openNewFolder()" title="Nueva carpeta">📁+</button>
+    <button class="auth-btn" id="auth-btn" onclick="handleAuthClick()">
+      <img id="auth-avatar" src="" style="display:none; border-radius:50%"/>
+      <span id="auth-label">Entrar</span>
+    </button>
   </div>
   <div class="content">
     <div id="api-warning" class="api-setup" style="display:none">
@@ -272,10 +281,80 @@ var currentFolderId = null;
 var currentTab = 'resumen';
 var detailFromFolder = false;
 var modalCallback = null;
+var db = null;
+var currentUser = null;
+var DEVICE_ID = localStorage.getItem('transcriber-device-id') || (function(){ var id = 'dev_' + Date.now() + '_' + Math.random().toString(36).slice(2); localStorage.setItem('transcriber-device-id', id); return id; })();
 
-function save() {
+function getUserId() {
+  return currentUser ? currentUser.uid : DEVICE_ID;
+}
+
+function updateAuthUI(user) {
+  var btn = document.getElementById('auth-btn');
+  var label = document.getElementById('auth-label');
+  var avatar = document.getElementById('auth-avatar');
+  if (user) {
+    label.textContent = user.displayName ? user.displayName.split(' ')[0] : 'Cuenta';
+    if (user.photoURL) {
+      avatar.src = user.photoURL;
+      avatar.style.display = 'inline-block';
+    }
+    btn.title = 'Cerrar sesión';
+  } else {
+    label.textContent = 'Entrar';
+    avatar.style.display = 'none';
+    btn.title = 'Iniciar sesión con Google';
+  }
+}
+
+async function handleAuthClick() {
+  if (currentUser) {
+    // Cerrar sesión
+    if (!confirm('¿Cerrar sesión?')) return;
+    try {
+      var { getAuth, signOut } = await import('https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js');
+      await signOut(getAuth());
+    } catch(e) { console.warn(e); }
+  } else {
+    // Iniciar sesión
+    try {
+      var { getAuth, GoogleAuthProvider, signInWithPopup } = await import('https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js');
+      var provider = new GoogleAuthProvider();
+      await signInWithPopup(getAuth(), provider);
+    } catch(e) {
+      console.warn('Login error:', e);
+      showToast('Error al iniciar sesión');
+    }
+  }
+}
+
+function saveLocal() {
   localStorage.setItem('transcriber-notes', JSON.stringify(notes));
   localStorage.setItem('transcriber-folders', JSON.stringify(folders));
+}
+
+async function save() {
+  saveLocal();
+  if (!db) return;
+  try {
+    var { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js');
+    await setDoc(doc(db, 'users', getUserId()), { notes: notes, folders: folders, updatedAt: Date.now() });
+  } catch(e) { console.warn('Firebase save error:', e); }
+}
+
+async function loadFromFirebase() {
+  if (!db) return;
+  try {
+    var { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js');
+    var snap = await getDoc(doc(db, 'users', getUserId()));
+    if (snap.exists()) {
+      var data = snap.data();
+      if (data.notes) { notes = data.notes; localStorage.setItem('transcriber-notes', JSON.stringify(notes)); }
+      if (data.folders) { folders = data.folders; localStorage.setItem('transcriber-folders', JSON.stringify(folders)); }
+      renderHome();
+      showToast('Sincronizado ✓');
+    }
+  } catch(e) { console.warn('Firebase load error:', e); }
 }
 
 function showScreen(name) {
@@ -725,6 +804,37 @@ function closeEmojiPickerOutside(e) {
   if (!picker.contains(e.target)) closeEmojiPicker();
   else document.addEventListener('click', closeEmojiPickerOutside, { once: true });
 }
+
+/* ---- FIREBASE INIT ---- */
+(async function() {
+  try {
+    var { initializeApp } = await import('https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js');
+    var { getFirestore } = await import('https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js');
+    var { getAuth, onAuthStateChanged } = await import('https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js');
+    var firebaseConfig = {
+      apiKey: "AIzaSyBYrl6lTUBVFldIPGvuRSpM_XfbZ1U0kqw",
+      authDomain: "transcriber-f783f.firebaseapp.com",
+      projectId: "transcriber-f783f",
+      storageBucket: "transcriber-f783f.firebasestorage.app",
+      messagingSenderId: "612920048746",
+      appId: "1:612920048746:web:827365972114490af35e13"
+    };
+    var app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+    var auth = getAuth(app);
+
+    onAuthStateChanged(auth, async function(user) {
+      currentUser = user;
+      updateAuthUI(user);
+      await loadFromFirebase();
+      if (user) {
+        showToast('Hola ' + (user.displayName ? user.displayName.split(' ')[0] : '') + ' ✓');
+      }
+    });
+  } catch(e) {
+    console.warn('Firebase init error:', e);
+  }
+})();
 
 checkKeys();
 renderHome();
