@@ -972,32 +972,87 @@ function noteItemHtml(n) {
 }
 
 /* ── SWIPE TO DELETE ── */
+var _openSwipeItem = null; // tracks the currently open swipe item
+
+function closeOpenSwipe() {
+  if (_openSwipeItem) {
+    _openSwipeItem.style.transition = 'transform 0.2s ease-out';
+    _openSwipeItem.style.transform = 'translateX(0)';
+    _openSwipeItem = null;
+  }
+}
+
 function attachSwipeHandlers() {
   document.querySelectorAll('.note-item-wrap').forEach(function(wrap) {
     var item = wrap.querySelector('.note-item');
-    var startX = 0, startY = 0, isDragging = false, currentX = 0;
-    item.addEventListener('touchstart', function(e) { startX = e.touches[0].clientX; startY = e.touches[0].clientY; isDragging = false; }, { passive: true });
+    var startX = 0, startY = 0;
+    var gesture = null; // null | 'h' | 'v' — locked once determined
+    var currentX = 0;
+
+    item.addEventListener('touchstart', function(e) {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      gesture = null;
+      currentX = 0;
+      item.style.transition = 'none';
+    }, { passive: true });
+
     item.addEventListener('touchmove', function(e) {
       var dx = e.touches[0].clientX - startX;
       var dy = e.touches[0].clientY - startY;
-      if (!isDragging && Math.abs(dy) > Math.abs(dx)) return;
-      isDragging = true; currentX = Math.min(0, dx);
-      item.style.transform = 'translateX(' + currentX + 'px)'; item.style.transition = 'none';
-    }, { passive: true });
+
+      // Lock gesture direction after 5px of movement
+      if (gesture === null && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
+        gesture = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v';
+        // If horizontal, close any other open item
+        if (gesture === 'h' && _openSwipeItem && _openSwipeItem !== item) {
+          closeOpenSwipe();
+        }
+      }
+
+      if (gesture !== 'h') return;
+      e.preventDefault(); // safe — we're not passive here
+
+      currentX = Math.min(0, dx);
+      item.style.transform = 'translateX(' + currentX + 'px)';
+    }, { passive: false });
+
     item.addEventListener('touchend', function() {
-      if (!isDragging) return;
+      if (gesture !== 'h') return;
       item.style.transition = 'transform 0.2s ease-out';
-      if (currentX < -60) {
+
+      if (currentX < -50) {
         item.style.transform = 'translateX(-80px)';
+        _openSwipeItem = item;
         wrap.querySelector('.delete-reveal').onclick = function() {
-          var id = wrap.dataset.id;
-          notes = notes.filter(function(n){ return n.id !== id; });
-          save(); renderHome(); if (currentFolderId) renderFolderNotes(); showStatus('[NOTA ELIMINADA]');
+          // Animate out then delete
+          item.style.transition = 'transform 0.2s ease-out, opacity 0.2s ease-out';
+          item.style.transform = 'translateX(-100%)';
+          item.style.opacity = '0';
+          setTimeout(function() {
+            var id = wrap.dataset.id;
+            notes = notes.filter(function(n){ return n.id !== id; });
+            save();
+            renderHome();
+            if (currentFolderId) renderFolderNotes();
+            showStatus('[NOTA ELIMINADA]');
+          }, 200);
+          _openSwipeItem = null;
         };
-      } else { item.style.transform = 'translateX(0)'; }
+      } else {
+        item.style.transform = 'translateX(0)';
+        _openSwipeItem = null;
+      }
       currentX = 0;
     });
   });
+
+  // Tap anywhere else closes open swipe
+  document.addEventListener('touchstart', function(e) {
+    if (_openSwipeItem && !e.target.closest('.note-item-wrap')) {
+      closeOpenSwipe();
+    }
+  }, { passive: true });
 }
 
 /* ── CARPETAS ── */
