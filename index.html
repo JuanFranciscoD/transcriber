@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<title>Transcriber</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: #F5F0E8; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+.screen { display: none; min-height: 100vh; flex-direction: column; }
+.screen.active { display: flex; }
+.topbar { background: #F5F0E8; padding: 16px 20px 8px; display: flex; align-items: center; gap: 12px; }
+.topbar h1 { font-size: 22px; font-weight: 600; color: #0F6E56; }
+.topbar .back { color: #0F6E56; font-size: 26px; cursor: pointer; background: none; border: none; line-height: 1; }
+.content { flex: 1; padding: 16px 20px; overflow-y: auto; }
+.note-item { background: #EDE8DC; border-radius: 14px; padding: 16px; margin-bottom: 12px; cursor: pointer; display: flex; gap: 12px; align-items: flex-start; }
+.note-icon { font-size: 28px; flex-shrink: 0; }
+.note-meta { flex: 1; }
+.note-meta h3 { font-size: 16px; font-weight: 600; color: #0F6E56; }
+.note-meta p { font-size: 13px; color: #888780; margin-top: 2px; }
+.note-dur { float: right; font-size: 13px; color: #888780; }
+.empty-state { text-align: center; padding: 60px 20px; color: #888780; }
+.empty-state .big-icon { font-size: 64px; margin-bottom: 16px; }
+.upload-area { background: #EDE8DC; border-radius: 14px; padding: 32px 20px; text-align: center; cursor: pointer; margin-bottom: 16px; border: 2px dashed #9FE1CB; }
+.upload-area h3 { color: #0F6E56; font-size: 17px; font-weight: 600; margin-bottom: 8px; }
+.upload-area p { color: #5F5E5A; font-size: 14px; }
+#file-input { display: none; }
+.btn-primary { background: #1D9E75; color: white; border: none; border-radius: 12px; padding: 14px 24px; font-size: 16px; font-weight: 600; cursor: pointer; width: 100%; margin-top: 8px; }
+.btn-primary:disabled { background: #9FE1CB; cursor: not-allowed; }
+.processing-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; padding: 40px 20px; text-align: center; }
+.spinner { width: 48px; height: 48px; border: 3px solid #9FE1CB; border-top-color: #1D9E75; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 24px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.processing-wrap h2 { font-size: 20px; font-weight: 600; color: #0F6E56; margin-bottom: 8px; }
+.progress-bar-wrap { width: 100%; background: #EDE8DC; border-radius: 99px; height: 6px; margin-top: 24px; overflow: hidden; }
+.progress-bar { height: 100%; background: #1D9E75; border-radius: 99px; transition: width 0.4s; }
+.tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+.tab { flex: 1; padding: 10px; border-radius: 10px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; }
+.tab.active { background: #1D9E75; color: white; }
+.tab.inactive { background: #EDE8DC; color: #5F5E5A; }
+.section-title { font-size: 17px; font-weight: 700; color: #0F6E56; margin: 16px 0 6px; }
+.section-title:first-child { margin-top: 0; }
+.bullet { font-size: 14px; color: #2C2C2A; line-height: 1.6; padding: 3px 0 3px 16px; position: relative; }
+.bullet::before { content: "·"; position: absolute; left: 4px; color: #0F6E56; font-size: 18px; line-height: 1.2; }
+.transcript-text { font-size: 14px; color: #2C2C2A; line-height: 1.8; }
+.bottombar { background: #F5F0E8; border-top: 0.5px solid #D3D1C7; padding: 12px 20px 32px; display: flex; }
+.bottom-btn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; background: none; border: none; cursor: pointer; padding: 8px 0; font-size: 11px; color: #5F5E5A; }
+.bottom-btn svg { color: #0F6E56; }
+.share-sheet { position: fixed; bottom: 0; left: 0; right: 0; background: #F5F0E8; border-radius: 20px 20px 0 0; padding: 20px 20px 48px; transform: translateY(100%); transition: transform 0.3s; z-index: 100; }
+.share-sheet.open { transform: translateY(0); }
+.share-sheet h3 { font-size: 17px; font-weight: 600; color: #0F6E56; margin-bottom: 16px; }
+.share-option { display: flex; align-items: center; gap: 14px; padding: 14px 0; border-bottom: 0.5px solid #D3D1C7; cursor: pointer; background: none; border-left: none; border-right: none; border-top: none; width: 100%; text-align: left; }
+.share-option:last-child { border-bottom: none; }
+.share-option span { font-size: 16px; color: #0F6E56; font-weight: 500; }
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 99; display: none; }
+.overlay.open { display: block; }
+.api-setup { background: #EDE8DC; border-radius: 14px; padding: 20px; margin-bottom: 16px; }
+.api-setup p { font-size: 14px; color: #5F5E5A; margin-bottom: 12px; line-height: 1.6; }
+.input-wrap { margin-bottom: 10px; }
+.input-wrap label { font-size: 13px; color: #5F5E5A; margin-bottom: 4px; display: block; }
+.input-wrap input { width: 100%; background: #F5F0E8; border: 1px solid #D3D1C7; border-radius: 8px; padding: 10px 12px; font-size: 14px; color: #2C2C2A; outline: none; }
+.input-wrap input:focus { border-color: #1D9E75; }
+.toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: #2C2C2A; color: white; border-radius: 10px; padding: 10px 20px; font-size: 14px; opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; z-index: 200; }
+.toast.show { opacity: 1; }
+.error-detail { font-size: 13px; color: #A32D2D; margin-top: 12px; text-align: center; line-height: 1.6; max-width: 280px; }
+</style>
+</head>
+<body>
+
+<!-- HOME -->
+<div id="screen-home" class="screen active">
+  <div class="topbar"><h1>Transcriber</h1></div>
+  <div class="content">
+    <div id="api-warning" class="api-setup" style="display:none">
+      <p>Ingresá tus API keys para empezar. Se guardan solo en tu dispositivo.</p>
+      <div class="input-wrap">
+        <label>Groq API Key (transcripción gratuita)</label>
+        <input type="password" id="groq-key" placeholder="gsk_..." autocomplete="off" />
+      </div>
+      <div class="input-wrap">
+        <label>Anthropic API Key (resumen)</label>
+        <input type="password" id="anthropic-key" placeholder="sk-ant-..." autocomplete="off" />
+      </div>
+      <button class="btn-primary" onclick="saveKeys()">Guardar claves</button>
+    </div>
+
+    <div class="upload-area" onclick="document.getElementById('file-input').click()">
+      <div style="font-size:48px; margin-bottom:12px">🎙️</div>
+      <h3>Subir audio</h3>
+      <p>Tocá acá para seleccionar un audio de WhatsApp (.m4a, .ogg, .mp3)</p>
+    </div>
+    <input type="file" id="file-input" accept="audio/*,.m4a,.ogg,.opus,.mp3,.mp4,.wav,.webm" onchange="handleFile(this)" />
+
+    <div id="notes-list"></div>
+  </div>
+</div>
+
+<!-- PROCESANDO -->
+<div id="screen-process" class="screen">
+  <div class="topbar">
+    <button class="back" onclick="showScreen('home')">‹</button>
+    <h1>Procesando</h1>
+  </div>
+  <div class="processing-wrap">
+    <div class="spinner"></div>
+    <h2 id="process-title">Transcribiendo audio...</h2>
+    <p id="process-sub" style="color:#5F5E5A; font-size:14px"></p>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar" id="progress-bar" style="width:15%"></div>
+    </div>
+  </div>
+</div>
+
+<!-- DETALLE -->
+<div id="screen-detail" class="screen">
+  <div class="topbar">
+    <button class="back" onclick="showScreen('home')">‹</button>
+    <h1 id="detail-title" style="font-size:16px; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap"></h1>
+  </div>
+  <div class="content" style="padding-bottom:0">
+    <div class="tabs">
+      <button class="tab active" id="tab-resumen" onclick="switchTab('resumen')">≡ Resumen</button>
+      <button class="tab inactive" id="tab-transcripcion" onclick="switchTab('transcripcion')">📄 Transcripción</button>
+    </div>
+    <div id="tab-content-resumen"></div>
+    <div id="tab-content-transcripcion" style="display:none"></div>
+  </div>
+  <div class="bottombar">
+    <button class="bottom-btn" onclick="deleteCurrentNote()">
+      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+      Eliminar
+    </button>
+    <button class="bottom-btn" onclick="copyCurrentNote()">
+      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+      Copiar
+    </button>
+    <button class="bottom-btn" onclick="openShareSheet()">
+      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+      Compartir
+    </button>
+  </div>
+</div>
+
+<!-- ERROR -->
+<div id="screen-error" class="screen">
+  <div class="topbar">
+    <button class="back" onclick="showScreen('home')">‹</button>
+    <h1>Error</h1>
+  </div>
+  <div class="processing-wrap">
+    <div style="font-size:48px; margin-bottom:16px">⚠️</div>
+    <h2 style="color:#A32D2D">Algo salió mal</h2>
+    <p class="error-detail" id="error-msg"></p>
+    <button class="btn-primary" style="margin-top:24px; max-width:200px" onclick="showScreen('home')">Volver</button>
+  </div>
+</div>
+
+<!-- SHARE SHEET -->
+<div class="overlay" id="overlay" onclick="closeShareSheet()"></div>
+<div class="share-sheet" id="share-sheet">
+  <h3>Compartir esta nota</h3>
+  <button class="share-option" onclick="shareOption('resumen')">
+    <span style="font-size:22px">📄</span>
+    <span>Compartir resumen</span>
+  </button>
+  <button class="share-option" onclick="shareOption('transcripcion')">
+    <span style="font-size:22px">📝</span>
+    <span>Compartir transcripción</span>
+  </button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var notes = JSON.parse(localStorage.getItem('transcriber-notes') || '[]');
+var currentNoteId = null;
+var currentTab = 'resumen';
+
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
+  document.getElementById('screen-' + name).classList.add('active');
+}
+
+function saveKeys() {
+  var g = document.getElementById('groq-key').value.trim();
+  var a = document.getElementById('anthropic-key').value.trim();
+  if (!g || !a) { showToast('Ingresá ambas claves'); return; }
+  localStorage.setItem('groq-key', g);
+  localStorage.setItem('anthropic-key', a);
+  document.getElementById('api-warning').style.display = 'none';
+  showToast('Claves guardadas ✓');
+}
+
+function checkKeys() {
+  var g = localStorage.getItem('groq-key');
+  var a = localStorage.getItem('anthropic-key');
+  if (!g || !a) {
+    document.getElementById('api-warning').style.display = 'block';
+    if (g) document.getElementById('groq-key').value = g;
+    if (a) document.getElementById('anthropic-key').value = a;
+  }
+}
+
+function renderNotes() {
+  var list = document.getElementById('notes-list');
+  if (notes.length === 0) {
+    list.innerHTML = '<div class="empty-state"><div class="big-icon">🎙️</div><p>Tus notas aparecerán acá</p></div>';
+    return;
+  }
+  list.innerHTML = notes.map(function(n) {
+    return '<div class="note-item" onclick="openNote(\'' + n.id + '\')">' +
+      '<div class="note-icon">' + (n.icon || '🎙️') + '</div>' +
+      '<div class="note-meta">' +
+        '<span class="note-dur">' + (n.duration || '') + '</span>' +
+        '<h3>' + escHtml(n.title) + '</h3>' +
+        '<p>' + escHtml(n.date) + '</p>' +
+      '</div></div>';
+  }).join('');
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function openNote(id) {
+  var note = notes.find(function(n) { return n.id === id; });
+  if (!note) return;
+  currentNoteId = id;
+  document.getElementById('detail-title').textContent = note.title;
+  renderResumen(note.resumen);
+  document.getElementById('tab-content-transcripcion').innerHTML = '<p class="transcript-text">' + escHtml(note.transcripcion || '') + '</p>';
+  switchTab('resumen');
+  showScreen('detail');
+}
+
+function renderResumen(resumen) {
+  var html = '';
+  if (resumen && typeof resumen === 'object' && resumen.secciones) {
+    resumen.secciones.forEach(function(sec) {
+      html += '<div class="section-title">' + escHtml(sec.titulo) + '</div>';
+      (sec.puntos || []).forEach(function(p) {
+        html += '<div class="bullet">' + escHtml(p) + '</div>';
+      });
+    });
+  } else {
+    var text = typeof resumen === 'string' ? resumen : JSON.stringify(resumen, null, 2);
+    html = '<p class="transcript-text">' + escHtml(text) + '</p>';
+  }
+  document.getElementById('tab-content-resumen').innerHTML = html;
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('tab-resumen').className = 'tab ' + (tab === 'resumen' ? 'active' : 'inactive');
+  document.getElementById('tab-transcripcion').className = 'tab ' + (tab === 'transcripcion' ? 'active' : 'inactive');
+  document.getElementById('tab-content-resumen').style.display = tab === 'resumen' ? 'block' : 'none';
+  document.getElementById('tab-content-transcripcion').style.display = tab === 'transcripcion' ? 'block' : 'none';
+}
+
+function handleFile(input) {
+  var file = input.files[0];
+  if (!file) return;
+  var groqKey = localStorage.getItem('groq-key');
+  var anthropicKey = localStorage.getItem('anthropic-key');
+  if (!groqKey || !anthropicKey) {
+    showToast('Configurá las API keys primero');
+    document.getElementById('api-warning').style.display = 'block';
+    input.value = '';
+    return;
+  }
+  processAudio(file, groqKey, anthropicKey);
+  input.value = '';
+}
+
+async function processAudio(file, groqKey, anthropicKey) {
+  showScreen('process');
+  setProgress(15, 'Transcribiendo audio...', file.name);
+
+  try {
+    var formData = new FormData();
+    formData.append('file', file, file.name);
+    formData.append('model', 'whisper-large-v3-turbo');
+    formData.append('language', 'es');
+    formData.append('response_format', 'text');
+    formData.append('temperature', '0');
+
+    var groqResp = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + groqKey },
+      body: formData
+    });
+
+    if (!groqResp.ok) {
+      var errText = await groqResp.text();
+      throw new Error('Error al transcribir. Verificá tu Groq API key.\n\nDetalle: ' + errText.substring(0, 200));
+    }
+
+    var transcripcion = await groqResp.text();
+    setProgress(60, 'Generando resumen...', 'Analizando con Claude...');
+
+    var claudeResp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': anthropicKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 1024,
+        messages: [{
+          role: 'user',
+          content: 'Analizá esta transcripción de audio y generá un resumen ejecutivo estructurado en JSON.\n\nTranscripción:\n' + transcripcion + '\n\nDevolvé SOLO un JSON válido con este formato exacto:\n{\n  "titulo": "título descriptivo corto (máx 5 palabras)",\n  "icono": "un emoji relevante al tema",\n  "secciones": [\n    {\n      "titulo": "Nombre de sección",\n      "puntos": ["punto 1", "punto 2"]\n    }\n  ]\n}'
+        }]
+      })
+    });
+
+    if (!claudeResp.ok) {
+      var claudeErr = await claudeResp.text();
+      throw new Error('Error al generar resumen. Verificá tu Anthropic API key.\n\nDetalle: ' + claudeErr.substring(0, 200));
+    }
+
+    var claudeData = await claudeResp.json();
+    var rawText = claudeData.content[0].text;
+    var resumenObj;
+    try {
+      var jsonMatch = rawText.match(/\{[\s\S]*\}/);
+      resumenObj = JSON.parse(jsonMatch ? jsonMatch[0] : rawText);
+    } catch(e) {
+      resumenObj = { titulo: file.name, icono: '🎙️', secciones: [{ titulo: 'Resumen', puntos: [rawText] }] };
+    }
+
+    setProgress(90, 'Guardando nota...', '');
+
+    var nota = {
+      id: Date.now().toString(),
+      title: resumenObj.titulo || file.name,
+      icon: resumenObj.icono || '🎙️',
+      date: new Date().toLocaleDateString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
+      resumen: resumenObj,
+      transcripcion: transcripcion
+    };
+
+    notes.unshift(nota);
+    localStorage.setItem('transcriber-notes', JSON.stringify(notes));
+    renderNotes();
+
+    currentNoteId = nota.id;
+    document.getElementById('detail-title').textContent = nota.title;
+    renderResumen(nota.resumen);
+    document.getElementById('tab-content-transcripcion').innerHTML = '<p class="transcript-text">' + escHtml(nota.transcripcion) + '</p>';
+    switchTab('resumen');
+    showScreen('detail');
+
+  } catch(e) {
+    document.getElementById('error-msg').textContent = e.message;
+    showScreen('error');
+  }
+}
+
+function setProgress(pct, title, sub) {
+  document.getElementById('process-title').textContent = title;
+  document.getElementById('process-sub').textContent = sub;
+  document.getElementById('progress-bar').style.width = pct + '%';
+}
+
+function deleteCurrentNote() {
+  notes = notes.filter(function(n) { return n.id !== currentNoteId; });
+  localStorage.setItem('transcriber-notes', JSON.stringify(notes));
+  renderNotes();
+  showScreen('home');
+  showToast('Nota eliminada');
+}
+
+function copyCurrentNote() {
+  var note = notes.find(function(n) { return n.id === currentNoteId; });
+  if (!note) return;
+  var text = '';
+  if (currentTab === 'resumen' && note.resumen && note.resumen.secciones) {
+    text = note.resumen.secciones.map(function(s) {
+      return s.titulo + '\n' + (s.puntos || []).map(function(p) { return '• ' + p; }).join('\n');
+    }).join('\n\n');
+  } else {
+    text = note.transcripcion || '';
+  }
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(function() { showToast('Copiado ✓'); }).catch(function() { showToast('No se pudo copiar'); });
+  } else {
+    showToast('No se pudo copiar');
+  }
+}
+
+function openShareSheet() {
+  document.getElementById('share-sheet').classList.add('open');
+  document.getElementById('overlay').classList.add('open');
+}
+
+function closeShareSheet() {
+  document.getElementById('share-sheet').classList.remove('open');
+  document.getElementById('overlay').classList.remove('open');
+}
+
+function shareOption(type) {
+  closeShareSheet();
+  var note = notes.find(function(n) { return n.id === currentNoteId; });
+  if (!note) return;
+  var text = '';
+  if (type === 'resumen' && note.resumen && note.resumen.secciones) {
+    text = note.title + '\n\n' + note.resumen.secciones.map(function(s) {
+      return '*' + s.titulo + '*\n' + (s.puntos || []).map(function(p) { return '• ' + p; }).join('\n');
+    }).join('\n\n');
+  } else {
+    text = note.transcripcion || '';
+  }
+  if (navigator.share) {
+    navigator.share({ text: text }).catch(function() {});
+  } else if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(function() { showToast('Copiado al portapapeles ✓'); });
+  }
+}
+
+function showToast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function() { t.classList.remove('show'); }, 2500);
+}
+
+checkKeys();
+renderNotes();
+</script>
+</body>
+</html>
