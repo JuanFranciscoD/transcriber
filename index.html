@@ -642,8 +642,9 @@ function closeModal() {
 
 function modalConfirm() {
   var val = document.getElementById('modal-input').value;
+  var cb = modalCallback;
   closeModal();
-  if (modalCallback) modalCallback(val);
+  if (cb) cb(val);
 }
 
 document.getElementById('modal-input').addEventListener('keydown', function(e) {
