@@ -10,149 +10,240 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="Transcriber" />
-<meta name="theme-color" content="#000000" />
+<meta name="theme-color" content="#ffffff" />
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; background: #fff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #000; }
+:root {
+  --bg: #ffffff;
+  --bg-subtle: #f8f9fa;
+  --bg-muted: #f1f3f5;
+  --border: #e9ecef;
+  --border-strong: #dee2e6;
+  --text: #0d0d0d;
+  --text-muted: #6c757d;
+  --text-placeholder: #adb5bd;
+  --accent: #0d0d0d;
+  --accent-fg: #ffffff;
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow: 0 4px 12px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.05);
+  --shadow-lg: 0 10px 40px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; background: var(--bg); font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif; color: var(--text); font-size: 15px; line-height: 1.5; }
+
 .screen { display: none; min-height: 100vh; flex-direction: column; }
 .screen.active { display: flex; }
 
-.topbar { padding: 20px 20px 12px; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; gap: 12px; }
-.topbar h1 { font-size: 20px; font-weight: 700; color: #000; letter-spacing: -0.5px; flex: 1; }
-.topbar .back { background: none; border: none; font-size: 26px; color: #000; cursor: pointer; line-height: 1; padding: 0; }
-.topbar .icon-btn { background: none; border: none; font-size: 20px; cursor: pointer; padding: 4px; color: #000; }
+/* ── TOPBAR ── */
+.topbar { padding: 16px 16px 12px; display: flex; align-items: center; gap: 8px; background: var(--bg); border-bottom: 1px solid var(--border); }
+.topbar h1 { font-size: 17px; font-weight: 600; color: var(--text); letter-spacing: -0.3px; flex: 1; }
+.back-btn { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: var(--radius-sm); border: none; background: none; color: var(--text-muted); cursor: pointer; flex-shrink: 0; transition: background 0.15s; }
+.back-btn:active { background: var(--bg-muted); }
+.icon-btn { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: var(--radius-sm); border: none; background: none; color: var(--text-muted); cursor: pointer; transition: background 0.15s, color 0.15s; flex-shrink: 0; }
+.icon-btn:active { background: var(--bg-muted); color: var(--text); }
+.auth-btn { display: flex; align-items: center; gap: 6px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 6px 10px; font-size: 13px; font-weight: 500; color: var(--text); background: var(--bg); cursor: pointer; white-space: nowrap; transition: background 0.15s; }
+.auth-btn:active { background: var(--bg-muted); }
+.auth-btn img { width: 18px; height: 18px; border-radius: 50%; }
 
-.content { flex: 1; padding: 20px; overflow-y: auto; }
+/* ── CONTENT ── */
+.content { flex: 1; padding: 16px; overflow-y: auto; }
 
-.upload-area { border: 1.5px dashed #d0d0d0; border-radius: 16px; padding: 32px 20px; text-align: center; cursor: pointer; margin-bottom: 24px; }
-.upload-area:active { background: #fafafa; border-color: #000; }
-.upload-icon { width: 48px; height: 48px; background: #000; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; font-size: 22px; }
-.upload-area h3 { font-size: 15px; font-weight: 600; color: #000; margin-bottom: 4px; }
-.upload-area p { font-size: 13px; color: #999; }
+/* ── UPLOAD ── */
+.upload-card { border: 1.5px dashed var(--border-strong); border-radius: var(--radius-lg); padding: 28px 20px; text-align: center; cursor: pointer; margin-bottom: 20px; transition: border-color 0.2s, background 0.2s; }
+.upload-card:active { background: var(--bg-subtle); border-color: var(--accent); }
+.upload-icon-wrap { width: 52px; height: 52px; background: var(--accent); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
+.upload-card h3 { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+.upload-card p { font-size: 12px; color: var(--text-placeholder); letter-spacing: 0.2px; }
 #file-input { display: none; }
 
-.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; margin-top: 4px; }
-.section-label { font-size: 11px; font-weight: 600; color: #999; letter-spacing: 0.8px; text-transform: uppercase; }
+/* ── SECTION LABEL ── */
+.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; margin-top: 4px; }
+.section-label { font-size: 11px; font-weight: 600; color: var(--text-placeholder); letter-spacing: 0.7px; text-transform: uppercase; }
 
-.folder-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: #f9f9f9; border-radius: 12px; margin-bottom: 8px; cursor: pointer; border: 1px solid #f0f0f0; }
-.folder-item:active { opacity: 0.7; }
-.folder-icon { font-size: 22px; flex-shrink: 0; }
+/* ── FOLDER CARD ── */
+.folder-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: var(--bg-subtle); border-radius: var(--radius); margin-bottom: 6px; cursor: pointer; border: 1px solid var(--border); transition: background 0.15s; }
+.folder-item:active { background: var(--bg-muted); }
+.folder-icon-wrap { width: 38px; height: 38px; border-radius: var(--radius-sm); background: var(--bg-muted); display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--text-muted); }
 .folder-info { flex: 1; min-width: 0; }
-.folder-info h3 { font-size: 14px; font-weight: 600; color: #000; }
-.folder-info p { font-size: 12px; color: #999; margin-top: 1px; }
-.folder-arrow { color: #ccc; font-size: 18px; }
+.folder-info h3 { font-size: 14px; font-weight: 500; color: var(--text); }
+.folder-info p { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+.folder-chevron { color: var(--text-placeholder); }
 
-.note-item { display: flex; align-items: center; gap: 14px; padding: 14px 0; border-bottom: 1px solid #f0f0f0; cursor: pointer; }
+/* ── NOTE ITEM ── */
+.note-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); cursor: pointer; }
 .note-item:last-child { border-bottom: none; }
 .note-item:active { opacity: 0.6; }
-.note-thumb { width: 42px; height: 42px; border-radius: 10px; background: #f5f5f5; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+.note-thumb { width: 40px; height: 40px; border-radius: var(--radius-sm); background: var(--bg-muted); display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; border: 1px solid var(--border); }
 .note-info { flex: 1; min-width: 0; }
-.note-info h3 { font-size: 14px; font-weight: 600; color: #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.note-info p { font-size: 12px; color: #999; margin-top: 2px; }
-.note-arrow { color: #ccc; font-size: 20px; }
+.note-info h3 { font-size: 14px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.note-info p { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.note-chevron { color: var(--text-placeholder); flex-shrink: 0; }
 
-.empty-state { text-align: center; padding: 48px 20px; }
-.empty-state .big-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.25; }
-.empty-state p { font-size: 14px; color: #bbb; }
+/* ── EMPTY STATE ── */
+.empty-state { text-align: center; padding: 56px 20px; }
+.empty-icon { width: 56px; height: 56px; border-radius: var(--radius); background: var(--bg-muted); display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; color: var(--text-placeholder); }
+.empty-state p { font-size: 14px; color: var(--text-placeholder); }
 
-.processing-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; padding: 40px 20px; text-align: center; }
-.spinner { width: 40px; height: 40px; border: 2px solid #f0f0f0; border-top-color: #000; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 24px; }
+/* ── PROCESSING ── */
+.processing-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; padding: 40px 24px; text-align: center; }
+.spinner { width: 36px; height: 36px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.75s linear infinite; margin-bottom: 20px; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.processing-wrap h2 { font-size: 18px; font-weight: 600; color: #000; margin-bottom: 6px; }
-.processing-wrap p { font-size: 13px; color: #999; }
-.progress-bar-wrap { width: 100%; background: #f0f0f0; border-radius: 99px; height: 3px; margin-top: 28px; overflow: hidden; }
-.progress-bar { height: 100%; background: #000; border-radius: 99px; transition: width 0.4s; }
+.processing-wrap h2 { font-size: 17px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.processing-wrap p { font-size: 13px; color: var(--text-muted); }
+.progress-wrap { width: 100%; max-width: 260px; background: var(--bg-muted); border-radius: 99px; height: 2px; margin-top: 24px; overflow: hidden; }
+.progress-bar { height: 100%; background: var(--accent); border-radius: 99px; transition: width 0.4s ease; }
 
-.detail-title-wrap { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
-.detail-title-wrap h1 { font-size: 16px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
-.edit-title-btn { background: none; border: none; font-size: 15px; cursor: pointer; padding: 2px 4px; color: #999; flex-shrink: 0; }
+/* ── DETAIL ── */
+.detail-title-row { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
+.detail-title-row h1 { font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; letter-spacing: -0.2px; }
+.edit-btn { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: var(--radius-sm); border: none; background: none; color: var(--text-muted); cursor: pointer; flex-shrink: 0; }
+.edit-btn:active { background: var(--bg-muted); }
 
-.tabs { display: flex; background: #f5f5f5; border-radius: 10px; padding: 3px; margin: 16px 20px; }
-.tab { flex: 1; padding: 8px; border-radius: 8px; border: none; font-size: 13px; font-weight: 500; cursor: pointer; background: transparent; color: #888; transition: all 0.2s; }
-.tab.active { background: #fff; color: #000; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+/* ── TABS ── */
+.tabs { display: flex; background: var(--bg-muted); border-radius: var(--radius-sm); padding: 3px; margin: 14px 16px; }
+.tab { flex: 1; padding: 7px; border-radius: 6px; border: none; font-size: 13px; font-weight: 500; cursor: pointer; background: transparent; color: var(--text-muted); transition: all 0.2s; }
+.tab.active { background: var(--bg); color: var(--text); box-shadow: var(--shadow-sm); }
 
-.tab-content { padding: 0 20px 100px; }
-.section-title { font-size: 11px; font-weight: 700; color: #999; letter-spacing: 0.7px; text-transform: uppercase; margin: 20px 0 8px; }
-.section-title:first-child { margin-top: 0; }
-.bullet { font-size: 14px; color: #222; line-height: 1.65; padding: 3px 0 3px 14px; position: relative; }
-.bullet::before { content: "–"; position: absolute; left: 0; color: #ccc; }
-.transcript-text { font-size: 14px; color: #333; line-height: 1.8; }
+/* ── TAB CONTENT ── */
+.tab-content { padding: 0 16px 100px; }
+.section-title { font-size: 11px; font-weight: 600; color: var(--text-placeholder); letter-spacing: 0.7px; text-transform: uppercase; margin: 18px 0 8px; }
+.section-title:first-child { margin-top: 4px; }
+.bullet { font-size: 14px; color: var(--text); line-height: 1.7; padding: 4px 0 4px 16px; position: relative; }
+.bullet::before { content: ""; position: absolute; left: 5px; top: 13px; width: 4px; height: 4px; border-radius: 50%; background: var(--border-strong); }
+.transcript-text { font-size: 14px; color: var(--text-muted); line-height: 1.8; }
 
-.bottombar { background: rgba(255,255,255,0.95); border-top: 1px solid #f0f0f0; padding: 12px 20px 32px; display: flex; gap: 8px; }
-.action-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; background: #f5f5f5; border: none; border-radius: 10px; padding: 11px 6px; font-size: 12px; font-weight: 500; color: #000; cursor: pointer; }
-.action-btn:active { opacity: 0.7; transform: scale(0.97); }
-.action-btn.primary { background: #000; color: #fff; }
+/* ── BOTTOM BAR ── */
+.bottombar { background: var(--bg); border-top: 1px solid var(--border); padding: 10px 16px 32px; display: flex; gap: 6px; }
+.action-btn { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; background: var(--bg-subtle); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 4px; font-size: 11px; font-weight: 500; color: var(--text-muted); cursor: pointer; transition: all 0.15s; }
+.action-btn:active { background: var(--bg-muted); transform: scale(0.97); }
+.action-btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.action-btn.primary:active { opacity: 0.85; }
+.action-btn svg { flex-shrink: 0; }
 
-/* Bottom sheet genérico */
-.sheet { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-radius: 20px 20px 0 0; border-top: 1px solid #f0f0f0; padding: 16px 20px 48px; transform: translateY(100%); transition: transform 0.3s ease; z-index: 100; max-height: 80vh; overflow-y: auto; }
+/* ── SHEET ── */
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.25); z-index: 99; display: none; backdrop-filter: blur(2px); }
+.overlay.open { display: block; }
+.sheet { position: fixed; bottom: 0; left: 0; right: 0; background: var(--bg); border-radius: var(--radius-xl) var(--radius-xl) 0 0; border-top: 1px solid var(--border); padding: 16px 16px 48px; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.32,0.72,0,1); z-index: 100; max-height: 80vh; overflow-y: auto; }
 .sheet.open { transform: translateY(0); }
-.sheet-handle { width: 36px; height: 4px; background: #e0e0e0; border-radius: 2px; margin: 0 auto 16px; }
-.sheet h3 { font-size: 15px; font-weight: 600; color: #000; margin-bottom: 16px; }
-.sheet-option { display: flex; align-items: center; gap: 14px; padding: 14px 0; border-bottom: 1px solid #f5f5f5; cursor: pointer; background: none; border-left: none; border-right: none; border-top: none; width: 100%; text-align: left; }
+.sheet-handle { width: 32px; height: 3px; background: var(--border-strong); border-radius: 2px; margin: 0 auto 18px; }
+.sheet h3 { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 12px; }
+.sheet-option { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); cursor: pointer; background: none; border-left: none; border-right: none; border-top: none; width: 100%; text-align: left; transition: opacity 0.15s; }
 .sheet-option:last-child { border-bottom: none; }
 .sheet-option:active { opacity: 0.6; }
-.sheet-option .opt-icon { width: 38px; height: 38px; border-radius: 10px; background: #f5f5f5; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
-.sheet-option span { font-size: 15px; color: #000; font-weight: 500; }
+.opt-icon { width: 36px; height: 36px; border-radius: var(--radius-sm); background: var(--bg-muted); display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--text-muted); }
+.sheet-option-label { font-size: 14px; color: var(--text); font-weight: 500; }
 
-.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.2); z-index: 99; display: none; }
-.overlay.open { display: block; }
-
-.api-setup { background: #f9f9f9; border-radius: 14px; padding: 20px; margin-bottom: 20px; border: 1px solid #f0f0f0; }
-.api-setup p { font-size: 13px; color: #666; margin-bottom: 14px; line-height: 1.6; }
-.input-wrap { margin-bottom: 10px; }
-.input-wrap label { font-size: 11px; font-weight: 600; color: #999; letter-spacing: 0.4px; margin-bottom: 6px; display: block; text-transform: uppercase; }
-.input-wrap input { width: 100%; background: #fff; border: 1px solid #e5e5e5; border-radius: 10px; padding: 11px 12px; font-size: 14px; color: #000; outline: none; }
-.input-wrap input:focus { border-color: #000; }
-.btn-primary { background: #000; color: #fff; border: none; border-radius: 10px; padding: 13px 24px; font-size: 14px; font-weight: 600; cursor: pointer; width: 100%; margin-top: 4px; }
-.btn-primary:active { opacity: 0.8; }
-
-/* Modal de renombrar / nueva carpeta */
-.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200; display: none; align-items: center; justify-content: center; padding: 20px; }
+/* ── MODAL ── */
+.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 200; display: none; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(4px); }
 .modal-backdrop.open { display: flex; }
-.modal { background: #fff; border-radius: 16px; padding: 24px 20px; width: 100%; max-width: 340px; }
-.modal h3 { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
-.modal input { width: 100%; border: 1px solid #e5e5e5; border-radius: 10px; padding: 12px; font-size: 15px; outline: none; margin-bottom: 14px; }
-.modal input:focus { border-color: #000; }
+.modal { background: var(--bg); border-radius: var(--radius-lg); padding: 22px 20px; width: 100%; max-width: 340px; box-shadow: var(--shadow-lg); }
+.modal h3 { font-size: 15px; font-weight: 600; margin-bottom: 14px; }
+.modal input { width: 100%; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 11px 12px; font-size: 14px; color: var(--text); outline: none; margin-bottom: 14px; background: var(--bg); transition: border-color 0.15s; }
+.modal input:focus { border-color: var(--accent); }
 .modal-btns { display: flex; gap: 8px; }
-.modal-btns button { flex: 1; padding: 12px; border-radius: 10px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; }
-.modal-cancel { background: #f5f5f5; color: #000; }
-.modal-ok { background: #000; color: #fff; }
+.modal-btns button { flex: 1; padding: 11px; border-radius: var(--radius-sm); border: none; font-size: 14px; font-weight: 500; cursor: pointer; transition: opacity 0.15s; }
+.modal-cancel { background: var(--bg-muted); color: var(--text); }
+.modal-ok { background: var(--accent); color: var(--accent-fg); }
+.modal-cancel:active, .modal-ok:active { opacity: 0.8; }
 
-.toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: #000; color: #fff; border-radius: 20px; padding: 10px 20px; font-size: 13px; font-weight: 500; opacity: 0; transition: opacity 0.25s; pointer-events: none; white-space: nowrap; z-index: 300; }
+/* ── TOAST ── */
+.toast { position: fixed; bottom: 96px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); border-radius: 99px; padding: 9px 18px; font-size: 13px; font-weight: 500; opacity: 0; transition: opacity 0.2s; pointer-events: none; white-space: nowrap; z-index: 300; box-shadow: var(--shadow); }
 .toast.show { opacity: 1; }
 
-.auth-btn { display: flex; align-items: center; gap: 6px; background: #f5f5f5; border: 1px solid #e5e5e5; border-radius: 10px; padding: 7px 12px; font-size: 13px; font-weight: 500; color: #000; cursor: pointer; white-space: nowrap; }
-.auth-btn:active { opacity: 0.7; }
-.auth-btn img { width: 16px; height: 16px; }
-.error-detail { font-size: 13px; color: #666; margin-top: 10px; text-align: center; line-height: 1.6; max-width: 280px; }
-.emoji-picker { position: fixed; background: #fff; border-radius: 16px; border: 1px solid #e5e5e5; padding: 12px; z-index: 250; box-shadow: 0 8px 32px rgba(0,0,0,0.12); width: 264px; }
-.emoji-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
-.emoji-btn { background: none; border: none; font-size: 22px; cursor: pointer; padding: 5px 2px; border-radius: 6px; text-align: center; line-height: 1; }
-.emoji-btn:active { background: #f0f0f0; }
+/* ── ERROR ── */
+.error-detail { font-size: 13px; color: var(--text-muted); margin-top: 10px; text-align: center; line-height: 1.6; max-width: 280px; }
+.error-icon { width: 56px; height: 56px; border-radius: var(--radius); background: #fff5f5; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
+
+/* ── EMOJI PICKER ── */
+.emoji-picker { position: fixed; background: var(--bg); border-radius: var(--radius-lg); border: 1px solid var(--border); padding: 10px; z-index: 250; box-shadow: var(--shadow-lg); width: 256px; }
+.emoji-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; }
+.emoji-btn { background: none; border: none; font-size: 20px; cursor: pointer; padding: 5px 3px; border-radius: 6px; text-align: center; line-height: 1; transition: background 0.1s; }
+.emoji-btn:active { background: var(--bg-muted); }
+
+/* ── BTN PRIMARY (standalone) ── */
+.btn-primary { background: var(--accent); color: var(--accent-fg); border: none; border-radius: var(--radius-sm); padding: 12px 24px; font-size: 14px; font-weight: 500; cursor: pointer; transition: opacity 0.15s; }
+.btn-primary:active { opacity: 0.8; }
 </style>
 </head>
 <body>
+
+<!-- SVG ICONS (inline defs, reusable) -->
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="ic-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/>
+  </symbol>
+  <symbol id="ic-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+  </symbol>
+  <symbol id="ic-folder-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/>
+  </symbol>
+  <symbol id="ic-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+  </symbol>
+  <symbol id="ic-chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="9 18 15 12 9 6"/>
+  </symbol>
+  <symbol id="ic-chevron-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="15 18 9 12 15 6"/>
+  </symbol>
+  <symbol id="ic-pencil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+  </symbol>
+  <symbol id="ic-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+  </symbol>
+  <symbol id="ic-move" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><polyline points="9 14 12 17 15 14"/>
+  </symbol>
+  <symbol id="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+  </symbol>
+  <symbol id="ic-share" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+  </symbol>
+  <symbol id="ic-file-text" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+  </symbol>
+  <symbol id="ic-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+  </symbol>
+  <symbol id="ic-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+  </symbol>
+  <symbol id="ic-inbox" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>
+  </symbol>
+</svg>
 
 <!-- HOME -->
 <div id="screen-home" class="screen active">
   <div class="topbar">
     <h1>Transcriber</h1>
-    <button class="icon-btn" onclick="loadFromFirebase()" title="Sincronizar">🔄</button>
-    <button class="icon-btn" onclick="openNewFolder()" title="Nueva carpeta">📁+</button>
+    <button class="icon-btn" onclick="loadFromFirebase()" title="Sincronizar">
+      <svg width="18" height="18"><use href="#ic-refresh"/></svg>
+    </button>
+    <button class="icon-btn" onclick="openNewFolder()" title="Nueva carpeta">
+      <svg width="18" height="18"><use href="#ic-folder-plus"/></svg>
+    </button>
     <button class="auth-btn" id="auth-btn" onclick="handleAuthClick()">
-      <img id="auth-avatar" src="" style="display:none; border-radius:50%"/>
+      <img id="auth-avatar" src="" style="display:none"/>
+      <svg id="auth-icon" width="14" height="14"><use href="#ic-user"/></svg>
       <span id="auth-label">Entrar</span>
     </button>
   </div>
   <div class="content">
-
-    <div class="upload-area" onclick="document.getElementById('file-input').click()">
-      <div class="upload-icon">🎙️</div>
+    <div class="upload-card" onclick="document.getElementById('file-input').click()">
+      <div class="upload-icon-wrap">
+        <svg width="24" height="24" color="white"><use href="#ic-mic"/></svg>
+      </div>
       <h3>Subir audio</h3>
       <p>.m4a · .ogg · .mp3 · .wav</p>
     </div>
     <input type="file" id="file-input" accept="audio/*,.m4a,.ogg,.opus,.mp3,.mp4,.wav,.webm" onchange="handleFile(this)" />
-
     <div id="home-content"></div>
   </div>
 </div>
@@ -160,10 +251,16 @@ html, body { height: 100%; background: #fff; font-family: -apple-system, BlinkMa
 <!-- CARPETA -->
 <div id="screen-folder" class="screen">
   <div class="topbar">
-    <button class="back" onclick="showScreen('home')">‹</button>
+    <button class="back-btn" onclick="showScreen('home')">
+      <svg width="20" height="20"><use href="#ic-chevron-left"/></svg>
+    </button>
     <h1 id="folder-title" style="flex:1"></h1>
-    <button class="icon-btn" onclick="renameCurrentFolder()">✏️</button>
-    <button class="icon-btn" onclick="deleteCurrentFolder()">🗑</button>
+    <button class="icon-btn" onclick="renameCurrentFolder()">
+      <svg width="16" height="16"><use href="#ic-pencil"/></svg>
+    </button>
+    <button class="icon-btn" onclick="deleteCurrentFolder()">
+      <svg width="16" height="16"><use href="#ic-trash"/></svg>
+    </button>
   </div>
   <div class="content">
     <div id="folder-notes-list"></div>
@@ -173,14 +270,16 @@ html, body { height: 100%; background: #fff; font-family: -apple-system, BlinkMa
 <!-- PROCESANDO -->
 <div id="screen-process" class="screen">
   <div class="topbar">
-    <button class="back" onclick="showScreen('home')">‹</button>
+    <button class="back-btn" onclick="showScreen('home')">
+      <svg width="20" height="20"><use href="#ic-chevron-left"/></svg>
+    </button>
     <h1>Procesando</h1>
   </div>
   <div class="processing-wrap">
     <div class="spinner"></div>
     <h2 id="process-title">Transcribiendo...</h2>
     <p id="process-sub"></p>
-    <div class="progress-bar-wrap">
+    <div class="progress-wrap">
       <div class="progress-bar" id="progress-bar" style="width:15%"></div>
     </div>
   </div>
@@ -189,10 +288,14 @@ html, body { height: 100%; background: #fff; font-family: -apple-system, BlinkMa
 <!-- DETALLE -->
 <div id="screen-detail" class="screen">
   <div class="topbar">
-    <button class="back" id="detail-back-btn" onclick="goBackFromDetail()">‹</button>
-    <div class="detail-title-wrap">
+    <button class="back-btn" id="detail-back-btn" onclick="goBackFromDetail()">
+      <svg width="20" height="20"><use href="#ic-chevron-left"/></svg>
+    </button>
+    <div class="detail-title-row">
       <h1 id="detail-title"></h1>
-      <button class="edit-title-btn" onclick="renameCurrentNote()" title="Renombrar">✏️</button>
+      <button class="edit-btn" onclick="renameCurrentNote()">
+        <svg width="15" height="15"><use href="#ic-pencil"/></svg>
+      </button>
     </div>
   </div>
   <div class="tabs">
@@ -204,38 +307,57 @@ html, body { height: 100%; background: #fff; font-family: -apple-system, BlinkMa
     <div id="tab-content-transcripcion" style="display:none"></div>
   </div>
   <div class="bottombar">
-    <button class="action-btn" onclick="deleteCurrentNote()">🗑 Eliminar</button>
-    <button class="action-btn" onclick="openMoveSheet()">📁 Mover</button>
-    <button class="action-btn" onclick="copyCurrentNote()">⎘ Copiar</button>
-    <button class="action-btn primary" onclick="openShareSheet()">↑ Compartir</button>
+    <button class="action-btn" onclick="deleteCurrentNote()">
+      <svg width="16" height="16"><use href="#ic-trash"/></svg>
+      Eliminar
+    </button>
+    <button class="action-btn" onclick="openMoveSheet()">
+      <svg width="16" height="16"><use href="#ic-move"/></svg>
+      Mover
+    </button>
+    <button class="action-btn" onclick="copyCurrentNote()">
+      <svg width="16" height="16"><use href="#ic-copy"/></svg>
+      Copiar
+    </button>
+    <button class="action-btn primary" onclick="openShareSheet()">
+      <svg width="16" height="16"><use href="#ic-share"/></svg>
+      Compartir
+    </button>
   </div>
 </div>
 
 <!-- ERROR -->
 <div id="screen-error" class="screen">
   <div class="topbar">
-    <button class="back" onclick="showScreen('home')">‹</button>
+    <button class="back-btn" onclick="showScreen('home')">
+      <svg width="20" height="20"><use href="#ic-chevron-left"/></svg>
+    </button>
     <h1>Error</h1>
   </div>
   <div class="processing-wrap">
-    <div style="font-size:40px; margin-bottom:16px">⚠️</div>
+    <div class="error-icon">
+      <svg width="28" height="28" color="#e03131"><use href="#ic-alert"/></svg>
+    </div>
     <h2>Algo salió mal</h2>
     <p class="error-detail" id="error-msg"></p>
-    <button class="btn-primary" style="margin-top:28px; max-width:180px" onclick="showScreen('home')">Volver</button>
+    <button class="btn-primary" style="margin-top:24px" onclick="showScreen('home')">Volver</button>
   </div>
 </div>
 
-<!-- SHARE SHEET -->
+<!-- OVERLAY -->
 <div class="overlay" id="overlay" onclick="closeAllSheets()"></div>
 
+<!-- SHARE SHEET -->
 <div class="sheet" id="share-sheet">
   <div class="sheet-handle"></div>
   <h3>Compartir nota</h3>
   <button class="sheet-option" onclick="shareOption('resumen')">
-    <div class="opt-icon">📄</div><span>Compartir resumen</span>
+    <div class="opt-icon"><svg width="18" height="18"><use href="#ic-file-text"/></svg></div>
+    <span class="sheet-option-label">Compartir resumen</span>
   </button>
   <button class="sheet-option" onclick="shareOption('transcripcion')">
-    <div class="opt-icon">📝</div><span>Compartir transcripción</span>
+    <div class="opt-icon"><svg width="18" height="18"><use href="#ic-mic"/></svg></div>
+    <span class="sheet-option-label">Compartir transcripción</span>
   </button>
 </div>
 
@@ -246,14 +368,14 @@ html, body { height: 100%; background: #fff; font-family: -apple-system, BlinkMa
   <div id="move-folder-list"></div>
 </div>
 
-<!-- MODAL (renombrar / nueva carpeta) -->
+<!-- MODAL -->
 <div class="modal-backdrop" id="modal-backdrop">
   <div class="modal">
     <h3 id="modal-title">Renombrar</h3>
     <input type="text" id="modal-input" placeholder="" />
     <div class="modal-btns">
       <button class="modal-cancel" onclick="closeModal()">Cancelar</button>
-      <button class="modal-ok" id="modal-ok-btn" onclick="modalConfirm()">Guardar</button>
+      <button class="modal-ok" onclick="modalConfirm()">Guardar</button>
     </div>
   </div>
 </div>
@@ -277,46 +399,36 @@ var db = null;
 var currentUser = null;
 var DEVICE_ID = localStorage.getItem('transcriber-device-id') || (function(){ var id = 'dev_' + Date.now() + '_' + Math.random().toString(36).slice(2); localStorage.setItem('transcriber-device-id', id); return id; })();
 
-function getUserId() {
-  return currentUser ? currentUser.uid : DEVICE_ID;
-}
+function getUserId() { return currentUser ? currentUser.uid : DEVICE_ID; }
 
 function updateAuthUI(user) {
-  var btn = document.getElementById('auth-btn');
   var label = document.getElementById('auth-label');
   var avatar = document.getElementById('auth-avatar');
+  var icon = document.getElementById('auth-icon');
   if (user) {
     label.textContent = user.displayName ? user.displayName.split(' ')[0] : 'Cuenta';
-    if (user.photoURL) {
-      avatar.src = user.photoURL;
-      avatar.style.display = 'inline-block';
-    }
-    btn.title = 'Cerrar sesión';
+    if (user.photoURL) { avatar.src = user.photoURL; avatar.style.display = 'inline-block'; icon.style.display = 'none'; }
+    document.getElementById('auth-btn').title = 'Cerrar sesión';
   } else {
     label.textContent = 'Entrar';
     avatar.style.display = 'none';
-    btn.title = 'Iniciar sesión con Google';
+    icon.style.display = 'inline';
+    document.getElementById('auth-btn').title = 'Iniciar sesión con Google';
   }
 }
 
 async function handleAuthClick() {
   if (currentUser) {
-    // Cerrar sesión
     if (!confirm('¿Cerrar sesión?')) return;
     try {
       var { getAuth, signOut } = await import('https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js');
       await signOut(getAuth());
     } catch(e) { console.warn(e); }
   } else {
-    // Iniciar sesión
     try {
       var { getAuth, GoogleAuthProvider, signInWithPopup } = await import('https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js');
-      var provider = new GoogleAuthProvider();
-      await signInWithPopup(getAuth(), provider);
-    } catch(e) {
-      console.warn('Login error:', e);
-      showToast('Error al iniciar sesión');
-    }
+      await signInWithPopup(getAuth(), new GoogleAuthProvider());
+    } catch(e) { console.warn('Login error:', e); showToast('Error al iniciar sesión'); }
   }
 }
 
@@ -350,7 +462,7 @@ async function loadFromFirebase() {
 }
 
 function showScreen(name) {
-  document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
+  document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
   document.getElementById('screen-' + name).classList.add('active');
 }
 
@@ -361,39 +473,29 @@ function escHtml(s) {
 var GROQ_KEY = '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';
 function checkKeys() {}
 
-/* ---- RENDER HOME ---- */
+/* ── RENDER HOME ── */
 function renderHome() {
   var c = document.getElementById('home-content');
   var html = '';
-
-  // Carpetas
   if (folders.length > 0) {
     html += '<div class="section-header"><span class="section-label">Carpetas</span></div>';
     folders.forEach(function(f) {
-      var count = notes.filter(function(n) { return n.folderId === f.id; }).length;
+      var count = notes.filter(function(n){ return n.folderId === f.id; }).length;
       html += '<div class="folder-item" onclick="openFolder(\'' + f.id + '\')">' +
-        '<div class="folder-icon">📁</div>' +
+        '<div class="folder-icon-wrap"><svg width="18" height="18"><use href="#ic-folder"/></svg></div>' +
         '<div class="folder-info"><h3>' + escHtml(f.name) + '</h3><p>' + count + ' nota' + (count !== 1 ? 's' : '') + '</p></div>' +
-        '<span class="folder-arrow">›</span>' +
+        '<span class="folder-chevron"><svg width="16" height="16"><use href="#ic-chevron-right"/></svg></span>' +
         '</div>';
     });
   }
-
-  // Notas sin carpeta
-  var unfoldered = notes.filter(function(n) { return !n.folderId; });
+  var unfoldered = notes.filter(function(n){ return !n.folderId; });
   if (unfoldered.length > 0) {
     html += '<div class="section-header" style="margin-top:' + (folders.length > 0 ? '20px' : '0') + '"><span class="section-label">Recientes</span></div>';
-    html += '<div id="unfoldered-list">';
-    unfoldered.forEach(function(n) {
-      html += noteItemHtml(n);
-    });
-    html += '</div>';
+    html += '<div>' + unfoldered.map(noteItemHtml).join('') + '</div>';
   }
-
   if (folders.length === 0 && unfoldered.length === 0) {
-    html = '<div class="empty-state"><div class="big-icon">🎙️</div><p>Tus notas aparecerán acá</p></div>';
+    html = '<div class="empty-state"><div class="empty-icon"><svg width="26" height="26"><use href="#ic-inbox"/></svg></div><p>Tus notas aparecerán acá</p></div>';
   }
-
   c.innerHTML = html;
 }
 
@@ -401,13 +503,13 @@ function noteItemHtml(n) {
   return '<div class="note-item">' +
     '<div class="note-thumb" onclick="event.stopPropagation(); openEmojiPicker(\'' + n.id + '\', this)" style="cursor:pointer">' + (n.icon || '🎙️') + '</div>' +
     '<div class="note-info" onclick="openNote(\'' + n.id + '\')"><h3>' + escHtml(n.title) + '</h3><p>' + escHtml(n.date) + '</p></div>' +
-    '<span class="note-arrow" onclick="openNote(\'' + n.id + '\')">›</span>' +
+    '<span class="note-chevron" onclick="openNote(\'' + n.id + '\')"><svg width="16" height="16"><use href="#ic-chevron-right"/></svg></span>' +
     '</div>';
 }
 
-/* ---- CARPETAS ---- */
+/* ── CARPETAS ── */
 function openFolder(id) {
-  var folder = folders.find(function(f) { return f.id === id; });
+  var folder = folders.find(function(f){ return f.id === id; });
   if (!folder) return;
   currentFolderId = id;
   document.getElementById('folder-title').textContent = folder.name;
@@ -417,9 +519,9 @@ function openFolder(id) {
 
 function renderFolderNotes() {
   var list = document.getElementById('folder-notes-list');
-  var folderNotes = notes.filter(function(n) { return n.folderId === currentFolderId; });
+  var folderNotes = notes.filter(function(n){ return n.folderId === currentFolderId; });
   if (folderNotes.length === 0) {
-    list.innerHTML = '<div class="empty-state"><div class="big-icon">📁</div><p>Esta carpeta está vacía</p></div>';
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon"><svg width="26" height="26"><use href="#ic-folder"/></svg></div><p>Esta carpeta está vacía</p></div>';
     return;
   }
   list.innerHTML = folderNotes.map(noteItemHtml).join('');
@@ -429,38 +531,31 @@ function openNewFolder() {
   openModal('Nueva carpeta', '', 'Nombre de la carpeta', function(name) {
     if (!name.trim()) return;
     folders.push({ id: Date.now().toString(), name: name.trim() });
-    save();
-    renderHome();
-    showToast('Carpeta creada ✓');
+    save(); renderHome(); showToast('Carpeta creada ✓');
   });
 }
 
 function renameCurrentFolder() {
-  var folder = folders.find(function(f) { return f.id === currentFolderId; });
+  var folder = folders.find(function(f){ return f.id === currentFolderId; });
   if (!folder) return;
   openModal('Renombrar carpeta', folder.name, 'Nombre de la carpeta', function(name) {
     if (!name.trim()) return;
-    folder.name = name.trim();
-    save();
+    folder.name = name.trim(); save();
     document.getElementById('folder-title').textContent = folder.name;
-    renderHome();
-    showToast('Carpeta renombrada ✓');
+    renderHome(); showToast('Carpeta renombrada ✓');
   });
 }
 
 function deleteCurrentFolder() {
   if (!confirm('¿Eliminar esta carpeta? Las notas se moverán a Recientes.')) return;
-  notes.forEach(function(n) { if (n.folderId === currentFolderId) delete n.folderId; });
-  folders = folders.filter(function(f) { return f.id !== currentFolderId; });
-  save();
-  renderHome();
-  showScreen('home');
-  showToast('Carpeta eliminada');
+  notes.forEach(function(n){ if (n.folderId === currentFolderId) delete n.folderId; });
+  folders = folders.filter(function(f){ return f.id !== currentFolderId; });
+  save(); renderHome(); showScreen('home'); showToast('Carpeta eliminada');
 }
 
-/* ---- NOTAS ---- */
+/* ── NOTAS ── */
 function openNote(id) {
-  var note = notes.find(function(n) { return n.id === id; });
+  var note = notes.find(function(n){ return n.id === id; });
   if (!note) return;
   currentNoteId = id;
   detailFromFolder = (note.folderId === currentFolderId && !!currentFolderId);
@@ -480,9 +575,7 @@ function renderResumen(resumen) {
   if (resumen && typeof resumen === 'object' && resumen.secciones) {
     resumen.secciones.forEach(function(sec) {
       html += '<div class="section-title">' + escHtml(sec.titulo) + '</div>';
-      (sec.puntos || []).forEach(function(p) {
-        html += '<div class="bullet">' + escHtml(p) + '</div>';
-      });
+      (sec.puntos || []).forEach(function(p) { html += '<div class="bullet">' + escHtml(p) + '</div>'; });
     });
   } else {
     var text = typeof resumen === 'string' ? resumen : JSON.stringify(resumen, null, 2);
@@ -493,76 +586,61 @@ function renderResumen(resumen) {
 
 function switchTab(tab) {
   currentTab = tab;
-  document.getElementById('tab-resumen').className = 'tab ' + (tab === 'resumen' ? 'active' : '');
-  document.getElementById('tab-transcripcion').className = 'tab ' + (tab === 'transcripcion' ? 'active' : '');
+  document.getElementById('tab-resumen').className = 'tab' + (tab === 'resumen' ? ' active' : '');
+  document.getElementById('tab-transcripcion').className = 'tab' + (tab === 'transcripcion' ? ' active' : '');
   document.getElementById('tab-content-resumen').style.display = tab === 'resumen' ? 'block' : 'none';
   document.getElementById('tab-content-transcripcion').style.display = tab === 'transcripcion' ? 'block' : 'none';
 }
 
 function renameCurrentNote() {
-  var note = notes.find(function(n) { return n.id === currentNoteId; });
+  var note = notes.find(function(n){ return n.id === currentNoteId; });
   if (!note) return;
   openModal('Renombrar nota', note.title, 'Título de la nota', function(name) {
     if (!name.trim()) return;
-    note.title = name.trim();
-    save();
+    note.title = name.trim(); save();
     document.getElementById('detail-title').textContent = note.title;
-    renderHome();
-    if (detailFromFolder) renderFolderNotes();
-    showToast('Nota renombrada ✓');
+    renderHome(); if (detailFromFolder) renderFolderNotes(); showToast('Nota renombrada ✓');
   });
 }
 
 function deleteCurrentNote() {
-  notes = notes.filter(function(n) { return n.id !== currentNoteId; });
-  save();
-  renderHome();
-  if (detailFromFolder) renderFolderNotes();
-  goBackFromDetail();
-  showToast('Nota eliminada');
+  notes = notes.filter(function(n){ return n.id !== currentNoteId; });
+  save(); renderHome(); if (detailFromFolder) renderFolderNotes(); goBackFromDetail(); showToast('Nota eliminada');
 }
 
-/* ---- MOVER NOTA ---- */
+/* ── MOVER NOTA ── */
 function openMoveSheet() {
-  var note = notes.find(function(n) { return n.id === currentNoteId; });
+  var note = notes.find(function(n){ return n.id === currentNoteId; });
   if (!note) return;
-  var list = document.getElementById('move-folder-list');
   var html = '';
-
-  // Opción: Sin carpeta
   if (note.folderId) {
     html += '<button class="sheet-option" onclick="moveNoteTo(null)">' +
-      '<div class="opt-icon">📋</div><span>Recientes (sin carpeta)</span></button>';
+      '<div class="opt-icon"><svg width="18" height="18"><use href="#ic-inbox"/></svg></div>' +
+      '<span class="sheet-option-label">Recientes (sin carpeta)</span></button>';
   }
-
   folders.forEach(function(f) {
     if (f.id !== note.folderId) {
       html += '<button class="sheet-option" onclick="moveNoteTo(\'' + f.id + '\')">' +
-        '<div class="opt-icon">📁</div><span>' + escHtml(f.name) + '</span></button>';
+        '<div class="opt-icon"><svg width="18" height="18"><use href="#ic-folder"/></svg></div>' +
+        '<span class="sheet-option-label">' + escHtml(f.name) + '</span></button>';
     }
   });
-
-  if (!html) {
-    html = '<p style="font-size:14px; color:#999; padding:8px 0">No hay otras carpetas. Creá una desde la pantalla principal.</p>';
-  }
-
-  list.innerHTML = html;
+  if (!html) html = '<p style="font-size:13px; color:var(--text-muted); padding:8px 0">No hay otras carpetas.</p>';
+  document.getElementById('move-folder-list').innerHTML = html;
   document.getElementById('move-sheet').classList.add('open');
   document.getElementById('overlay').classList.add('open');
 }
 
 function moveNoteTo(folderId) {
-  var note = notes.find(function(n) { return n.id === currentNoteId; });
+  var note = notes.find(function(n){ return n.id === currentNoteId; });
   if (!note) return;
   if (folderId) { note.folderId = folderId; } else { delete note.folderId; }
-  save();
-  renderHome();
-  closeAllSheets();
-  var folderName = folderId ? (folders.find(function(f){return f.id===folderId;}) || {}).name : 'Recientes';
+  save(); renderHome(); closeAllSheets();
+  var folderName = folderId ? (folders.find(function(f){return f.id===folderId;})||{}).name : 'Recientes';
   showToast('Movido a ' + folderName + ' ✓');
 }
 
-/* ---- PROCESAR AUDIO ---- */
+/* ── PROCESAR AUDIO ── */
 function handleFile(input) {
   var file = input.files[0];
   if (!file) return;
@@ -573,7 +651,6 @@ function handleFile(input) {
 async function processAudio(file, groqKey) {
   showScreen('process');
   setProgress(15, 'Transcribiendo...', file.name);
-
   try {
     var formData = new FormData();
     formData.append('file', file, file.name);
@@ -581,73 +658,41 @@ async function processAudio(file, groqKey) {
     formData.append('language', 'es');
     formData.append('response_format', 'text');
     formData.append('temperature', '0');
-
     var groqResp = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + groqKey },
-      body: formData
+      method: 'POST', headers: { 'Authorization': 'Bearer ' + groqKey }, body: formData
     });
-
-    if (!groqResp.ok) {
-      var errText = await groqResp.text();
-      throw new Error('Error al transcribir. Verificá tu Groq API key.\n\n' + errText.substring(0, 200));
-    }
-
+    if (!groqResp.ok) { var errText = await groqResp.text(); throw new Error('Error al transcribir.\n\n' + errText.substring(0, 200)); }
     var transcripcion = await groqResp.text();
     setProgress(60, 'Generando resumen...', '');
-
     var llamaResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + groqKey },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        max_tokens: 1024,
+        model: 'llama-3.3-70b-versatile', max_tokens: 1024,
         messages: [{ role: 'user', content: 'Analizá esta transcripción de audio y generá un resumen ejecutivo estructurado en JSON.\n\nTranscripción:\n' + transcripcion + '\n\nDevolvé SOLO un JSON válido con este formato exacto:\n{\n  "titulo": "título descriptivo corto (máx 5 palabras)",\n  "icono": "un emoji relevante al tema",\n  "secciones": [\n    {\n      "titulo": "Nombre de sección",\n      "puntos": ["punto 1", "punto 2"]\n    }\n  ]\n}' }]
       })
     });
-
-    if (!llamaResp.ok) {
-      var llamaErr = await llamaResp.text();
-      throw new Error('Error al generar resumen.\n\n' + llamaErr.substring(0, 200));
-    }
-
+    if (!llamaResp.ok) { var llamaErr = await llamaResp.text(); throw new Error('Error al generar resumen.\n\n' + llamaErr.substring(0, 200)); }
     var llamaData = await llamaResp.json();
     var rawText = llamaData.choices[0].message.content;
     var resumenObj;
-    try {
-      var jsonMatch = rawText.match(/\{[\s\S]*\}/);
-      resumenObj = JSON.parse(jsonMatch ? jsonMatch[0] : rawText);
-    } catch(e) {
-      resumenObj = { titulo: file.name, icono: '🎙️', secciones: [{ titulo: 'Resumen', puntos: [rawText] }] };
-    }
-
+    try { var jsonMatch = rawText.match(/\{[\s\S]*\}/); resumenObj = JSON.parse(jsonMatch ? jsonMatch[0] : rawText); }
+    catch(e) { resumenObj = { titulo: file.name, icono: '🎙️', secciones: [{ titulo: 'Resumen', puntos: [rawText] }] }; }
     setProgress(95, 'Guardando...', '');
-
     var nota = {
       id: Date.now().toString(),
       title: resumenObj.titulo || file.name,
       icon: resumenObj.icono || '🎙️',
       date: new Date().toLocaleDateString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
-      resumen: resumenObj,
-      transcripcion: transcripcion
+      resumen: resumenObj, transcripcion: transcripcion
     };
-
-    notes.unshift(nota);
-    save();
-    renderHome();
-
-    currentNoteId = nota.id;
-    detailFromFolder = false;
+    notes.unshift(nota); save(); renderHome();
+    currentNoteId = nota.id; detailFromFolder = false;
     document.getElementById('detail-title').textContent = nota.title;
     renderResumen(nota.resumen);
     document.getElementById('tab-content-transcripcion').innerHTML = '<p class="transcript-text">' + escHtml(nota.transcripcion) + '</p>';
-    switchTab('resumen');
-    showScreen('detail');
-
-  } catch(e) {
-    document.getElementById('error-msg').textContent = e.message;
-    showScreen('error');
-  }
+    switchTab('resumen'); showScreen('detail');
+  } catch(e) { document.getElementById('error-msg').textContent = e.message; showScreen('error'); }
 }
 
 function setProgress(pct, title, sub) {
@@ -656,12 +701,12 @@ function setProgress(pct, title, sub) {
   document.getElementById('progress-bar').style.width = pct + '%';
 }
 
-/* ---- SHARE / COPY ---- */
+/* ── SHARE / COPY ── */
 function copyCurrentNote() {
-  var note = notes.find(function(n) { return n.id === currentNoteId; });
+  var note = notes.find(function(n){ return n.id === currentNoteId; });
   if (!note) return;
   var text = currentTab === 'resumen' && note.resumen && note.resumen.secciones
-    ? note.resumen.secciones.map(function(s) { return s.titulo.toUpperCase() + '\n' + (s.puntos||[]).map(function(p){return '– '+p;}).join('\n'); }).join('\n\n')
+    ? note.resumen.secciones.map(function(s){ return s.titulo.toUpperCase()+'\n'+(s.puntos||[]).map(function(p){return '– '+p;}).join('\n'); }).join('\n\n')
     : (note.transcripcion || '');
   if (navigator.clipboard) { navigator.clipboard.writeText(text).then(function(){ showToast('Copiado ✓'); }); }
 }
@@ -673,10 +718,10 @@ function openShareSheet() {
 
 function shareOption(type) {
   closeAllSheets();
-  var note = notes.find(function(n) { return n.id === currentNoteId; });
+  var note = notes.find(function(n){ return n.id === currentNoteId; });
   if (!note) return;
   var text = type === 'resumen' && note.resumen && note.resumen.secciones
-    ? note.title + '\n\n' + note.resumen.secciones.map(function(s){ return s.titulo.toUpperCase()+'\n'+(s.puntos||[]).map(function(p){return '– '+p;}).join('\n'); }).join('\n\n')
+    ? note.title+'\n\n'+note.resumen.secciones.map(function(s){ return s.titulo.toUpperCase()+'\n'+(s.puntos||[]).map(function(p){return '– '+p;}).join('\n'); }).join('\n\n')
     : (note.transcripcion || '');
   if (navigator.share) { navigator.share({ text: text }).catch(function(){}); }
   else if (navigator.clipboard) { navigator.clipboard.writeText(text).then(function(){ showToast('Copiado ✓'); }); }
@@ -687,43 +732,26 @@ function closeAllSheets() {
   document.getElementById('overlay').classList.remove('open');
 }
 
-/* ---- MODAL ---- */
+/* ── MODAL ── */
 function openModal(title, value, placeholder, callback) {
   document.getElementById('modal-title').textContent = title;
   var input = document.getElementById('modal-input');
-  input.value = value || '';
-  input.placeholder = placeholder || '';
+  input.value = value || ''; input.placeholder = placeholder || '';
   modalCallback = callback;
   document.getElementById('modal-backdrop').classList.add('open');
   setTimeout(function(){ input.focus(); input.select(); }, 100);
 }
+function closeModal() { document.getElementById('modal-backdrop').classList.remove('open'); modalCallback = null; }
+function modalConfirm() { var val = document.getElementById('modal-input').value; var cb = modalCallback; closeModal(); if (cb) cb(val); }
+document.getElementById('modal-input').addEventListener('keydown', function(e){ if (e.key === 'Enter') modalConfirm(); if (e.key === 'Escape') closeModal(); });
 
-function closeModal() {
-  document.getElementById('modal-backdrop').classList.remove('open');
-  modalCallback = null;
-}
-
-function modalConfirm() {
-  var val = document.getElementById('modal-input').value;
-  var cb = modalCallback;
-  closeModal();
-  if (cb) cb(val);
-}
-
-document.getElementById('modal-input').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') modalConfirm();
-  if (e.key === 'Escape') closeModal();
-});
-
-/* ---- TOAST ---- */
+/* ── TOAST ── */
 function showToast(msg) {
-  var t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
+  var t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show');
   setTimeout(function(){ t.classList.remove('show'); }, 2500);
 }
 
-/* ---- EMOJI PICKER ---- */
+/* ── EMOJI PICKER ── */
 var EMOJIS = [
   '🎙️','📋','🏢','💡','📝','✅','⭐','🔥','📌','🏠','👤','💼','🎯','📊','🗂️',
   '🏗️','🔑','💰','📅','⏰','🚗','✈️','🌍','📞','💬','🤝','👥','🏦','🏥','🎓',
@@ -735,51 +763,30 @@ var emojiPickerNoteId = null;
 function openEmojiPicker(noteId, anchorEl) {
   emojiPickerNoteId = noteId;
   var picker = document.getElementById('emoji-picker');
-  var grid = document.getElementById('emoji-grid');
-
-  grid.innerHTML = EMOJIS.map(function(e) {
+  document.getElementById('emoji-grid').innerHTML = EMOJIS.map(function(e){
     return '<button class="emoji-btn" onclick="selectEmoji(\'' + e + '\')">' + e + '</button>';
   }).join('');
-
-  // Posicionar cerca del ícono
   var rect = anchorEl.getBoundingClientRect();
-  var top = rect.bottom + 8;
-  var left = rect.left;
-  if (left + 264 > window.innerWidth) left = window.innerWidth - 274;
+  var top = rect.bottom + 8; var left = rect.left;
+  if (left + 256 > window.innerWidth) left = window.innerWidth - 266;
   if (top + 200 > window.innerHeight) top = rect.top - 208;
-
-  picker.style.top = top + 'px';
-  picker.style.left = left + 'px';
-  picker.style.display = 'block';
-
-  setTimeout(function() {
-    document.addEventListener('click', closeEmojiPickerOutside, { once: true });
-  }, 10);
+  picker.style.top = top + 'px'; picker.style.left = left + 'px'; picker.style.display = 'block';
+  setTimeout(function(){ document.addEventListener('click', closeEmojiPickerOutside, { once: true }); }, 10);
 }
 
 function selectEmoji(emoji) {
-  var note = notes.find(function(n) { return n.id === emojiPickerNoteId; });
-  if (note) {
-    note.icon = emoji;
-    save();
-    renderHome();
-    if (currentFolderId) renderFolderNotes();
-  }
+  var note = notes.find(function(n){ return n.id === emojiPickerNoteId; });
+  if (note) { note.icon = emoji; save(); renderHome(); if (currentFolderId) renderFolderNotes(); }
   closeEmojiPicker();
 }
-
-function closeEmojiPicker() {
-  document.getElementById('emoji-picker').style.display = 'none';
-  emojiPickerNoteId = null;
-}
-
+function closeEmojiPicker() { document.getElementById('emoji-picker').style.display = 'none'; emojiPickerNoteId = null; }
 function closeEmojiPickerOutside(e) {
   var picker = document.getElementById('emoji-picker');
   if (!picker.contains(e.target)) closeEmojiPicker();
   else document.addEventListener('click', closeEmojiPickerOutside, { once: true });
 }
 
-/* ---- FIREBASE INIT ---- */
+/* ── FIREBASE INIT ── */
 (async function() {
   try {
     var { initializeApp } = await import('https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js');
@@ -796,21 +803,18 @@ function closeEmojiPickerOutside(e) {
     var app = initializeApp(firebaseConfig);
     db = getFirestore(app);
     var auth = getAuth(app);
-
     onAuthStateChanged(auth, async function(user) {
       currentUser = user;
       updateAuthUI(user);
       if (user) {
-        // Intentar cargar desde la nube
         var { doc, getDoc, setDoc } = await import('https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js');
         var snap = await getDoc(doc(db, 'users', user.uid));
         if (!snap.exists()) {
-          // Primera vez con esta cuenta: migrar notas locales a la nube
           var localNotes = JSON.parse(localStorage.getItem('transcriber-notes') || '[]');
           var localFolders = JSON.parse(localStorage.getItem('transcriber-folders') || '[]');
           if (localNotes.length > 0 || localFolders.length > 0) {
             await setDoc(doc(db, 'users', user.uid), { notes: localNotes, folders: localFolders, updatedAt: Date.now() });
-            showToast('Notas migradas a tu cuenta ✓');
+            showToast('Notas migradas ✓');
           } else {
             showToast('Hola ' + (user.displayName ? user.displayName.split(' ')[0] : '') + ' ✓');
           }
@@ -825,9 +829,7 @@ function closeEmojiPickerOutside(e) {
         await loadFromFirebase();
       }
     });
-  } catch(e) {
-    console.warn('Firebase init error:', e);
-  }
+  } catch(e) { console.warn('Firebase init error:', e); }
 })();
 
 checkKeys();
