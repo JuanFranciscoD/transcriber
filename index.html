@@ -54,8 +54,48 @@ html, body {
   line-height: 1.5;
 }
 
-.screen { display: none; min-height: 100vh; flex-direction: column; background: var(--black); }
-.screen.active { display: flex; }
+/* ── SCREEN TRANSITIONS ── */
+.screen {
+  display: none; min-height: 100vh; flex-direction: column; background: var(--black);
+  opacity: 0;
+  transform: translateX(16px);
+}
+.screen.active {
+  display: flex;
+  animation: screenIn 220ms cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+}
+.screen.back {
+  animation: screenBack 220ms cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+}
+@keyframes screenIn {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes screenBack {
+  from { opacity: 0; transform: translateX(-16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ── LIST STAGGER ── */
+.note-item-wrap { opacity: 0; transform: translateY(6px); }
+.note-item-wrap.visible {
+  animation: itemIn 200ms cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+}
+@keyframes itemIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.folder-item { opacity: 0; transform: translateY(6px); }
+.folder-item.visible {
+  animation: itemIn 200ms cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+}
+
+/* ── DASH COUNT-UP ── */
+.dash-val-xl, .dash-val-md { transition: opacity 300ms ease-out; }
+
+/* ── SEG BAR ANIMATED ── */
+.seg-bar-block { transition: background 120ms ease-out; }
+.dash-seg-block { transition: background 120ms ease-out; }
 
 /* ── TOPBAR ── */
 .topbar {
@@ -759,7 +799,7 @@ html, body {
 <!-- CARPETA -->
 <div id="screen-folder" class="screen">
   <div class="topbar">
-    <button class="back-btn" onclick="showScreen('home')">
+    <button class="back-btn" onclick="showScreen('home', true)">
       <svg width="16" height="16"><use href="#ic-chevron-left"/></svg>
     </button>
     <span class="topbar-title" id="folder-title"></span>
@@ -778,7 +818,7 @@ html, body {
 <!-- PROCESANDO -->
 <div id="screen-process" class="screen">
   <div class="topbar">
-    <button class="back-btn" onclick="showScreen('home')">
+    <button class="back-btn" onclick="showScreen('home', true)">
       <svg width="16" height="16"><use href="#ic-chevron-left"/></svg>
     </button>
     <span class="topbar-title">Procesando</span>
@@ -844,7 +884,7 @@ html, body {
 <!-- DASHBOARD -->
 <div id="screen-dashboard" class="screen">
   <div class="topbar">
-    <button class="back-btn" onclick="showScreen('home')">
+    <button class="back-btn" onclick="showScreen('home', true)">
       <svg width="16" height="16"><use href="#ic-chevron-left"/></svg>
     </button>
     <span class="topbar-title">Dashboard</span>
@@ -913,7 +953,7 @@ html, body {
 <!-- ERROR -->
 <div id="screen-error" class="screen">
   <div class="topbar">
-    <button class="back-btn" onclick="showScreen('home')">
+    <button class="back-btn" onclick="showScreen('home', true)">
       <svg width="16" height="16"><use href="#ic-chevron-left"/></svg>
     </button>
     <span class="topbar-title">Error</span>
@@ -921,7 +961,7 @@ html, body {
   <div class="processing-wrap">
     <div class="error-code">ERR</div>
     <p class="error-detail" id="error-msg"></p>
-    <button class="btn-primary" style="margin-top:28px" onclick="showScreen('home')">Volver</button>
+    <button class="btn-primary" style="margin-top:28px" onclick="showScreen('home', true)">Volver</button>
   </div>
 </div>
 
@@ -1057,10 +1097,47 @@ async function loadFromFirebase() {
   } catch(e) { console.warn('Firebase load error:', e); }
 }
 
-function showScreen(name) {
-  document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
-  document.getElementById('screen-' + name).classList.add('active');
+var _screenHistory = ['home'];
+
+function showScreen(name, isBack) {
+  document.querySelectorAll('.screen').forEach(function(s){
+    s.classList.remove('active', 'back');
+  });
+  var el = document.getElementById('screen-' + name);
+  el.classList.add('active');
+  if (isBack) el.classList.add('back');
+
+  if (!isBack) {
+    if (_screenHistory[_screenHistory.length - 1] !== name) _screenHistory.push(name);
+  } else {
+    _screenHistory.pop();
+  }
+
   if (name === 'dashboard') renderDashboard();
+}
+
+function goBack() {
+  var prev = _screenHistory[_screenHistory.length - 2] || 'home';
+  showScreen(prev, true);
+}
+
+/* ── COUNT-UP ── */
+function countUp(el, target, duration, suffix) {
+  suffix = suffix || '';
+  var start = 0;
+  var startTime = null;
+  var rounded = target === Math.floor(target);
+  function step(ts) {
+    if (!startTime) startTime = ts;
+    var progress = Math.min((ts - startTime) / duration, 1);
+    // ease-out cubic
+    var eased = 1 - Math.pow(1 - progress, 3);
+    var val = eased * target;
+    el.textContent = rounded ? Math.round(val) + suffix : val.toFixed(1) + suffix;
+    if (progress < 1) requestAnimationFrame(step);
+    else el.textContent = target + suffix;
+  }
+  requestAnimationFrame(step);
 }
 
 /* ── DASHBOARD ── */
@@ -1139,12 +1216,12 @@ function renderDashboard() {
   if (currentUser) { pill.textContent = '● SYNCED'; pill.className = 'dash-status-pill'; }
   else { pill.textContent = '○ LOCAL'; pill.className = 'dash-status-pill offline'; }
 
-  // Render
-  document.getElementById('dash-total').textContent = total;
-  document.getElementById('dash-minutes').textContent = Math.round(totalMins);
+  // Render — count-up for hero numbers
+  countUp(document.getElementById('dash-total'), total, 600);
+  countUp(document.getElementById('dash-minutes'), Math.round(totalMins), 700);
   var weekEl = document.getElementById('dash-week');
-  weekEl.textContent = (thisWeekNotes >= prevWeekNotes && prevWeekNotes > 0 ? '+' : '') + thisWeekNotes;
   weekEl.style.color = thisWeekNotes > prevWeekNotes ? 'var(--success)' : thisWeekNotes < prevWeekNotes ? 'var(--accent)' : 'var(--text-display)';
+  countUp(weekEl, thisWeekNotes, 500);
   document.getElementById('dash-week-trend').textContent = weekTrend;
   document.getElementById('dash-peak').textContent = peakStr;
   document.getElementById('dash-avg-dur').textContent = avgStr;
@@ -1168,15 +1245,20 @@ function renderDashboard() {
     dayLabels.appendChild(lbl);
   });
 
-  // Storage bar
+  // Storage bar — animated fill
   var storageBar = document.getElementById('dash-storage-bar');
   storageBar.innerHTML = '';
   var filledSegs = Math.round(storagePct * SEG);
+  var segEls = [];
   for (var j = 0; j < SEG; j++) {
     var seg = document.createElement('div');
-    seg.className = 'dash-seg-block' + (j < filledSegs ? (storagePct > 0.8 ? ' warn' : ' on') : '');
+    seg.className = 'dash-seg-block';
     storageBar.appendChild(seg);
+    segEls.push({ el: seg, filled: j < filledSegs, cls: storagePct > 0.8 ? 'warn' : 'on' });
   }
+  segEls.forEach(function(s, idx) {
+    if (s.filled) setTimeout(function(){ s.el.classList.add(s.cls); }, 300 + idx * 30);
+  });
   document.getElementById('dash-storage-val').textContent = storageMB + ' MB';
   document.getElementById('dash-storage-sub').textContent = storageMB + ' MB / ' + storageMax + ' MB estimado';
 
@@ -1244,6 +1326,11 @@ function renderHome() {
   }
   c.innerHTML = html;
   attachSwipeHandlers();
+  // Stagger items in
+  var items = c.querySelectorAll('.note-item-wrap, .folder-item');
+  items.forEach(function(el, i) {
+    setTimeout(function() { el.classList.add('visible'); }, i * 40);
+  });
 }
 
 function noteItemHtml(n) {
@@ -1314,18 +1401,28 @@ function attachSwipeHandlers() {
         item.style.transform = 'translateX(-80px)';
         _openSwipeItem = item;
         wrap.querySelector('.delete-reveal').onclick = function() {
-          // Animate out then delete
-          item.style.transition = 'transform 0.2s ease-out, opacity 0.2s ease-out';
+          // Phase 1: slide out
+          item.style.transition = 'transform 0.18s cubic-bezier(0.25,0.1,0.25,1)';
           item.style.transform = 'translateX(-100%)';
-          item.style.opacity = '0';
           setTimeout(function() {
-            var id = wrap.dataset.id;
-            notes = notes.filter(function(n){ return n.id !== id; });
-            save();
-            renderHome();
-            if (currentFolderId) renderFolderNotes();
-            showStatus('[NOTA ELIMINADA]');
-          }, 200);
+            // Phase 2: collapse height
+            var h = wrap.offsetHeight;
+            wrap.style.overflow = 'hidden';
+            wrap.style.height = h + 'px';
+            wrap.style.transition = 'height 0.18s cubic-bezier(0.25,0.1,0.25,1), opacity 0.18s ease-out';
+            requestAnimationFrame(function() {
+              wrap.style.height = '0';
+              wrap.style.opacity = '0';
+            });
+            setTimeout(function() {
+              var id = wrap.dataset.id;
+              notes = notes.filter(function(n){ return n.id !== id; });
+              save();
+              renderHome();
+              if (currentFolderId) renderFolderNotes();
+              showStatus('[NOTA ELIMINADA]');
+            }, 200);
+          }, 160);
           _openSwipeItem = null;
         };
       } else {
@@ -1361,6 +1458,9 @@ function renderFolderNotes() {
   }
   list.innerHTML = folderNotes.map(noteItemHtml).join('');
   attachSwipeHandlers();
+  list.querySelectorAll('.note-item-wrap').forEach(function(el, i) {
+    setTimeout(function() { el.classList.add('visible'); }, i * 40);
+  });
 }
 function openNewFolder() {
   openModal('Nueva carpeta', '', 'Nombre...', function(name) {
@@ -1397,7 +1497,7 @@ function openNote(id) {
   document.getElementById('tab-content-transcripcion').innerHTML = '<p class="transcript-text">' + escHtml(note.transcripcion||'') + '</p>';
   switchTab('resumen'); showScreen('detail');
 }
-function goBackFromDetail() { if (detailFromFolder) { showScreen('folder'); } else { showScreen('home'); } }
+function goBackFromDetail() { if (detailFromFolder) { showScreen('folder', true); } else { showScreen('home', true); } }
 function renderResumen(resumen) {
   var html = '';
   if (resumen && typeof resumen === 'object' && resumen.secciones) {
