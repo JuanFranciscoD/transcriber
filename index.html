@@ -300,12 +300,13 @@ html, body {
 .note-item-wrap:last-child .note-item { border-bottom: none; }
 .note-item:active { opacity: 0.6; }
 .note-thumb {
-  width: 38px; height: 38px;
+  width: 36px; height: 36px;
   border: 1px solid var(--border-visible);
   border-radius: 4px;
   display: flex; align-items: center; justify-content: center;
-  font-size: 17px; flex-shrink: 0;
+  flex-shrink: 0;
   background: var(--surface);
+  color: var(--text-disabled);
 }
 .note-info { flex: 1; min-width: 0; }
 .note-info h3 { font-size: 14px; font-weight: 400; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -647,24 +648,6 @@ html, body {
   letter-spacing: -0.02em;
 }
 
-/* ── EMOJI PICKER ── */
-.emoji-picker {
-  position: fixed;
-  background: var(--surface);
-  border: 1px solid var(--border-visible);
-  border-radius: 4px;
-  padding: 10px; z-index: 250;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
-  width: 252px;
-}
-.emoji-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
-.emoji-btn {
-  background: none; border: none; font-size: 19px;
-  cursor: pointer; padding: 5px 3px;
-  border-radius: 2px; text-align: center; line-height: 1;
-  transition: background 100ms;
-}
-.emoji-btn:active { background: var(--surface-raised); }
 
 /* ── DASHBOARD ── */
 .dash-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 8px; }
@@ -1075,10 +1058,6 @@ html, body {
 <!-- STATUS BAR (inline, no toast) -->
 <div class="status-bar" id="status-bar"></div>
 
-<!-- EMOJI PICKER -->
-<div class="emoji-picker" id="emoji-picker" style="display:none">
-  <div class="emoji-grid" id="emoji-grid"></div>
-</div>
 
 <script>
 var notes = JSON.parse(localStorage.getItem('transcriber-notes') || '[]');
@@ -1409,7 +1388,7 @@ function noteItemHtml(n) {
   return '<div class="note-item-wrap" data-id="' + n.id + '">' +
     '<div class="delete-reveal"><svg width="14" height="14"><use href="#ic-trash"/></svg>DELETE</div>' +
     '<div class="note-item">' +
-      '<div class="note-thumb" onclick="event.stopPropagation(); openEmojiPicker(\'' + n.id + '\', this)">' + (n.icon||'🎙️') + '</div>' +
+      '<div class="note-thumb"><svg width="15" height="15"><use href="#ic-mic"/></svg></div>' +
       '<div class="note-info" onclick="openNote(\'' + n.id + '\')">' +
         '<h3>' + escHtml(n.title) + '</h3>' +
         '<div class="note-meta"><span>' + escHtml(n.date) + '</span>' + dur + '</div>' +
@@ -1716,7 +1695,7 @@ async function processAudio(file, groqKey) {
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + groqKey },
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile', max_tokens: 1024,
-        messages: [{ role: 'user', content: 'Analizá esta transcripción de audio y generá un resumen ejecutivo estructurado en JSON.\n\nTranscripción:\n' + transcripcion + '\n\nDevolvé SOLO un JSON válido con este formato exacto:\n{\n  "titulo": "título descriptivo corto (máx 5 palabras)",\n  "icono": "un emoji relevante al tema",\n  "secciones": [\n    {\n      "titulo": "Nombre de sección",\n      "puntos": ["punto 1", "punto 2"]\n    }\n  ]\n}' }]
+        messages: [{ role: 'user', content: 'Analizá esta transcripción de audio y generá un resumen ejecutivo estructurado en JSON.\n\nTranscripción:\n' + transcripcion + '\n\nDevolvé SOLO un JSON válido con este formato exacto:\n{\n  "titulo": "título descriptivo corto (máx 5 palabras)",\n  "secciones": [\n    {\n      "titulo": "Nombre de sección",\n      "puntos": ["punto 1", "punto 2"]\n    }\n  ]\n}' }]
       })
     });
     if (!llamaResp.ok) { var llamaErr = await llamaResp.text(); throw new Error(llamaErr.substring(0,200)); }
@@ -1795,31 +1774,6 @@ function showStatus(msg) {
   statusTimer = setTimeout(function(){ bar.classList.remove('show'); }, 2000);
 }
 
-/* ── EMOJI PICKER ── */
-var EMOJIS = ['🎙️','📋','🏢','💡','📝','✅','⭐','🔥','📌','🏠','👤','💼','🎯','📊','🗂️','🏗️','🔑','💰','📅','⏰','🚗','✈️','🌍','📞','💬','🤝','👥','🏦','🏥','🎓','🛒','📦','🔧','⚙️','💻','📱','🎵','🎬','📸','🌟','❤️','😊','🙏','👍','🚀','🌱','☀️','🌙','⚡','🎉','🎁','🍕','☕','🏋️','📖'];
-var emojiPickerNoteId = null;
-function openEmojiPicker(noteId, anchorEl) {
-  emojiPickerNoteId = noteId;
-  var picker = document.getElementById('emoji-picker');
-  document.getElementById('emoji-grid').innerHTML = EMOJIS.map(function(e){ return '<button class="emoji-btn" onclick="selectEmoji(\'' + e + '\')">' + e + '</button>'; }).join('');
-  var rect = anchorEl.getBoundingClientRect();
-  var top = rect.bottom + 8; var left = rect.left;
-  if (left + 252 > window.innerWidth) left = window.innerWidth - 262;
-  if (top + 200 > window.innerHeight) top = rect.top - 208;
-  picker.style.top = top + 'px'; picker.style.left = left + 'px'; picker.style.display = 'block';
-  setTimeout(function(){ document.addEventListener('click', closeEmojiPickerOutside, { once: true }); }, 10);
-}
-function selectEmoji(emoji) {
-  var note = notes.find(function(n){ return n.id === emojiPickerNoteId; });
-  if (note) { note.icon = emoji; save(); renderHome(); if (currentFolderId) renderFolderNotes(); }
-  closeEmojiPicker();
-}
-function closeEmojiPicker() { document.getElementById('emoji-picker').style.display = 'none'; emojiPickerNoteId = null; }
-function closeEmojiPickerOutside(e) {
-  var picker = document.getElementById('emoji-picker');
-  if (!picker.contains(e.target)) closeEmojiPicker();
-  else document.addEventListener('click', closeEmojiPickerOutside, { once: true });
-}
 
 /* ── FIREBASE INIT ── */
 (async function() {
