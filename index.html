@@ -71,16 +71,12 @@ html, body { height: 100%; background: #F5F0E8; font-family: -apple-system, Blin
   <div class="topbar"><h1>Transcriber</h1></div>
   <div class="content">
     <div id="api-warning" class="api-setup" style="display:none">
-      <p>Ingresá tus API keys para empezar. Se guardan solo en tu dispositivo.</p>
+      <p>Ingresá tu Groq API Key para empezar. Se guarda solo en tu dispositivo.</p>
       <div class="input-wrap">
-        <label>Groq API Key (transcripción gratuita)</label>
+        <label>Groq API Key (gratis — transcripción + resumen)</label>
         <input type="password" id="groq-key" placeholder="gsk_..." autocomplete="off" />
       </div>
-      <div class="input-wrap">
-        <label>Anthropic API Key (resumen)</label>
-        <input type="password" id="anthropic-key" placeholder="sk-ant-..." autocomplete="off" />
-      </div>
-      <button class="btn-primary" onclick="saveKeys()">Guardar claves</button>
+      <button class="btn-primary" onclick="saveKeys()">Guardar clave</button>
     </div>
 
     <div class="upload-area" onclick="document.getElementById('file-input').click()">
@@ -182,21 +178,18 @@ function showScreen(name) {
 
 function saveKeys() {
   var g = document.getElementById('groq-key').value.trim();
-  var a = document.getElementById('anthropic-key').value.trim();
-  if (!g || !a) { showToast('Ingresá ambas claves'); return; }
+  if (!g) { showToast('Ingresá tu Groq API key'); return; }
   localStorage.setItem('groq-key', g);
-  localStorage.setItem('anthropic-key', a);
   document.getElementById('api-warning').style.display = 'none';
-  showToast('Claves guardadas ✓');
+  showToast('Clave guardada ✓');
 }
 
 function checkKeys() {
   var g = localStorage.getItem('groq-key');
-  var a = localStorage.getItem('anthropic-key');
-  if (!g || !a) {
+  if (!g) {
     document.getElementById('api-warning').style.display = 'block';
-    if (g) document.getElementById('groq-key').value = g;
-    if (a) document.getElementById('anthropic-key').value = a;
+  } else {
+    document.getElementById('groq-key').value = g;
   }
 }
 
@@ -260,18 +253,17 @@ function handleFile(input) {
   var file = input.files[0];
   if (!file) return;
   var groqKey = localStorage.getItem('groq-key');
-  var anthropicKey = localStorage.getItem('anthropic-key');
-  if (!groqKey || !anthropicKey) {
-    showToast('Configurá las API keys primero');
+  if (!groqKey) {
+    showToast('Configurá tu Groq API key primero');
     document.getElementById('api-warning').style.display = 'block';
     input.value = '';
     return;
   }
-  processAudio(file, groqKey, anthropicKey);
+  processAudio(file, groqKey);
   input.value = '';
 }
 
-async function processAudio(file, groqKey, anthropicKey) {
+async function processAudio(file, groqKey) {
   showScreen('process');
   setProgress(15, 'Transcribiendo audio...', file.name);
 
@@ -295,18 +287,16 @@ async function processAudio(file, groqKey, anthropicKey) {
     }
 
     var transcripcion = await groqResp.text();
-    setProgress(60, 'Generando resumen...', 'Analizando con Claude...');
+    setProgress(60, 'Generando resumen...', 'Analizando con Llama 3...');
 
-    var claudeResp = await fetch('https://api.anthropic.com/v1/messages', {
+    var llamaResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': anthropicKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
+        'Authorization': 'Bearer ' + groqKey
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
+        model: 'llama-3.3-70b-versatile',
         max_tokens: 1024,
         messages: [{
           role: 'user',
@@ -315,13 +305,13 @@ async function processAudio(file, groqKey, anthropicKey) {
       })
     });
 
-    if (!claudeResp.ok) {
-      var claudeErr = await claudeResp.text();
-      throw new Error('Error al generar resumen. Verificá tu Anthropic API key.\n\nDetalle: ' + claudeErr.substring(0, 200));
+    if (!llamaResp.ok) {
+      var llamaErr = await llamaResp.text();
+      throw new Error('Error al generar resumen.\n\nDetalle: ' + llamaErr.substring(0, 200));
     }
 
-    var claudeData = await claudeResp.json();
-    var rawText = claudeData.content[0].text;
+    var llamaData = await llamaResp.json();
+    var rawText = llamaData.choices[0].message.content;
     var resumenObj;
     try {
       var jsonMatch = rawText.match(/\{[\s\S]*\}/);
