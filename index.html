@@ -145,14 +145,6 @@ html, body { height: 100%; background: #fff; font-family: -apple-system, BlinkMa
     </button>
   </div>
   <div class="content">
-    <div id="api-warning" class="api-setup" style="display:none">
-      <p>Ingresá tu Groq API key para empezar. Se guarda solo en tu dispositivo y es completamente gratis.</p>
-      <div class="input-wrap">
-        <label>Groq API Key</label>
-        <input type="password" id="groq-key" placeholder="gsk_..." autocomplete="off" />
-      </div>
-      <button class="btn-primary" onclick="saveKeys()">Guardar</button>
-    </div>
 
     <div class="upload-area" onclick="document.getElementById('file-input').click()">
       <div class="upload-icon">🎙️</div>
@@ -366,19 +358,8 @@ function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-/* ---- API KEY ---- */
-function saveKeys() {
-  var g = document.getElementById('groq-key').value.trim();
-  if (!g) { showToast('Ingresá tu Groq API key'); return; }
-  localStorage.setItem('groq-key', g);
-  document.getElementById('api-warning').style.display = 'none';
-  showToast('Clave guardada ✓');
-}
-function checkKeys() {
-  var g = localStorage.getItem('groq-key');
-  if (!g) { document.getElementById('api-warning').style.display = 'block'; }
-  else { document.getElementById('groq-key').value = g; }
-}
+var GROQ_KEY = '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';
+function checkKeys() {}
 
 /* ---- RENDER HOME ---- */
 function renderHome() {
@@ -585,14 +566,7 @@ function moveNoteTo(folderId) {
 function handleFile(input) {
   var file = input.files[0];
   if (!file) return;
-  var groqKey = localStorage.getItem('groq-key');
-  if (!groqKey) {
-    showToast('Configurá tu Groq API key primero');
-    document.getElementById('api-warning').style.display = 'block';
-    input.value = '';
-    return;
-  }
-  processAudio(file, groqKey);
+  processAudio(file, GROQ_KEY);
   input.value = '';
 }
 
