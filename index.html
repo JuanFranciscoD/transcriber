@@ -575,6 +575,73 @@ html, body {
 }
 .emoji-btn:active { background: var(--surface-raised); }
 
+/* ── DASHBOARD ── */
+.dash-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+.dash-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+.dash-grid-23 { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; margin-bottom: 8px; }
+.dash-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+}
+.dash-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-disabled);
+  margin-bottom: 8px;
+}
+.dash-val-xl {
+  font-family: 'Doto', monospace;
+  font-size: 42px; color: var(--text-display); line-height: 1;
+}
+.dash-val-md {
+  font-family: 'Space Mono', monospace;
+  font-size: 24px; color: var(--text-display); line-height: 1;
+}
+.dash-val-sm {
+  font-family: 'Space Mono', monospace;
+  font-size: 16px; color: var(--text-display); line-height: 1;
+}
+.dash-unit {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text-disabled); margin-left: 3px;
+}
+.dash-sub {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px; letter-spacing: 0.04em;
+  color: var(--text-disabled); margin-top: 5px;
+}
+.dash-spark { display: flex; align-items: flex-end; gap: 3px; height: 40px; margin-top: 10px; }
+.dash-spark-bar { width: 9px; background: var(--border-visible); border-radius: 0; transition: background 200ms; }
+.dash-spark-bar.today { background: var(--text-display); }
+.dash-day-labels { display: flex; justify-content: space-between; margin-top: 5px; }
+.dash-day-label {
+  font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: 0.05em;
+  text-transform: uppercase; color: var(--text-disabled); flex: 1; text-align: center;
+}
+.dash-day-label.today { color: var(--text-display); }
+.dash-folder-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 0; border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.dash-folder-row:last-child { border-bottom: none; }
+.dash-folder-count {
+  font-family: 'Space Mono', monospace; font-size: 12px; color: var(--text-secondary);
+}
+.dash-seg { display: flex; gap: 2px; margin-top: 8px; }
+.dash-seg-block { flex: 1; height: 5px; background: var(--border); border-radius: 0; }
+.dash-seg-block.on { background: var(--success); }
+.dash-seg-block.warn { background: var(--warning); }
+.dash-status-pill {
+  font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 0.06em;
+  text-transform: uppercase; border: 1px solid var(--success); border-radius: 999px;
+  padding: 3px 10px; color: var(--success); display: inline-block;
+}
+.dash-status-pill.offline { border-color: var(--text-disabled); color: var(--text-disabled); }
+
 /* ── BTN PRIMARY ── */
 .btn-primary {
   background: var(--text-display); color: var(--black);
@@ -645,12 +712,18 @@ html, body {
   <symbol id="ic-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
     <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
   </symbol>
+  <symbol id="ic-stats" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+  </symbol>
 </svg>
 
 <!-- HOME -->
 <div id="screen-home" class="screen active">
   <div class="topbar">
     <span class="topbar-title">Transcriber</span>
+    <button class="icon-btn" onclick="showScreen('dashboard')" title="Dashboard">
+      <svg width="17" height="17"><use href="#ic-stats"/></svg>
+    </button>
     <button class="icon-btn" id="theme-btn" onclick="toggleTheme()" title="Tema">
       <svg width="17" height="17" id="theme-icon"><use href="#ic-moon"/></svg>
     </button>
@@ -765,6 +838,75 @@ html, body {
       <svg width="16" height="16"><use href="#ic-share"/></svg>
       Compartir
     </button>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="screen-dashboard" class="screen">
+  <div class="topbar">
+    <button class="back-btn" onclick="showScreen('home')">
+      <svg width="16" height="16"><use href="#ic-chevron-left"/></svg>
+    </button>
+    <span class="topbar-title">Dashboard</span>
+    <span id="dash-sync-pill" class="dash-status-pill" style="margin-left:auto;font-size:9px;padding:2px 8px;">Synced</span>
+  </div>
+  <div class="content" style="padding:12px 12px 80px;">
+    <!-- fila 1: 3 métricas hero -->
+    <div class="dash-grid-3">
+      <div class="dash-card">
+        <div class="dash-label">Total notas</div>
+        <div class="dash-val-xl" id="dash-total">0</div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-label">Minutos</div>
+        <div style="display:flex;align-items:baseline;gap:2px;">
+          <span class="dash-val-xl" id="dash-minutes">0</span>
+          <span class="dash-unit">min</span>
+        </div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-label">Esta semana</div>
+        <div class="dash-val-xl" id="dash-week" style="color:var(--success);">0</div>
+        <div class="dash-sub" id="dash-week-trend"></div>
+      </div>
+    </div>
+    <!-- fila 2: sparkline + hora pico -->
+    <div class="dash-grid-23">
+      <div class="dash-card">
+        <div class="dash-label">Actividad — últimos 7 días</div>
+        <div class="dash-spark" id="dash-spark"></div>
+        <div class="dash-day-labels" id="dash-day-labels"></div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-label">Hora pico</div>
+        <div style="margin-top:8px;">
+          <span class="dash-val-sm" id="dash-peak">—</span>
+          <span class="dash-unit">hs</span>
+        </div>
+        <div class="dash-sub" id="dash-avg-dur"></div>
+      </div>
+    </div>
+    <!-- fila 3: storage + carpetas -->
+    <div class="dash-grid-2">
+      <div class="dash-card">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;">
+          <span class="dash-label">Storage estimado</span>
+          <span style="font-family:'Space Mono',monospace;font-size:11px;color:var(--text-display);" id="dash-storage-val">0 MB</span>
+        </div>
+        <div class="dash-seg" id="dash-storage-bar"></div>
+        <div class="dash-sub" id="dash-storage-sub"></div>
+      </div>
+      <div class="dash-card" style="min-height:100px;">
+        <div class="dash-label">Carpetas</div>
+        <div id="dash-folders"></div>
+      </div>
+    </div>
+    <!-- fila 4: última nota -->
+    <div class="dash-card" style="margin-bottom:8px;">
+      <div class="dash-label">Última nota</div>
+      <div id="dash-last-note" style="font-size:14px;color:var(--text-display);margin-top:4px;"></div>
+      <div class="dash-sub" id="dash-last-meta"></div>
+    </div>
   </div>
 </div>
 
@@ -918,6 +1060,146 @@ async function loadFromFirebase() {
 function showScreen(name) {
   document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
   document.getElementById('screen-' + name).classList.add('active');
+  if (name === 'dashboard') renderDashboard();
+}
+
+/* ── DASHBOARD ── */
+function renderDashboard() {
+  var total = notes.length;
+  // Minutos totales desde duración guardada
+  var totalMins = 0;
+  notes.forEach(function(n) {
+    if (n.durationSecs) totalMins += n.durationSecs / 60;
+    else if (n.duration) {
+      // parse "2 min 30s" o "45s"
+      var m = n.duration.match(/(\d+)\s*min/);
+      var s = n.duration.match(/(\d+)\s*s/);
+      totalMins += (m ? parseInt(m[1]) : 0) + (s ? parseInt(s[1]) / 60 : 0);
+    }
+  });
+
+  // Esta semana vs semana anterior
+  var now = Date.now();
+  var oneDay = 86400000;
+  var weekStart = now - 7 * oneDay;
+  var prevWeekStart = now - 14 * oneDay;
+  var thisWeekNotes = notes.filter(function(n){ return n.createdAt > weekStart; }).length;
+  var prevWeekNotes = notes.filter(function(n){ return n.createdAt > prevWeekStart && n.createdAt <= weekStart; }).length;
+  var weekTrend = prevWeekNotes > 0
+    ? (thisWeekNotes >= prevWeekNotes ? '↑ ' : '↓ ') + Math.abs(thisWeekNotes - prevWeekNotes) + ' vs sem ant'
+    : '';
+
+  // Sparkline últimos 7 días
+  var days = [];
+  for (var i = 6; i >= 0; i--) {
+    var dayStart = now - (i + 1) * oneDay;
+    var dayEnd = now - i * oneDay;
+    days.push(notes.filter(function(n){ return n.createdAt > dayStart && n.createdAt <= dayEnd; }).length);
+  }
+  var maxDay = Math.max.apply(null, days) || 1;
+  var dayNames = ['L','M','X','J','V','S','D'];
+  var todayIdx = (new Date().getDay() + 6) % 7; // 0=lun
+
+  // Hora pico
+  var hourCounts = new Array(24).fill(0);
+  notes.forEach(function(n) {
+    if (n.createdAt) hourCounts[new Date(n.createdAt).getHours()]++;
+  });
+  var peakHour = hourCounts.indexOf(Math.max.apply(null, hourCounts));
+  var peakStr = total > 0 ? peakHour + '–' + (peakHour + 2) : '—';
+
+  // Duración promedio
+  var avgMins = total > 0 ? totalMins / total : 0;
+  var avgStr = avgMins > 0
+    ? 'Prom ' + Math.floor(avgMins) + ' min ' + Math.round((avgMins % 1) * 60) + 's'
+    : '';
+
+  // Storage estimado (aprox 1MB/min de audio)
+  var storageMB = Math.round(totalMins * 1);
+  var storageMax = 200;
+  var storagePct = Math.min(storageMB / storageMax, 1);
+  var SEG = 20;
+
+  // Carpetas top 3
+  var folderCounts = {};
+  notes.forEach(function(n) { if (n.folderId) folderCounts[n.folderId] = (folderCounts[n.folderId] || 0) + 1; });
+  var noFolder = notes.filter(function(n){ return !n.folderId; }).length;
+  var topFolders = folders
+    .map(function(f){ return { name: f.name, icon: f.icon || '📁', count: folderCounts[f.id] || 0 }; })
+    .filter(function(f){ return f.count > 0; })
+    .sort(function(a, b){ return b.count - a.count; })
+    .slice(0, 3);
+
+  // Última nota
+  var sorted = notes.slice().sort(function(a,b){ return (b.createdAt||0) - (a.createdAt||0); });
+  var last = sorted[0];
+
+  // Sync pill
+  var pill = document.getElementById('dash-sync-pill');
+  if (currentUser) { pill.textContent = '● SYNCED'; pill.className = 'dash-status-pill'; }
+  else { pill.textContent = '○ LOCAL'; pill.className = 'dash-status-pill offline'; }
+
+  // Render
+  document.getElementById('dash-total').textContent = total;
+  document.getElementById('dash-minutes').textContent = Math.round(totalMins);
+  var weekEl = document.getElementById('dash-week');
+  weekEl.textContent = (thisWeekNotes >= prevWeekNotes && prevWeekNotes > 0 ? '+' : '') + thisWeekNotes;
+  weekEl.style.color = thisWeekNotes > prevWeekNotes ? 'var(--success)' : thisWeekNotes < prevWeekNotes ? 'var(--accent)' : 'var(--text-display)';
+  document.getElementById('dash-week-trend').textContent = weekTrend;
+  document.getElementById('dash-peak').textContent = peakStr;
+  document.getElementById('dash-avg-dur').textContent = avgStr;
+
+  // Sparkline
+  var spark = document.getElementById('dash-spark');
+  spark.innerHTML = '';
+  var dayLabels = document.getElementById('dash-day-labels');
+  dayLabels.innerHTML = '';
+  days.forEach(function(count, i) {
+    var pct = Math.max(count / maxDay, 0.05);
+    var bar = document.createElement('div');
+    bar.className = 'dash-spark-bar' + (i === 6 ? ' today' : '');
+    bar.style.height = Math.round(pct * 100) + '%';
+    bar.style.flex = '1';
+    if (count > 0 && i !== 6) bar.style.background = 'var(--text-secondary)';
+    spark.appendChild(bar);
+    var lbl = document.createElement('div');
+    lbl.className = 'dash-day-label' + (i === 6 ? ' today' : '');
+    lbl.textContent = dayNames[(todayIdx - 6 + i + 7) % 7];
+    dayLabels.appendChild(lbl);
+  });
+
+  // Storage bar
+  var storageBar = document.getElementById('dash-storage-bar');
+  storageBar.innerHTML = '';
+  var filledSegs = Math.round(storagePct * SEG);
+  for (var j = 0; j < SEG; j++) {
+    var seg = document.createElement('div');
+    seg.className = 'dash-seg-block' + (j < filledSegs ? (storagePct > 0.8 ? ' warn' : ' on') : '');
+    storageBar.appendChild(seg);
+  }
+  document.getElementById('dash-storage-val').textContent = storageMB + ' MB';
+  document.getElementById('dash-storage-sub').textContent = storageMB + ' MB / ' + storageMax + ' MB estimado';
+
+  // Carpetas
+  var foldersEl = document.getElementById('dash-folders');
+  var html = '';
+  topFolders.forEach(function(f) {
+    html += '<div class="dash-folder-row"><span>' + f.icon + ' ' + escHtml(f.name) + '</span><span class="dash-folder-count">' + f.count + '</span></div>';
+  });
+  if (noFolder > 0) html += '<div class="dash-folder-row"><span style="color:var(--text-disabled)">Sin carpeta</span><span class="dash-folder-count" style="color:var(--text-disabled)">' + noFolder + '</span></div>';
+  if (!html) html = '<div class="dash-sub" style="margin-top:4px;">Sin carpetas aún</div>';
+  foldersEl.innerHTML = html;
+
+  // Última nota
+  if (last) {
+    document.getElementById('dash-last-note').textContent = last.title || 'Sin título';
+    var folder = last.folderId ? folders.find(function(f){ return f.id === last.folderId; }) : null;
+    var dateStr = last.createdAt ? new Date(last.createdAt).toLocaleString('es-AR', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }) : '';
+    document.getElementById('dash-last-meta').textContent = dateStr + (folder ? ' · ' + (folder.icon||'') + ' ' + folder.name : '');
+  } else {
+    document.getElementById('dash-last-note').textContent = 'Ninguna todavía';
+    document.getElementById('dash-last-meta').textContent = '';
+  }
 }
 function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
