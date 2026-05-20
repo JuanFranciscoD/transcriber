@@ -367,17 +367,58 @@ html, body {
   color: var(--text-disabled);
   max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-/* Waveform */
-.waveform { display: flex; align-items: center; justify-content: center; gap: 3px; height: 40px; margin-bottom: 28px; }
-.waveform-bar { width: 2px; background: var(--text-display); border-radius: 0; animation: wave 1.2s ease-in-out infinite; }
-.waveform-bar:nth-child(1){animation-delay:0s}
-.waveform-bar:nth-child(2){animation-delay:0.1s}
-.waveform-bar:nth-child(3){animation-delay:0.2s}
-.waveform-bar:nth-child(4){animation-delay:0.3s}
-.waveform-bar:nth-child(5){animation-delay:0.4s}
-.waveform-bar:nth-child(6){animation-delay:0.2s}
-.waveform-bar:nth-child(7){animation-delay:0.1s}
-@keyframes wave { 0%,100%{height:4px;opacity:0.2} 50%{height:32px;opacity:1} }
+/* ── THINKING INDICATOR ── */
+.thinking-wrap {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 32px;
+}
+.thinking-svg {
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+.thinking-words {
+  display: inline-grid;
+  overflow: hidden;
+  font-family: 'Space Mono', monospace;
+  font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase;
+}
+.thinking-spacer {
+  /* invisible — holds the width of the longest word */
+  visibility: hidden;
+  grid-column: 1; grid-row: 1;
+  color: transparent;
+}
+.thinking-word {
+  grid-column: 1; grid-row: 1;
+  animation: wordCycle 16s ease-in-out infinite;
+}
+.thinking-word:nth-child(2) { animation-delay: 0s; }
+.thinking-word:nth-child(3) { animation-delay: 4s; }
+.thinking-word:nth-child(4) { animation-delay: 8s; }
+.thinking-word:nth-child(5) { animation-delay: 12s; }
+@keyframes wordCycle {
+  0%   { opacity: 0; transform: translateY(60%); }
+  4%   { opacity: 1; transform: translateY(0); }
+  22%  { opacity: 1; transform: translateY(0); }
+  26%  { opacity: 0; transform: translateY(-60%); }
+  100% { opacity: 0; transform: translateY(-60%); }
+}
+/* shimmer on all .thinking-word */
+.thinking-word {
+  color: transparent;
+  background: linear-gradient(90deg, var(--text-secondary) 0%, var(--text-secondary) 35%, var(--text-display) 50%, var(--text-secondary) 65%, var(--text-secondary) 100%);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: wordCycle 16s ease-in-out infinite, shimmer 2s ease-in-out infinite;
+}
+.thinking-word:nth-child(3) { animation-delay: 4s, 0s; }
+.thinking-word:nth-child(4) { animation-delay: 8s, 0s; }
+.thinking-word:nth-child(5) { animation-delay: 12s, 0s; }
+@keyframes shimmer {
+  0%   { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
 
 /* ── DETAIL ── */
 .detail-title-row { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
@@ -824,15 +865,35 @@ html, body {
     <span class="topbar-title">Procesando</span>
   </div>
   <div class="processing-wrap">
-    <div class="waveform">
-      <div class="waveform-bar"></div><div class="waveform-bar"></div>
-      <div class="waveform-bar"></div><div class="waveform-bar"></div>
-      <div class="waveform-bar"></div><div class="waveform-bar"></div>
-      <div class="waveform-bar"></div>
+    <!-- Thinking indicator: morphing SVG + shimmer rotating words -->
+    <div class="thinking-wrap">
+      <svg class="thinking-svg" width="22" height="22" viewBox="0 0 24 24"
+           fill="none" stroke="currentColor" stroke-width="1.5"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path id="thinking-path">
+          <animate attributeName="d"
+            dur="6s" repeatCount="indefinite" calcMode="spline"
+            keyTimes="0;0.25;0.5;0.75;1"
+            keySplines="0.4 0 0.2 1;0.4 0 0.2 1;0.4 0 0.2 1;0.4 0 0.2 1"
+            values="
+              M 12 8 C 14.21 8 16 9.79 16 12 C 16 14.21 14.21 16 12 16 C 9.79 16 8 14.21 8 12 C 8 9.79 9.79 8 12 8 Z;
+              M 12 12 C 14 8.5 19 8.5 19 12 C 19 15.5 14 15.5 12 12 C 10 8.5 5 8.5 5 12 C 5 15.5 10 15.5 12 12 Z;
+              M 12 16 C 14.21 16 16 14.21 16 12 C 16 9.79 14.21 8 12 8 C 9.79 8 8 9.79 8 12 C 8 14.21 9.79 16 12 16 Z;
+              M 12 12 C 14 8.5 19 8.5 19 12 C 19 15.5 14 15.5 12 12 C 10 8.5 5 8.5 5 12 C 5 15.5 10 15.5 12 12 Z;
+              M 12 8 C 14.21 8 16 9.79 16 12 C 16 14.21 14.21 16 12 16 C 9.79 16 8 14.21 8 12 C 8 9.79 9.79 8 12 8 Z
+            "/>
+        </path>
+      </svg>
+      <span class="thinking-words">
+        <span class="thinking-spacer">Transcribiendo</span>
+        <span class="thinking-word">Transcribiendo</span>
+        <span class="thinking-word">Analizando</span>
+        <span class="thinking-word">Resumiendo</span>
+        <span class="thinking-word">Refinando</span>
+      </span>
     </div>
-    <p class="processing-title" id="process-title">Transcribiendo...</p>
-    <p class="processing-sub" id="process-sub"></p>
-    <div class="seg-progress-label" style="margin-top:28px">
+    <p class="processing-sub" id="process-sub" style="margin-bottom:32px;"></p>
+    <div class="seg-progress-label" style="width:100%;max-width:280px;">
       <span class="seg-progress-title" id="seg-label">Procesando</span>
       <span class="seg-progress-pct" id="seg-pct">0%</span>
     </div>
@@ -1640,7 +1701,6 @@ async function processAudio(file, groqKey) {
   } catch(e) { document.getElementById('error-msg').textContent = e.message; showScreen('error'); }
 }
 function setProgress(pct, title, sub) {
-  document.getElementById('process-title').textContent = title;
   document.getElementById('process-sub').textContent = sub;
   document.getElementById('seg-label').textContent = title.toUpperCase();
   buildSegBar(pct);
