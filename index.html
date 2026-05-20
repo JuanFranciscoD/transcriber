@@ -221,9 +221,14 @@ html, body {
 .folder-chevron { color: var(--text-disabled); }
 
 /* ── NOTE ITEM ── */
-.note-item-wrap { position: relative; overflow: hidden; }
+.note-item-wrap {
+  position: relative;
+  overflow: hidden;
+  display: flex;        /* ensures wrapper height = content height */
+  flex-direction: column;
+}
 .note-item-wrap .delete-reveal {
-  position: absolute; right: 0; top: 0; bottom: 0; width: 80px;
+  position: absolute; right: 0; top: 0; height: 100%; width: 80px;
   background: var(--accent);
   display: flex; align-items: center; justify-content: center;
   flex-direction: column; gap: 4px;
@@ -239,6 +244,8 @@ html, body {
   background: var(--black);
   transition: transform 0.2s ease-out;
   touch-action: pan-y;
+  width: 100%;        /* stay full-width inside flex wrapper */
+  flex-shrink: 0;
 }
 .note-item-wrap:last-child .note-item { border-bottom: none; }
 .note-item:active { opacity: 0.6; }
