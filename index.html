@@ -6,62 +6,87 @@
 <title>Transcriber</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; background: #F5F0E8; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+html, body { height: 100%; background: #fff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #000; }
 .screen { display: none; min-height: 100vh; flex-direction: column; }
 .screen.active { display: flex; }
-.topbar { background: #F5F0E8; padding: 16px 20px 8px; display: flex; align-items: center; gap: 12px; }
-.topbar h1 { font-size: 22px; font-weight: 600; color: #0F6E56; }
-.topbar .back { color: #0F6E56; font-size: 26px; cursor: pointer; background: none; border: none; line-height: 1; }
-.content { flex: 1; padding: 16px 20px; overflow-y: auto; }
-.note-item { background: #EDE8DC; border-radius: 14px; padding: 16px; margin-bottom: 12px; cursor: pointer; display: flex; gap: 12px; align-items: flex-start; }
-.note-icon { font-size: 28px; flex-shrink: 0; }
-.note-meta { flex: 1; }
-.note-meta h3 { font-size: 16px; font-weight: 600; color: #0F6E56; }
-.note-meta p { font-size: 13px; color: #888780; margin-top: 2px; }
-.note-dur { float: right; font-size: 13px; color: #888780; }
-.empty-state { text-align: center; padding: 60px 20px; color: #888780; }
-.empty-state .big-icon { font-size: 64px; margin-bottom: 16px; }
-.upload-area { background: #EDE8DC; border-radius: 14px; padding: 32px 20px; text-align: center; cursor: pointer; margin-bottom: 16px; border: 2px dashed #9FE1CB; }
-.upload-area h3 { color: #0F6E56; font-size: 17px; font-weight: 600; margin-bottom: 8px; }
-.upload-area p { color: #5F5E5A; font-size: 14px; }
+
+.topbar { padding: 20px 20px 12px; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; gap: 12px; }
+.topbar h1 { font-size: 20px; font-weight: 700; color: #000; letter-spacing: -0.5px; flex: 1; }
+.topbar .back { background: none; border: none; font-size: 26px; color: #000; cursor: pointer; line-height: 1; padding: 0; }
+
+.content { flex: 1; padding: 20px; overflow-y: auto; }
+
+.upload-area { border: 1.5px dashed #d0d0d0; border-radius: 16px; padding: 36px 20px; text-align: center; cursor: pointer; margin-bottom: 24px; transition: border-color 0.2s, background 0.2s; }
+.upload-area:active { background: #fafafa; border-color: #000; }
+.upload-icon { width: 48px; height: 48px; background: #000; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; font-size: 22px; }
+.upload-area h3 { font-size: 15px; font-weight: 600; color: #000; margin-bottom: 4px; }
+.upload-area p { font-size: 13px; color: #999; }
 #file-input { display: none; }
-.btn-primary { background: #1D9E75; color: white; border: none; border-radius: 12px; padding: 14px 24px; font-size: 16px; font-weight: 600; cursor: pointer; width: 100%; margin-top: 8px; }
-.btn-primary:disabled { background: #9FE1CB; cursor: not-allowed; }
+
+.section-label { font-size: 11px; font-weight: 600; color: #999; letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 10px; }
+
+.note-item { display: flex; align-items: center; gap: 14px; padding: 14px 0; border-bottom: 1px solid #f0f0f0; cursor: pointer; }
+.note-item:last-child { border-bottom: none; }
+.note-item:active { opacity: 0.6; }
+.note-thumb { width: 42px; height: 42px; border-radius: 10px; background: #f5f5f5; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+.note-info { flex: 1; min-width: 0; }
+.note-info h3 { font-size: 14px; font-weight: 600; color: #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.note-info p { font-size: 12px; color: #999; margin-top: 2px; }
+.note-arrow { color: #ccc; font-size: 20px; }
+
+.empty-state { text-align: center; padding: 48px 20px; color: #ccc; }
+.empty-state .big-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.4; }
+.empty-state p { font-size: 14px; color: #bbb; }
+
 .processing-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; padding: 40px 20px; text-align: center; }
-.spinner { width: 48px; height: 48px; border: 3px solid #9FE1CB; border-top-color: #1D9E75; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 24px; }
+.spinner { width: 40px; height: 40px; border: 2px solid #f0f0f0; border-top-color: #000; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 24px; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.processing-wrap h2 { font-size: 20px; font-weight: 600; color: #0F6E56; margin-bottom: 8px; }
-.progress-bar-wrap { width: 100%; background: #EDE8DC; border-radius: 99px; height: 6px; margin-top: 24px; overflow: hidden; }
-.progress-bar { height: 100%; background: #1D9E75; border-radius: 99px; transition: width 0.4s; }
-.tabs { display: flex; gap: 8px; margin-bottom: 16px; }
-.tab { flex: 1; padding: 10px; border-radius: 10px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; }
-.tab.active { background: #1D9E75; color: white; }
-.tab.inactive { background: #EDE8DC; color: #5F5E5A; }
-.section-title { font-size: 17px; font-weight: 700; color: #0F6E56; margin: 16px 0 6px; }
+.processing-wrap h2 { font-size: 18px; font-weight: 600; color: #000; margin-bottom: 6px; letter-spacing: -0.3px; }
+.processing-wrap p { font-size: 13px; color: #999; }
+.progress-bar-wrap { width: 100%; background: #f0f0f0; border-radius: 99px; height: 3px; margin-top: 28px; overflow: hidden; }
+.progress-bar { height: 100%; background: #000; border-radius: 99px; transition: width 0.4s; }
+
+.tabs { display: flex; background: #f5f5f5; border-radius: 10px; padding: 3px; margin: 16px 20px; }
+.tab { flex: 1; padding: 8px; border-radius: 8px; border: none; font-size: 13px; font-weight: 500; cursor: pointer; background: transparent; color: #888; transition: all 0.2s; }
+.tab.active { background: #fff; color: #000; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+.tab-content { padding: 0 20px 100px; }
+.section-title { font-size: 11px; font-weight: 700; color: #999; letter-spacing: 0.7px; text-transform: uppercase; margin: 20px 0 8px; }
 .section-title:first-child { margin-top: 0; }
-.bullet { font-size: 14px; color: #2C2C2A; line-height: 1.6; padding: 3px 0 3px 16px; position: relative; }
-.bullet::before { content: "·"; position: absolute; left: 4px; color: #0F6E56; font-size: 18px; line-height: 1.2; }
-.transcript-text { font-size: 14px; color: #2C2C2A; line-height: 1.8; }
-.bottombar { background: #F5F0E8; border-top: 0.5px solid #D3D1C7; padding: 12px 20px 32px; display: flex; }
-.bottom-btn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; background: none; border: none; cursor: pointer; padding: 8px 0; font-size: 11px; color: #5F5E5A; }
-.bottom-btn svg { color: #0F6E56; }
-.share-sheet { position: fixed; bottom: 0; left: 0; right: 0; background: #F5F0E8; border-radius: 20px 20px 0 0; padding: 20px 20px 48px; transform: translateY(100%); transition: transform 0.3s; z-index: 100; }
+.bullet { font-size: 14px; color: #222; line-height: 1.65; padding: 3px 0 3px 14px; position: relative; }
+.bullet::before { content: "–"; position: absolute; left: 0; color: #ccc; }
+.transcript-text { font-size: 14px; color: #333; line-height: 1.8; }
+
+.bottombar { background: rgba(255,255,255,0.95); border-top: 1px solid #f0f0f0; padding: 12px 20px 32px; display: flex; gap: 8px; }
+.action-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; background: #f5f5f5; border: none; border-radius: 10px; padding: 11px 8px; font-size: 12px; font-weight: 500; color: #000; cursor: pointer; }
+.action-btn:active { opacity: 0.7; transform: scale(0.97); }
+.action-btn.primary { background: #000; color: #fff; }
+
+.share-sheet { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-radius: 20px 20px 0 0; border-top: 1px solid #f0f0f0; padding: 20px 20px 48px; transform: translateY(100%); transition: transform 0.3s ease; z-index: 100; }
 .share-sheet.open { transform: translateY(0); }
-.share-sheet h3 { font-size: 17px; font-weight: 600; color: #0F6E56; margin-bottom: 16px; }
-.share-option { display: flex; align-items: center; gap: 14px; padding: 14px 0; border-bottom: 0.5px solid #D3D1C7; cursor: pointer; background: none; border-left: none; border-right: none; border-top: none; width: 100%; text-align: left; }
+.share-sheet h3 { font-size: 15px; font-weight: 600; color: #000; margin-bottom: 16px; }
+.share-handle { width: 36px; height: 4px; background: #e0e0e0; border-radius: 2px; margin: 0 auto 16px; }
+.share-option { display: flex; align-items: center; gap: 14px; padding: 14px 0; border-bottom: 1px solid #f5f5f5; cursor: pointer; background: none; border-left: none; border-right: none; border-top: none; width: 100%; text-align: left; }
 .share-option:last-child { border-bottom: none; }
-.share-option span { font-size: 16px; color: #0F6E56; font-weight: 500; }
-.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 99; display: none; }
+.share-option .share-icon { width: 38px; height: 38px; border-radius: 10px; background: #f5f5f5; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+.share-option span { font-size: 15px; color: #000; font-weight: 500; }
+
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.2); z-index: 99; display: none; }
 .overlay.open { display: block; }
-.api-setup { background: #EDE8DC; border-radius: 14px; padding: 20px; margin-bottom: 16px; }
-.api-setup p { font-size: 14px; color: #5F5E5A; margin-bottom: 12px; line-height: 1.6; }
+
+.api-setup { background: #f9f9f9; border-radius: 14px; padding: 20px; margin-bottom: 20px; border: 1px solid #f0f0f0; }
+.api-setup p { font-size: 13px; color: #666; margin-bottom: 14px; line-height: 1.6; }
 .input-wrap { margin-bottom: 10px; }
-.input-wrap label { font-size: 13px; color: #5F5E5A; margin-bottom: 4px; display: block; }
-.input-wrap input { width: 100%; background: #F5F0E8; border: 1px solid #D3D1C7; border-radius: 8px; padding: 10px 12px; font-size: 14px; color: #2C2C2A; outline: none; }
-.input-wrap input:focus { border-color: #1D9E75; }
-.toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: #2C2C2A; color: white; border-radius: 10px; padding: 10px 20px; font-size: 14px; opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; z-index: 200; }
+.input-wrap label { font-size: 12px; font-weight: 600; color: #999; letter-spacing: 0.4px; margin-bottom: 6px; display: block; text-transform: uppercase; font-size: 11px; }
+.input-wrap input { width: 100%; background: #fff; border: 1px solid #e5e5e5; border-radius: 10px; padding: 11px 12px; font-size: 14px; color: #000; outline: none; }
+.input-wrap input:focus { border-color: #000; }
+.btn-primary { background: #000; color: #fff; border: none; border-radius: 10px; padding: 13px 24px; font-size: 14px; font-weight: 600; cursor: pointer; width: 100%; margin-top: 4px; letter-spacing: -0.2px; }
+.btn-primary:active { opacity: 0.8; }
+
+.toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: #000; color: #fff; border-radius: 20px; padding: 10px 20px; font-size: 13px; font-weight: 500; opacity: 0; transition: opacity 0.25s; pointer-events: none; white-space: nowrap; z-index: 200; }
 .toast.show { opacity: 1; }
-.error-detail { font-size: 13px; color: #A32D2D; margin-top: 12px; text-align: center; line-height: 1.6; max-width: 280px; }
+
+.error-detail { font-size: 13px; color: #666; margin-top: 10px; text-align: center; line-height: 1.6; max-width: 280px; }
 </style>
 </head>
 <body>
@@ -71,22 +96,29 @@ html, body { height: 100%; background: #F5F0E8; font-family: -apple-system, Blin
   <div class="topbar"><h1>Transcriber</h1></div>
   <div class="content">
     <div id="api-warning" class="api-setup" style="display:none">
-      <p>Ingresá tu Groq API Key para empezar. Se guarda solo en tu dispositivo.</p>
+      <p>Ingresá tu Groq API key para empezar. Se guarda solo en tu dispositivo y es completamente gratis.</p>
       <div class="input-wrap">
-        <label>Groq API Key (gratis — transcripción + resumen)</label>
+        <label>Groq API Key</label>
         <input type="password" id="groq-key" placeholder="gsk_..." autocomplete="off" />
       </div>
-      <button class="btn-primary" onclick="saveKeys()">Guardar clave</button>
+      <button class="btn-primary" onclick="saveKeys()">Guardar</button>
     </div>
 
     <div class="upload-area" onclick="document.getElementById('file-input').click()">
-      <div style="font-size:48px; margin-bottom:12px">🎙️</div>
+      <div class="upload-icon">🎙️</div>
       <h3>Subir audio</h3>
-      <p>Tocá acá para seleccionar un audio de WhatsApp (.m4a, .ogg, .mp3)</p>
+      <p>.m4a · .ogg · .mp3 · .wav</p>
     </div>
     <input type="file" id="file-input" accept="audio/*,.m4a,.ogg,.opus,.mp3,.mp4,.wav,.webm" onchange="handleFile(this)" />
 
-    <div id="notes-list"></div>
+    <div id="notes-section" style="display:none">
+      <div class="section-label">Recientes</div>
+      <div id="notes-list"></div>
+    </div>
+    <div id="empty-state" class="empty-state">
+      <div class="big-icon">🎙️</div>
+      <p>Tus notas aparecerán acá</p>
+    </div>
   </div>
 </div>
 
@@ -98,8 +130,8 @@ html, body { height: 100%; background: #F5F0E8; font-family: -apple-system, Blin
   </div>
   <div class="processing-wrap">
     <div class="spinner"></div>
-    <h2 id="process-title">Transcribiendo audio...</h2>
-    <p id="process-sub" style="color:#5F5E5A; font-size:14px"></p>
+    <h2 id="process-title">Transcribiendo...</h2>
+    <p id="process-sub"></p>
     <div class="progress-bar-wrap">
       <div class="progress-bar" id="progress-bar" style="width:15%"></div>
     </div>
@@ -110,29 +142,20 @@ html, body { height: 100%; background: #F5F0E8; font-family: -apple-system, Blin
 <div id="screen-detail" class="screen">
   <div class="topbar">
     <button class="back" onclick="showScreen('home')">‹</button>
-    <h1 id="detail-title" style="font-size:16px; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap"></h1>
+    <h1 id="detail-title" style="font-size:16px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap"></h1>
   </div>
-  <div class="content" style="padding-bottom:0">
-    <div class="tabs">
-      <button class="tab active" id="tab-resumen" onclick="switchTab('resumen')">≡ Resumen</button>
-      <button class="tab inactive" id="tab-transcripcion" onclick="switchTab('transcripcion')">📄 Transcripción</button>
-    </div>
+  <div class="tabs">
+    <button class="tab active" id="tab-resumen" onclick="switchTab('resumen')">Resumen</button>
+    <button class="tab" id="tab-transcripcion" onclick="switchTab('transcripcion')">Transcripción</button>
+  </div>
+  <div class="tab-content">
     <div id="tab-content-resumen"></div>
     <div id="tab-content-transcripcion" style="display:none"></div>
   </div>
   <div class="bottombar">
-    <button class="bottom-btn" onclick="deleteCurrentNote()">
-      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-      Eliminar
-    </button>
-    <button class="bottom-btn" onclick="copyCurrentNote()">
-      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-      Copiar
-    </button>
-    <button class="bottom-btn" onclick="openShareSheet()">
-      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
-      Compartir
-    </button>
+    <button class="action-btn" onclick="deleteCurrentNote()">🗑 Eliminar</button>
+    <button class="action-btn" onclick="copyCurrentNote()">⎘ Copiar</button>
+    <button class="action-btn primary" onclick="openShareSheet()">↑ Compartir</button>
   </div>
 </div>
 
@@ -143,23 +166,24 @@ html, body { height: 100%; background: #F5F0E8; font-family: -apple-system, Blin
     <h1>Error</h1>
   </div>
   <div class="processing-wrap">
-    <div style="font-size:48px; margin-bottom:16px">⚠️</div>
-    <h2 style="color:#A32D2D">Algo salió mal</h2>
+    <div style="font-size:40px; margin-bottom:16px">⚠️</div>
+    <h2>Algo salió mal</h2>
     <p class="error-detail" id="error-msg"></p>
-    <button class="btn-primary" style="margin-top:24px; max-width:200px" onclick="showScreen('home')">Volver</button>
+    <button class="btn-primary" style="margin-top:28px; max-width:180px" onclick="showScreen('home')">Volver</button>
   </div>
 </div>
 
 <!-- SHARE SHEET -->
 <div class="overlay" id="overlay" onclick="closeShareSheet()"></div>
 <div class="share-sheet" id="share-sheet">
-  <h3>Compartir esta nota</h3>
+  <div class="share-handle"></div>
+  <h3>Compartir nota</h3>
   <button class="share-option" onclick="shareOption('resumen')">
-    <span style="font-size:22px">📄</span>
+    <div class="share-icon">📄</div>
     <span>Compartir resumen</span>
   </button>
   <button class="share-option" onclick="shareOption('transcripcion')">
-    <span style="font-size:22px">📝</span>
+    <div class="share-icon">📝</div>
     <span>Compartir transcripción</span>
   </button>
 </div>
@@ -195,18 +219,24 @@ function checkKeys() {
 
 function renderNotes() {
   var list = document.getElementById('notes-list');
+  var section = document.getElementById('notes-section');
+  var empty = document.getElementById('empty-state');
   if (notes.length === 0) {
-    list.innerHTML = '<div class="empty-state"><div class="big-icon">🎙️</div><p>Tus notas aparecerán acá</p></div>';
+    section.style.display = 'none';
+    empty.style.display = 'block';
     return;
   }
+  section.style.display = 'block';
+  empty.style.display = 'none';
   list.innerHTML = notes.map(function(n) {
     return '<div class="note-item" onclick="openNote(\'' + n.id + '\')">' +
-      '<div class="note-icon">' + (n.icon || '🎙️') + '</div>' +
-      '<div class="note-meta">' +
-        '<span class="note-dur">' + (n.duration || '') + '</span>' +
+      '<div class="note-thumb">' + (n.icon || '🎙️') + '</div>' +
+      '<div class="note-info">' +
         '<h3>' + escHtml(n.title) + '</h3>' +
         '<p>' + escHtml(n.date) + '</p>' +
-      '</div></div>';
+      '</div>' +
+      '<span class="note-arrow">›</span>' +
+      '</div>';
   }).join('');
 }
 
@@ -243,8 +273,8 @@ function renderResumen(resumen) {
 
 function switchTab(tab) {
   currentTab = tab;
-  document.getElementById('tab-resumen').className = 'tab ' + (tab === 'resumen' ? 'active' : 'inactive');
-  document.getElementById('tab-transcripcion').className = 'tab ' + (tab === 'transcripcion' ? 'active' : 'inactive');
+  document.getElementById('tab-resumen').className = 'tab ' + (tab === 'resumen' ? 'active' : '');
+  document.getElementById('tab-transcripcion').className = 'tab ' + (tab === 'transcripcion' ? 'active' : '');
   document.getElementById('tab-content-resumen').style.display = tab === 'resumen' ? 'block' : 'none';
   document.getElementById('tab-content-transcripcion').style.display = tab === 'transcripcion' ? 'block' : 'none';
 }
@@ -265,7 +295,7 @@ function handleFile(input) {
 
 async function processAudio(file, groqKey) {
   showScreen('process');
-  setProgress(15, 'Transcribiendo audio...', file.name);
+  setProgress(15, 'Transcribiendo...', file.name);
 
   try {
     var formData = new FormData();
@@ -283,11 +313,11 @@ async function processAudio(file, groqKey) {
 
     if (!groqResp.ok) {
       var errText = await groqResp.text();
-      throw new Error('Error al transcribir. Verificá tu Groq API key.\n\nDetalle: ' + errText.substring(0, 200));
+      throw new Error('Error al transcribir. Verificá tu Groq API key.\n\n' + errText.substring(0, 200));
     }
 
     var transcripcion = await groqResp.text();
-    setProgress(60, 'Generando resumen...', 'Analizando con Llama 3...');
+    setProgress(60, 'Generando resumen...', '');
 
     var llamaResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -307,7 +337,7 @@ async function processAudio(file, groqKey) {
 
     if (!llamaResp.ok) {
       var llamaErr = await llamaResp.text();
-      throw new Error('Error al generar resumen.\n\nDetalle: ' + llamaErr.substring(0, 200));
+      throw new Error('Error al generar resumen.\n\n' + llamaErr.substring(0, 200));
     }
 
     var llamaData = await llamaResp.json();
@@ -320,7 +350,7 @@ async function processAudio(file, groqKey) {
       resumenObj = { titulo: file.name, icono: '🎙️', secciones: [{ titulo: 'Resumen', puntos: [rawText] }] };
     }
 
-    setProgress(90, 'Guardando nota...', '');
+    setProgress(95, 'Guardando...', '');
 
     var nota = {
       id: Date.now().toString(),
@@ -368,15 +398,13 @@ function copyCurrentNote() {
   var text = '';
   if (currentTab === 'resumen' && note.resumen && note.resumen.secciones) {
     text = note.resumen.secciones.map(function(s) {
-      return s.titulo + '\n' + (s.puntos || []).map(function(p) { return '• ' + p; }).join('\n');
+      return s.titulo.toUpperCase() + '\n' + (s.puntos || []).map(function(p) { return '– ' + p; }).join('\n');
     }).join('\n\n');
   } else {
     text = note.transcripcion || '';
   }
   if (navigator.clipboard) {
     navigator.clipboard.writeText(text).then(function() { showToast('Copiado ✓'); }).catch(function() { showToast('No se pudo copiar'); });
-  } else {
-    showToast('No se pudo copiar');
   }
 }
 
@@ -397,7 +425,7 @@ function shareOption(type) {
   var text = '';
   if (type === 'resumen' && note.resumen && note.resumen.secciones) {
     text = note.title + '\n\n' + note.resumen.secciones.map(function(s) {
-      return '*' + s.titulo + '*\n' + (s.puntos || []).map(function(p) { return '• ' + p; }).join('\n');
+      return s.titulo.toUpperCase() + '\n' + (s.puntos || []).map(function(p) { return '– ' + p; }).join('\n');
     }).join('\n\n');
   } else {
     text = note.transcripcion || '';
@@ -405,7 +433,7 @@ function shareOption(type) {
   if (navigator.share) {
     navigator.share({ text: text }).catch(function() {});
   } else if (navigator.clipboard) {
-    navigator.clipboard.writeText(text).then(function() { showToast('Copiado al portapapeles ✓'); });
+    navigator.clipboard.writeText(text).then(function() { showToast('Copiado ✓'); });
   }
 }
 
