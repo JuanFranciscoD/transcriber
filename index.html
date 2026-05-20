@@ -120,6 +120,10 @@ html, body { height: 100%; background: #fff; font-family: -apple-system, BlinkMa
 .toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: #000; color: #fff; border-radius: 20px; padding: 10px 20px; font-size: 13px; font-weight: 500; opacity: 0; transition: opacity 0.25s; pointer-events: none; white-space: nowrap; z-index: 300; }
 .toast.show { opacity: 1; }
 .error-detail { font-size: 13px; color: #666; margin-top: 10px; text-align: center; line-height: 1.6; max-width: 280px; }
+.emoji-picker { position: fixed; background: #fff; border-radius: 16px; border: 1px solid #e5e5e5; padding: 12px; z-index: 250; box-shadow: 0 8px 32px rgba(0,0,0,0.12); width: 264px; }
+.emoji-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.emoji-btn { background: none; border: none; font-size: 22px; cursor: pointer; padding: 5px 2px; border-radius: 6px; text-align: center; line-height: 1; }
+.emoji-btn:active { background: #f0f0f0; }
 </style>
 </head>
 <body>
@@ -254,6 +258,11 @@ html, body { height: 100%; background: #fff; font-family: -apple-system, BlinkMa
 
 <div class="toast" id="toast"></div>
 
+<!-- EMOJI PICKER -->
+<div class="emoji-picker" id="emoji-picker" style="display:none">
+  <div class="emoji-grid" id="emoji-grid"></div>
+</div>
+
 <script>
 var notes = JSON.parse(localStorage.getItem('transcriber-notes') || '[]');
 var folders = JSON.parse(localStorage.getItem('transcriber-folders') || '[]');
@@ -328,10 +337,10 @@ function renderHome() {
 }
 
 function noteItemHtml(n) {
-  return '<div class="note-item" onclick="openNote(\'' + n.id + '\')">' +
-    '<div class="note-thumb">' + (n.icon || '🎙️') + '</div>' +
-    '<div class="note-info"><h3>' + escHtml(n.title) + '</h3><p>' + escHtml(n.date) + '</p></div>' +
-    '<span class="note-arrow">›</span>' +
+  return '<div class="note-item">' +
+    '<div class="note-thumb" onclick="event.stopPropagation(); openEmojiPicker(\'' + n.id + '\', this)" style="cursor:pointer">' + (n.icon || '🎙️') + '</div>' +
+    '<div class="note-info" onclick="openNote(\'' + n.id + '\')"><h3>' + escHtml(n.title) + '</h3><p>' + escHtml(n.date) + '</p></div>' +
+    '<span class="note-arrow" onclick="openNote(\'' + n.id + '\')">›</span>' +
     '</div>';
 }
 
@@ -658,6 +667,62 @@ function showToast(msg) {
   t.textContent = msg;
   t.classList.add('show');
   setTimeout(function(){ t.classList.remove('show'); }, 2500);
+}
+
+/* ---- EMOJI PICKER ---- */
+var EMOJIS = [
+  '🎙️','📋','🏢','💡','📝','✅','⭐','🔥','📌','🏠','👤','💼','🎯','📊','🗂️',
+  '🏗️','🔑','💰','📅','⏰','🚗','✈️','🌍','📞','💬','🤝','👥','🏦','🏥','🎓',
+  '🛒','📦','🔧','⚙️','💻','📱','🎵','🎬','📸','🌟','❤️','😊','🙏','👍','🚀',
+  '🌱','☀️','🌙','⚡','🎉','🎁','🍕','☕','🏋️','📖'
+];
+var emojiPickerNoteId = null;
+
+function openEmojiPicker(noteId, anchorEl) {
+  emojiPickerNoteId = noteId;
+  var picker = document.getElementById('emoji-picker');
+  var grid = document.getElementById('emoji-grid');
+
+  grid.innerHTML = EMOJIS.map(function(e) {
+    return '<button class="emoji-btn" onclick="selectEmoji(\'' + e + '\')">' + e + '</button>';
+  }).join('');
+
+  // Posicionar cerca del ícono
+  var rect = anchorEl.getBoundingClientRect();
+  var top = rect.bottom + 8;
+  var left = rect.left;
+  if (left + 264 > window.innerWidth) left = window.innerWidth - 274;
+  if (top + 200 > window.innerHeight) top = rect.top - 208;
+
+  picker.style.top = top + 'px';
+  picker.style.left = left + 'px';
+  picker.style.display = 'block';
+
+  setTimeout(function() {
+    document.addEventListener('click', closeEmojiPickerOutside, { once: true });
+  }, 10);
+}
+
+function selectEmoji(emoji) {
+  var note = notes.find(function(n) { return n.id === emojiPickerNoteId; });
+  if (note) {
+    note.icon = emoji;
+    save();
+    renderHome();
+    if (currentFolderId) renderFolderNotes();
+  }
+  closeEmojiPicker();
+}
+
+function closeEmojiPicker() {
+  document.getElementById('emoji-picker').style.display = 'none';
+  emojiPickerNoteId = null;
+}
+
+function closeEmojiPickerOutside(e) {
+  var picker = document.getElementById('emoji-picker');
+  if (!picker.contains(e.target)) closeEmojiPicker();
+  else document.addEventListener('click', closeEmojiPickerOutside, { once: true });
 }
 
 checkKeys();
