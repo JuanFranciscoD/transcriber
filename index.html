@@ -197,6 +197,16 @@ html, body {
   pointer-events: none;
 }
 .upload-card:active { border-color: var(--text-display); }
+.upload-card.drag-over {
+  border-color: var(--text-display);
+  border-style: dashed;
+  background: var(--surface-raised);
+}
+.upload-card.drag-over .upload-icon-wrap {
+  border-color: var(--text-display);
+  color: var(--text-display);
+}
+.upload-card.drag-over h3 { color: var(--text-display); }
 .upload-icon-wrap {
   width: 48px; height: 48px;
   border: 1px solid var(--border-visible);
@@ -825,7 +835,7 @@ html, body {
       <svg width="14" height="14"><use href="#ic-search"/></svg>
       <input class="search-input" id="search-input" type="search" placeholder="Buscar notas..." oninput="renderHome()" />
     </div>
-    <div class="upload-card" onclick="document.getElementById('file-input').click()">
+    <div class="upload-card" id="upload-card" onclick="document.getElementById('file-input').click()">
       <div class="upload-icon-wrap">
         <svg width="22" height="22"><use href="#ic-mic"/></svg>
       </div>
@@ -1624,6 +1634,37 @@ function moveNoteTo(folderId) {
   var n = folderId ? (folders.find(function(f){return f.id===folderId;})||{}).name : 'Recientes';
   showStatus('[MOVIDO A ' + (n||'').toUpperCase() + ']');
 }
+
+/* ── DRAG & DROP ── */
+(function() {
+  var card, dragCount = 0;
+  function init() {
+    card = document.getElementById('upload-card');
+    if (!card) return;
+    card.addEventListener('dragenter', function(e) {
+      e.preventDefault(); e.stopPropagation();
+      dragCount++;
+      card.classList.add('drag-over');
+    });
+    card.addEventListener('dragleave', function(e) {
+      e.preventDefault(); e.stopPropagation();
+      dragCount--;
+      if (dragCount <= 0) { dragCount = 0; card.classList.remove('drag-over'); }
+    });
+    card.addEventListener('dragover', function(e) {
+      e.preventDefault(); e.stopPropagation();
+    });
+    card.addEventListener('drop', function(e) {
+      e.preventDefault(); e.stopPropagation();
+      card.classList.remove('drag-over'); dragCount = 0;
+      var files = e.dataTransfer.files;
+      if (files && files[0]) processAudio(files[0], GROQ_KEY);
+    });
+  }
+  // init after DOM ready
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
 
 /* ── PROCESAR AUDIO ── */
 function handleFile(input) {
