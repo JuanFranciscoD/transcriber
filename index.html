@@ -818,14 +818,15 @@ html, body {
       <svg width="14" height="14"><use href="#ic-search"/></svg>
       <input class="search-input" id="search-input" type="search" placeholder="Buscar notas..." oninput="renderHome()" />
     </div>
-    <div class="upload-card" id="upload-card" onclick="document.getElementById('file-input').click()">
+    <div class="upload-card" id="upload-card" onclick="openUploadSheet()">
       <div class="upload-icon-wrap">
         <svg width="22" height="22"><use href="#ic-mic"/></svg>
       </div>
       <h3>Subir audio</h3>
       <p>.m4a · .ogg · .mp3 · .wav</p>
     </div>
-    <input type="file" id="file-input" accept="audio/*,.m4a,.ogg,.opus,.mp3,.mp4,.wav,.webm" onchange="handleFile(this)" />
+    <input type="file" id="file-input" accept="audio/*,.m4a,.ogg,.opus,.mp3,.wav,.webm" onchange="handleFile(this)" />
+    <input type="file" id="file-input-record" accept="audio/*" capture="microphone" onchange="handleFile(this)" />
     <div id="home-content"></div>
   </div>
 </div>
@@ -1021,6 +1022,20 @@ html, body {
 
 <!-- OVERLAY -->
 <div class="overlay" id="overlay" onclick="closeAllSheets()"></div>
+
+<!-- UPLOAD SHEET -->
+<div class="sheet" id="upload-sheet">
+  <div class="sheet-handle"></div>
+  <p class="sheet-label">Agregar audio</p>
+  <button class="sheet-option" onclick="closeAllSheets(); document.getElementById('file-input-record').click()">
+    <div class="opt-icon"><svg width="16" height="16"><use href="#ic-mic"/></svg></div>
+    <span class="sheet-option-label">Grabar audio</span>
+  </button>
+  <button class="sheet-option" onclick="closeAllSheets(); document.getElementById('file-input').click()">
+    <div class="opt-icon"><svg width="16" height="16"><use href="#ic-file-text"/></svg></div>
+    <span class="sheet-option-label">Elegir archivo</span>
+  </button>
+</div>
 
 <!-- SHARE SHEET -->
 <div class="sheet" id="share-sheet">
@@ -1733,6 +1748,10 @@ function copyCurrentNote() {
     ? note.resumen.secciones.map(function(s){ return s.titulo.toUpperCase()+'\n'+(s.puntos||[]).map(function(p){return '– '+p;}).join('\n'); }).join('\n\n')
     : (note.transcripcion||'');
   if (navigator.clipboard) { navigator.clipboard.writeText(text).then(function(){ showStatus('[COPIADO]'); }); }
+}
+function openUploadSheet() {
+  document.getElementById('upload-sheet').classList.add('open');
+  document.getElementById('overlay').classList.add('open');
 }
 function openShareSheet() {
   document.getElementById('share-sheet').classList.add('open');
