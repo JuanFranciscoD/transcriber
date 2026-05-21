@@ -268,7 +268,22 @@ html, body {
   font-size: 11px; letter-spacing: 0.04em;
   color: var(--text-disabled); margin-top: 2px;
 }
-.folder-chevron { color: var(--text-disabled); }
+.folder-chevron {
+  color: var(--text-disabled);
+  transition: transform 200ms cubic-bezier(0.25,0.1,0.25,1);
+  flex-shrink: 0;
+}
+.folder-item.expanded .folder-chevron { transform: rotate(90deg); }
+.folder-item.expanded { border-bottom: none; }
+
+/* Notas dentro de carpeta expandida */
+.folder-notes-inline {
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 280ms cubic-bezier(0.25,0.1,0.25,1);
+}
+.folder-notes-inline.open { max-height: 2000px; }
+.folder-notes-inline .note-item-wrap:last-child .note-item { border-bottom: 1px solid var(--border); }
 
 /* ── NOTE ITEM ── */
 .note-item-wrap {
@@ -285,6 +300,12 @@ html, body {
   color: white;
   font-family: 'Space Mono', monospace;
   font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+  /* Oculto hasta que el swipe lo revele */
+  clip-path: inset(0 0 0 100%);
+  transition: clip-path 0ms;
+}
+.note-item-wrap.swiped .delete-reveal {
+  clip-path: inset(0 0 0 0%);
 }
 .note-item {
   display: flex; align-items: center; gap: 12px;
@@ -1267,6 +1288,7 @@ var db = null;
 var currentUser = null;
 var _audioEl = null; // audio element para el player del detalle
 var _audioRaf = null;
+var _expandedFolders = {}; // { folderId: true/false }
 var DEVICE_ID = localStorage.getItem('transcriber-device-id') || (function(){ var id = 'dev_' + Date.now() + '_' + Math.random().toString(36).slice(2); localStorage.setItem('transcriber-device-id', id); return id; })();
 var SEG_COUNT = 20;
 
@@ -1624,11 +1646,18 @@ function renderHome() {
     if (folders.length > 0) {
       html += '<div class="section-header"><span class="section-label">Carpetas</span></div>';
       folders.forEach(function(f) {
-        var count = notes.filter(function(n){ return n.folderId === f.id; }).length;
-        html += '<div class="folder-item" onclick="openFolder(\'' + f.id + '\')">' +
+        var folderNotes = notes.filter(function(n){ return n.folderId === f.id; });
+        var count = folderNotes.length;
+        var isExpanded = _expandedFolders[f.id] ? 'expanded' : '';
+        var isOpen = _expandedFolders[f.id] ? 'open' : '';
+        html += '<div class="folder-item ' + isExpanded + '" onclick="toggleFolder(\'' + f.id + '\')" data-folder-id="' + f.id + '">' +
           '<div class="folder-icon-wrap"><svg width="16" height="16"><use href="#ic-folder"/></svg></div>' +
           '<div class="folder-info"><h3>' + escHtml(f.name) + '</h3><p>' + count + ' nota' + (count!==1?'s':'') + '</p></div>' +
           '<span class="folder-chevron"><svg width="14" height="14"><use href="#ic-chevron-right"/></svg></span>' +
+          '</div>' +
+          '<div class="folder-notes-inline ' + isOpen + '" data-folder-notes="' + f.id + '">' +
+          (folderNotes.length > 0 ? folderNotes.map(function(n){ return noteItemHtml(n, true); }).join('') :
+            '<div style="padding:12px 0 12px 48px;font-size:13px;color:var(--text-disabled);">Sin notas</div>') +
           '</div>';
       });
     }
@@ -1661,17 +1690,18 @@ function durBadgeClass(n) {
   if (secs < 180) return 'medium';
   return 'long';
 }
-function noteItemHtml(n) {
+function noteItemHtml(n, fromInlineFolder) {
   var dur = n.duration ? '<span class="dur-badge ' + durBadgeClass(n) + '">' + escHtml(n.duration) + '</span>' : '';
+  var openFn = fromInlineFolder ? 'openNoteFromHome(\'' + n.id + '\')' : 'openNote(\'' + n.id + '\')';
   return '<div class="note-item-wrap" data-id="' + n.id + '">' +
     '<div class="delete-reveal"><svg width="14" height="14"><use href="#ic-trash"/></svg>DELETE</div>' +
     '<div class="note-item">' +
       '<div class="note-thumb"><svg width="15" height="15"><use href="#ic-mic"/></svg></div>' +
-      '<div class="note-info" onclick="openNote(\'' + n.id + '\')">' +
+      '<div class="note-info" onclick="' + openFn + '">' +
         '<h3>' + escHtml(n.title) + '</h3>' +
         '<div class="note-meta"><span>' + escHtml(n.date) + '</span>' + dur + '</div>' +
       '</div>' +
-      '<span class="note-chevron" onclick="openNote(\'' + n.id + '\')"><svg width="14" height="14"><use href="#ic-chevron-right"/></svg></span>' +
+      '<span class="note-chevron" onclick="' + openFn + '"><svg width="14" height="14"><use href="#ic-chevron-right"/></svg></span>' +
     '</div></div>';
 }
 
@@ -1682,6 +1712,7 @@ function closeOpenSwipe() {
   if (_openSwipeItem) {
     _openSwipeItem.style.transition = 'transform 0.2s ease-out';
     _openSwipeItem.style.transform = 'translateX(0)';
+    _openSwipeItem.closest('.note-item-wrap').classList.remove('swiped');
     _openSwipeItem = null;
   }
 }
@@ -1727,6 +1758,7 @@ function attachSwipeHandlers() {
 
       if (currentX < -50) {
         item.style.transform = 'translateX(-80px)';
+        wrap.classList.add('swiped');
         _openSwipeItem = item;
         wrap.querySelector('.delete-reveal').onclick = function() {
           // Phase 1: slide out
@@ -1755,6 +1787,7 @@ function attachSwipeHandlers() {
         };
       } else {
         item.style.transform = 'translateX(0)';
+        wrap.classList.remove('swiped');
         _openSwipeItem = null;
       }
       currentX = 0;
@@ -1770,6 +1803,21 @@ function attachSwipeHandlers() {
 }
 
 /* ── CARPETAS ── */
+function toggleFolder(id) {
+  _expandedFolders[id] = !_expandedFolders[id];
+  var folderEl = document.querySelector('.folder-item[data-folder-id="' + id + '"]');
+  var notesEl = document.querySelector('.folder-notes-inline[data-folder-notes="' + id + '"]');
+  if (!folderEl || !notesEl) return;
+  if (_expandedFolders[id]) {
+    folderEl.classList.add('expanded');
+    notesEl.classList.add('open');
+    // attach swipe on newly visible items
+    attachSwipeHandlers();
+  } else {
+    folderEl.classList.remove('expanded');
+    notesEl.classList.remove('open');
+  }
+}
 function openFolder(id) {
   var folder = folders.find(function(f){ return f.id === id; });
   if (!folder) return;
@@ -1825,6 +1873,9 @@ function openNote(id) {
   document.getElementById('tab-content-transcripcion').innerHTML = '<p class="transcript-text">' + escHtml(note.transcripcion||'') + '</p>';
   initAudioPlayer(note.audioUrl || null);
   switchTab('resumen'); showScreen('detail');
+}
+function openNoteFromHome(id) {
+  currentFolderId = null; detailFromFolder = false; openNote(id);
 }
 function goBackFromDetail() { stopAudioPlayer(); if (detailFromFolder) { showScreen('folder', true); } else { showScreen('home', true); } }
 function renderResumen(resumen) {
@@ -1983,7 +2034,7 @@ function handleFile(input) {
   processAudio(file, GROQ_KEY); input.value = '';
 }
 function formatDuration(s) {
-  if (!s || isNaN(s)) return null;
+  if (!s || isNaN(s) || !isFinite(s)) return null;
   var m = Math.floor(s/60); var sec = Math.floor(s%60);
   return m > 0 ? m + 'min' + (sec>0?' '+sec+'s':'') : sec + 's';
 }
@@ -2342,9 +2393,54 @@ function cancelRecorder() {
 })();
 
 checkKeys();
-// renderHome se llama desde onAuthStateChanged al sincronizar
-// Si Firebase tarda, mostramos home temporalmente con datos locales
-// pero el onAuthStateChanged va a redirigir a login si no hay sesión
+
+/* ── SWIPE BACK GLOBAL ── */
+(function() {
+  var swipeStartX = 0, swipeStartY = 0, swipeLocked = null, swipeActive = false;
+  var EDGE_ZONE = 30; // px desde el borde izquierdo
+
+  document.addEventListener('touchstart', function(e) {
+    swipeStartX = e.touches[0].clientX;
+    swipeStartY = e.touches[0].clientY;
+    swipeLocked = null;
+    // Solo activar desde el borde izquierdo (zona de 30px)
+    swipeActive = swipeStartX <= EDGE_ZONE;
+  }, { passive: true });
+
+  document.addEventListener('touchmove', function(e) {
+    if (!swipeActive) return;
+    var dx = e.touches[0].clientX - swipeStartX;
+    var dy = e.touches[0].clientY - swipeStartY;
+    if (swipeLocked === null && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
+      swipeLocked = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v';
+    }
+    if (swipeLocked !== 'h') return;
+    // Mover la pantalla activa levemente para dar feedback
+    var activeScreen = document.querySelector('.screen.active');
+    if (activeScreen && dx > 0) {
+      activeScreen.style.transform = 'translateX(' + Math.min(dx * 0.3, 40) + 'px)';
+      activeScreen.style.transition = 'none';
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchend', function(e) {
+    if (!swipeActive || swipeLocked !== 'h') {
+      swipeActive = false; return;
+    }
+    var dx = e.changedTouches[0].clientX - swipeStartX;
+    var activeScreen = document.querySelector('.screen.active');
+    if (activeScreen) {
+      activeScreen.style.transform = '';
+      activeScreen.style.transition = '';
+    }
+    if (dx > 60) {
+      // Swipe derecha = ir atrás
+      var prev = _screenHistory[_screenHistory.length - 2];
+      if (prev) { showScreen(prev, true); }
+    }
+    swipeActive = false;
+  }, { passive: true });
+})();
 </script>
 </body>
 </html>
