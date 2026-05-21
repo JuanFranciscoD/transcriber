@@ -1069,10 +1069,12 @@ html, body {
   <div class="tabs">
     <button class="tab active" id="tab-resumen" onclick="switchTab('resumen')">Resumen</button>
     <button class="tab" id="tab-transcripcion" onclick="switchTab('transcripcion')">Transcripción</button>
+    <button class="tab" id="tab-whatsapp" onclick="switchTab('whatsapp')">WhatsApp</button>
   </div>
   <div class="tab-content">
     <div id="tab-content-resumen"></div>
     <div id="tab-content-transcripcion" style="display:none"></div>
+    <div id="tab-content-whatsapp" style="display:none"></div>
   </div>
   <div class="bottombar">
     <button class="action-btn" onclick="deleteCurrentNote()">
@@ -1988,9 +1990,74 @@ function switchTab(tab) {
   currentTab = tab;
   document.getElementById('tab-resumen').className = 'tab' + (tab==='resumen'?' active':'');
   document.getElementById('tab-transcripcion').className = 'tab' + (tab==='transcripcion'?' active':'');
+  document.getElementById('tab-whatsapp').className = 'tab' + (tab==='whatsapp'?' active':'');
   document.getElementById('tab-content-resumen').style.display = tab==='resumen'?'block':'none';
   document.getElementById('tab-content-transcripcion').style.display = tab==='transcripcion'?'block':'none';
+  document.getElementById('tab-content-whatsapp').style.display = tab==='whatsapp'?'block':'none';
+  if (tab === 'whatsapp') renderWhatsapp();
 }
+async function renderWhatsapp() {
+  var el = document.getElementById('tab-content-whatsapp');
+  var note = notes.find(function(n){ return n.id === currentNoteId; });
+  if (!note) return;
+
+  // Si ya está generado, mostrar directo
+  if (note.whatsappText) {
+    showWhatsappText(el, note.whatsappText);
+    return;
+  }
+
+  // Mostrar loading
+  el.innerHTML = '<div style="padding:20px 0;text-align:center;">' +
+    '<div style="font-family:\'Space Mono\',monospace;font-size:10px;letter-spacing:0.1em;color:var(--text-disabled);animation:shimmer 1.5s ease-in-out infinite;background:linear-gradient(90deg,var(--text-disabled) 0%,var(--text-display) 50%,var(--text-disabled) 100%);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;">GENERANDO RELATO...</div>' +
+    '</div>';
+
+  try {
+    var transcripcion = note.transcripcion || '';
+    var resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + GROQ_KEY },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        max_tokens: 600,
+        messages: [{ role: 'user', content:
+          'Convertí esta transcripción de audio en un mensaje de WhatsApp natural, como si yo lo estuviera escribiendo en primera persona. ' +
+          'Tiene que sonar conversacional y fluido, no como un resumen formal. ' +
+          'Usá párrafos cortos separados por saltos de línea, como se escribe en WhatsApp. ' +
+          'No uses bullets, no uses títulos, no uses markdown. Solo texto corrido en primera persona. ' +
+          'Máximo 200 palabras.\n\nTranscripción:\n' + transcripcion
+        }]
+      })
+    });
+    if (!resp.ok) throw new Error('Error al generar');
+    var data = await resp.json();
+    var text = data.choices[0].message.content.trim();
+    // Cachear en la nota
+    note.whatsappText = text;
+    save();
+    showWhatsappText(el, text);
+  } catch(e) {
+    el.innerHTML = '<p style="color:var(--text-disabled);font-size:13px;padding:20px 0;">No se pudo generar el relato.</p>';
+  }
+}
+
+function showWhatsappText(el, text) {
+  el.innerHTML =
+    '<div style="background:var(--surface);border-radius:4px;padding:16px;margin-bottom:16px;border:1px solid var(--border-visible);">' +
+      '<p style="font-family:\'Space Grotesk\',sans-serif;font-size:14px;color:var(--text-primary);line-height:1.75;white-space:pre-wrap;">' +
+      escHtml(text) + '</p>' +
+    '</div>' +
+    '<button onclick="copyWhatsapp()" style="width:100%;padding:12px;background:var(--text-display);color:var(--black);border:none;border-radius:4px;font-family:\'Space Mono\',monospace;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;font-weight:700;">' +
+      'Copiar para WhatsApp' +
+    '</button>';
+}
+
+function copyWhatsapp() {
+  var note = notes.find(function(n){ return n.id === currentNoteId; });
+  if (!note || !note.whatsappText) return;
+  navigator.clipboard.writeText(note.whatsappText).then(function(){ showStatus('[COPIADO]'); });
+}
+
 function renameCurrentNote() {
   var note = notes.find(function(n){ return n.id === currentNoteId; });
   if (!note) return;
