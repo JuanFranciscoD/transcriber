@@ -134,7 +134,7 @@ html, body {
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--neon-green);
+  color: var(--text-display);
   flex: 1;
 }
 .icon-btn {
@@ -595,9 +595,9 @@ html, body {
   border-left: 2px solid var(--neon-orange);
   display: block;
 }
-.section-block:nth-child(3n+1) .section-title { color: var(--neon-orange); background: var(--neon-orange-bg); border-color: var(--neon-orange); }
-.section-block:nth-child(3n+2) .section-title { color: var(--neon-blue);   background: var(--neon-blue-bg);   border-color: var(--neon-blue); }
-.section-block:nth-child(3n+3) .section-title { color: var(--neon-green);  background: var(--neon-green-bg);  border-color: var(--neon-green); }
+.section-block:nth-child(3n+1) .section-title { color: var(--neon-orange); background: transparent; border-color: var(--neon-orange); }
+.section-block:nth-child(3n+2) .section-title { color: var(--neon-blue);   background: transparent; border-color: var(--neon-blue); }
+.section-block:nth-child(3n+3) .section-title { color: var(--neon-green);  background: transparent; border-color: var(--neon-green); }
 
 .bullet {
   font-family: 'Space Grotesk', sans-serif;
@@ -605,7 +605,7 @@ html, body {
   color: var(--text-primary); line-height: 1.65;
   padding: 8px 12px 8px 24px; position: relative;
   border-bottom: 1px solid var(--border);
-  background: var(--surface);
+  background: transparent;
 }
 .bullet:last-child { border-bottom: none; }
 .bullet::before {
