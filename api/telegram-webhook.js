@@ -6,23 +6,43 @@
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 
-// ── Firebase Admin init (usa variables de entorno de Vercel) ──
+// ── Firebase Admin init ──
+const FIREBASE_PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
+MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC6rcu3FvA9JRv0
+ulGq8+ABq3FK5DigDsl6+PVYOEamAeB2B0zxel0zoEZw0BcOsMSE0Dr8inHgcHsg
+r9knHD7U34TqSMYPlS+nAI0Y1TUpAlrJat5AKRfZfix8EJiSwtNuggiJ6lDPrnPU
+tEBB67Zfu1ChXcJiAtuK1xvhL3WmHqwhTISiih6h29cSuPGLtgsmA0CkNHI8ywGh
+fTNnl3o5CiabM1u/zT5+vYrVrVlhIn7irFkuZJgYedLgTIX+bqsLmfl0wQ5yVdTB
+LAXhQKIW6rkKqr4DOvog+NSIYbdb0A1WN8ZAKQITNeyQaF+wXuLuqxqJ5vj8e26b
+SHjtTGsvAgMBAAECggEAS3GtoOL+WFfFApTCKKrC3yngcXnmgJk5SB+RWAP2WWTs
+yAaPTBA91n1xumn+x4sdAOf+zs1M1H3g5QbsZef+ZJ2o495hXS7XwVBxtZWFFHvF
+IR21kIyK/PUHGWTDpJxkQob+2G4AFs7UNSRby8htPic/oNd5lY6+F1B0Df/WNjoC
+cJnnbpH1u6RWlGRLFM25VQmpdNxEysc0suftT4BkR9PSZDS0QLfVEO7OfsZgUm6i
+n3AOLngxw2zq/46g1N4EqUScHDqN5UEFa7a0/Cxu7d3VF77mo6NXF7a/BfebBj/x
+2Sy4CCA5jV0smUw8bK5K0wwPgshzrCGg//OMJL7yIQKBgQDeiqeLB0iMFL0i+ADu
+tkeGL3tSlINEUE80m6hliHLM1bafGYBGshxoLMiaTvMDdOWp8/gVCx4QoZmo0VRD
+LvCzd1lFNm5lEB0uLg3BAF8RsS/T7FG6lGaG7CApyo+W55il1fEP16ItLPkZcQga
+y5iDSsbKsWnWSA2c1iY6XeGcNwKBgQDWvtSHZP//t5Hu6+QIY/N+7KSrmKyLFsKs
+WjRzo+WQVNitzQ9140wRIwqxQpPqFjwMX3l3DOzesHmvzgpotD8be85eDtH+WFqI
+Bk9rw4rVrTpap6fXZEtxxAhKlRWaAix2R0h1weQqJyTaytpdvpHqBITPwCHUvMRz
+KxlttKNcyQKBgGkDqRhUMYnY53+u5FHBNnM9yMYpSuBbvWSn54kyIGpEl07wq7Ww
+qvMF3wviIY8KBK50cCcN/fv/JhGh5k9lwTQPJ9MfYmzSc9Ks7NScpkAlCtrIc7DG
+ArO8jVjrO2MMmt323TCKov8Kb+nvitGKLcgW60QPAFCb48CU1alJUAN1AoGBAK7Q
+xKS/5OLgJo2wPH9UFroBnQAQFo5X5fx2pnJpPw1i9M1vvKFEev0MYLzyrQUIOrP7
+2R7AR+f1E+q5OaII8cLG47WQLQT4GiLXuDnLAq92CKYaC7l9bSlc4z8L5HzuPhG/
+b85lG//ww8DVGDTuWUx/hzq0dxX+4ZG7yUSUo9R5AoGBAMBcEAiJIH2K9nNMlxUV
+0Cn5npaRv0b7b4qhoqfTEvn/6mIAKnIjnbRydbB9koNlEiA2PO6E8NOj41njuMIJ
+gdm0fNHAbyKG1IyZ2OiMUjvxdxy+tFKdAzYbgDEo0bLBsRC4rSerNZ6MFqv+DExa
+HWzuV0US7su/stQDtsXU8xSN
+-----END PRIVATE KEY-----`;
+
 function getDb() {
   if (!getApps().length) {
-    // Normalize private key — Vercel may store \n as literal \\n or as real newlines
-    let privateKey = process.env.FIREBASE_PRIVATE_KEY || '';
-    // Remove surrounding quotes if present
-    if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
-      privateKey = privateKey.slice(1, -1);
-    }
-    // Replace literal \n with real newlines
-    privateKey = privateKey.replace(/\\n/g, '\n');
-
     initializeApp({
       credential: cert({
-        projectId:   process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey,
+        projectId:   'transcriber-f783f',
+        clientEmail: 'firebase-adminsdk-fbsvc@transcriber-f783f.iam.gserviceaccount.com',
+        privateKey:  FIREBASE_PRIVATE_KEY,
       }),
     });
   }
