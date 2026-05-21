@@ -1324,16 +1324,15 @@ async function handleAuthClick() {
       var auth = getAuth();
       await setPersistence(auth, browserLocalPersistence);
       var provider = new GoogleAuthProvider();
-      // iOS Safari standalone (PWA) no soporta popups — usar redirect
-      var isIOSStandalone = /iPhone|iPad|iPod/.test(navigator.userAgent) && window.navigator.standalone;
-      if (isIOSStandalone) {
+      // Móvil (cualquier): usar redirect — Safari bloquea popups consistentemente
+      var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      if (isMobile) {
         await signInWithRedirect(auth, provider);
       } else {
         await signInWithPopup(auth, provider);
       }
     } catch(e) {
       console.warn('Login error:', e);
-      // Si popup fue bloqueado, caer a redirect
       if (e.code === 'auth/popup-blocked' || e.code === 'auth/popup-closed-by-user') {
         try {
           var { getAuth: ga2, GoogleAuthProvider: GAP2, signInWithRedirect: siwr, browserLocalPersistence: blp2, setPersistence: sp2 } =
