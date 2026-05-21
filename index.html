@@ -2173,11 +2173,16 @@ async function processAudio(file, groqKey) {
   showScreen('process');
   setProgress(15, 'Transcribiendo', file.name);
   var duration = null;
+  var durationSecs = null;
   try {
     var audioURL = URL.createObjectURL(file);
     await new Promise(function(resolve) {
       var audio = new Audio(audioURL);
-      audio.onloadedmetadata = function() { duration = formatDuration(audio.duration); URL.revokeObjectURL(audioURL); resolve(); };
+      audio.onloadedmetadata = function() {
+        durationSecs = isFinite(audio.duration) ? audio.duration : null;
+        duration = formatDuration(audio.duration);
+        URL.revokeObjectURL(audioURL); resolve();
+      };
       audio.onerror = resolve; setTimeout(resolve, 2000);
     });
   } catch(e) {}
@@ -2186,13 +2191,16 @@ async function processAudio(file, groqKey) {
     formData.append('file', file, file.name);
     formData.append('model', 'whisper-large-v3-turbo');
     formData.append('language', 'es');
-    formData.append('response_format', 'text');
+    formData.append('response_format', 'verbose_json');
     formData.append('temperature', '0');
     var groqResp = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
       method: 'POST', headers: { 'Authorization': 'Bearer ' + groqKey }, body: formData
     });
     if (!groqResp.ok) { var errText = await groqResp.text(); throw new Error(errText.substring(0,200)); }
-    var transcripcion = await groqResp.text();
+    var groqWhisperData = await groqResp.json();
+    var transcripcion = groqWhisperData.text || '';
+    // duration real del audio según Whisper (más preciso que metadata del archivo)
+    if (groqWhisperData.duration) durationSecs = groqWhisperData.duration;
     setProgress(60, 'Generando resumen', '');
     var llamaResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -2244,7 +2252,7 @@ async function processAudio(file, groqKey) {
       title: resumenObj.titulo || file.name,
       date: new Date().toLocaleDateString('es-AR', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }),
       createdAt: Date.now(),
-      duration: duration, resumen: resumenObj, transcripcion: transcripcion,
+      duration: duration, durationSecs: durationSecs, resumen: resumenObj, transcripcion: transcripcion,
       folderId: noteFolderId || undefined
     };
     notes.unshift(nota); save(); renderHome();
