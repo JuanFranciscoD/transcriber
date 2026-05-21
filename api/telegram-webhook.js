@@ -171,18 +171,12 @@ export default async function handler(req, res) {
       source:        'telegram',
     };
 
-    // Leer el doc actual, agregar la nota al array y guardar
+    // Agregar la nota atómicamente con arrayUnion (no pisa otras notas)
     const userRef = db.collection('users').doc(FIREBASE_UID);
-    const snap = await userRef.get();
-    const data = snap.exists ? snap.data() : {};
-    const existingNotes = Array.isArray(data.notes) ? data.notes : [];
-    const existingFolders = Array.isArray(data.folders) ? data.folders : [];
-    existingNotes.unshift(nota);
     await userRef.set({
-      notes:     existingNotes,
-      folders:   existingFolders,
+      notes:     FieldValue.arrayUnion(nota),
       updatedAt: now,
-    });
+    }, { merge: true });
 
     // 6. Actualizar usage
     await db.collection('users').doc(FIREBASE_UID)
