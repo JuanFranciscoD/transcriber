@@ -1319,28 +1319,16 @@ async function handleAuthClick() {
     catch(e) { console.warn(e); }
   } else {
     try {
-      var { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, browserLocalPersistence, setPersistence } =
+      var { getAuth, GoogleAuthProvider, signInWithPopup } =
         await import('https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js');
       var auth = getAuth();
-      await setPersistence(auth, browserLocalPersistence);
       var provider = new GoogleAuthProvider();
-      // Móvil (cualquier): usar redirect — Safari bloquea popups consistentemente
-      var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      if (isMobile) {
-        await signInWithRedirect(auth, provider);
-      } else {
-        await signInWithPopup(auth, provider);
-      }
+      await signInWithPopup(auth, provider);
     } catch(e) {
       console.warn('Login error:', e);
-      if (e.code === 'auth/popup-blocked' || e.code === 'auth/popup-closed-by-user') {
-        try {
-          var { getAuth: ga2, GoogleAuthProvider: GAP2, signInWithRedirect: siwr, browserLocalPersistence: blp2, setPersistence: sp2 } =
-            await import('https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js');
-          var auth2 = ga2(); await sp2(auth2, blp2);
-          await siwr(auth2, new GAP2());
-        } catch(e2) { showStatus('[ERROR: INICIO DE SESIÓN]'); }
-      } else { showStatus('[ERROR: INICIO DE SESIÓN]'); }
+      if (e.code !== 'auth/popup-closed-by-user') {
+        showStatus('[ERROR: INICIO DE SESIÓN]');
+      }
     }
   }
 }
@@ -2285,23 +2273,9 @@ function cancelRecorder() {
     db = getFirestore(app);
     var auth = getAuth(app);
 
-    // Manejar redirect result PRIMERO — bloquea hasta tener el resultado
-    var { getRedirectResult, browserLocalPersistence, setPersistence } = await import('https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js');
-    await setPersistence(auth, browserLocalPersistence);
-    var _redirectHandled = false;
-    try {
-      var redirectResult = await getRedirectResult(auth);
-      if (redirectResult && redirectResult.user) {
-        _redirectHandled = true; // vino de un redirect exitoso, no mostrar login
-      }
-    } catch(e) { console.warn('redirect result:', e); }
-
     onAuthStateChanged(auth, async function(user) {
       currentUser = user; updateAuthUI(user);
       if (!user) {
-        // Si estamos procesando un redirect, no mostrar login todavía
-        if (_redirectHandled) return;
-        // No hay sesión — mostrar pantalla de login
         notes = []; folders = [];
         showScreen('login');
         return;
