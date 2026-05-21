@@ -2284,13 +2284,23 @@ function cancelRecorder() {
     var app = initializeApp(firebaseConfig);
     db = getFirestore(app);
     var auth = getAuth(app);
-    // Manejar redirect result PRIMERO (para iOS PWA)
-    var { getRedirectResult } = await import('https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js');
-    try { await getRedirectResult(auth); } catch(e) { console.warn('redirect result:', e); }
+
+    // Manejar redirect result PRIMERO — bloquea hasta tener el resultado
+    var { getRedirectResult, browserLocalPersistence, setPersistence } = await import('https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js');
+    await setPersistence(auth, browserLocalPersistence);
+    var _redirectHandled = false;
+    try {
+      var redirectResult = await getRedirectResult(auth);
+      if (redirectResult && redirectResult.user) {
+        _redirectHandled = true; // vino de un redirect exitoso, no mostrar login
+      }
+    } catch(e) { console.warn('redirect result:', e); }
 
     onAuthStateChanged(auth, async function(user) {
       currentUser = user; updateAuthUI(user);
       if (!user) {
+        // Si estamos procesando un redirect, no mostrar login todavía
+        if (_redirectHandled) return;
         // No hay sesión — mostrar pantalla de login
         notes = []; folders = [];
         showScreen('login');
