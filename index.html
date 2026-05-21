@@ -2001,8 +2001,8 @@ async function renderWhatsapp() {
   var note = notes.find(function(n){ return n.id === currentNoteId; });
   if (!note) return;
 
-  // Si ya está generado, mostrar directo
-  if (note.whatsappText) {
+  // Si ya está generado con el prompt nuevo, mostrar directo
+  if (note.whatsappText && note.whatsappV === 2) {
     showWhatsappText(el, note.whatsappText);
     return;
   }
@@ -2021,19 +2021,21 @@ async function renderWhatsapp() {
         model: 'llama-3.3-70b-versatile',
         max_tokens: 600,
         messages: [{ role: 'user', content:
-          'Convertí esta transcripción de audio en un mensaje de WhatsApp natural, como si yo lo estuviera escribiendo en primera persona. ' +
-          'Tiene que sonar conversacional y fluido, no como un resumen formal. ' +
-          'Usá párrafos cortos separados por saltos de línea, como se escribe en WhatsApp. ' +
-          'No uses bullets, no uses títulos, no uses markdown. Solo texto corrido en primera persona. ' +
-          'Máximo 200 palabras.\n\nTranscripción:\n' + transcripcion
+          'Esta es la transcripción de un audio de un broker inmobiliario describiendo una propiedad o situación. ' +
+          'Redactá un mensaje de WhatsApp como si fuera Juan, un broker que escuchó esto y se lo está contando a un cliente o lead. ' +
+          'El tono es directo, informal pero profesional, como se habla en Argentina. ' +
+          'No uses "el broker dijo" ni personificaciones — contalo como info propia, como si Juan lo hubiera visto o lo supiera de primera mano. ' +
+          'Párrafos cortos, sin bullets, sin títulos, sin markdown, sin saludos ni despedidas. Solo el mensaje. ' +
+          'Máximo 180 palabras.\n\nTranscripción:\n' + transcripcion
         }]
       })
     });
     if (!resp.ok) throw new Error('Error al generar');
     var data = await resp.json();
     var text = data.choices[0].message.content.trim();
-    // Cachear en la nota
+    // Cachear en la nota con versión del prompt
     note.whatsappText = text;
+    note.whatsappV = 2;
     save();
     showWhatsappText(el, text);
   } catch(e) {
