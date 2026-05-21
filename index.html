@@ -1329,6 +1329,7 @@ html, body {
 <script>
 var notes = JSON.parse(localStorage.getItem('transcriber-notes') || '[]');
 var folders = JSON.parse(localStorage.getItem('transcriber-folders') || '[]');
+var deletedNoteIds = new Set(JSON.parse(localStorage.getItem('transcriber-deleted') || '[]'));
 var currentNoteId = null;
 var currentFolderId = null;
 var currentTab = 'resumen';
@@ -1414,20 +1415,40 @@ async function save() {
   saveLocal();
   if (!db || !currentUser) return;
   try {
-    var { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js');
-    await setDoc(doc(db, 'users', currentUser.uid), { notes: notes, folders: folders, updatedAt: Date.now() });
+    var fbm = await import('https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js');
+    var ref = fbm.doc(fbm.getFirestore(), 'users', currentUser.uid);
+    // Leer estado actual de Firestore y mergear antes de escribir
+    // Así nunca se pierden notas que llegaron de otro dispositivo o del bot
+    var snap = await fbm.getDoc(ref);
+    var remoteNotes = snap.exists() ? (snap.data().notes || []) : [];
+    var remoteFolders = snap.exists() ? (snap.data().folders || []) : [];
+    // Merge: combinar remote con local, cada nota por id
+    var noteMap = {};
+    remoteNotes.forEach(function(n) { noteMap[n.id] = n; });
+    notes.forEach(function(n) { noteMap[n.id] = n; }); // local gana (tiene edits/deletes del usuario)
+    var mergedNotes = Object.values(noteMap).sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); });
+    // Folders: local gana también
+    var folderMap = {};
+    remoteFolders.forEach(function(f) { folderMap[f.id] = f; });
+    folders.forEach(function(f) { folderMap[f.id] = f; });
+    var mergedFolders = Object.values(folderMap);
+    // Aplicar deletes: excluir notas que el usuario borró explícitamente
+    mergedNotes = mergedNotes.filter(function(n){ return !deletedNoteIds.has(n.id); });
+    notes = mergedNotes; folders = mergedFolders;
+    localStorage.setItem('transcriber-notes', JSON.stringify(notes));
+    localStorage.setItem('transcriber-folders', JSON.stringify(folders));
+    await fbm.setDoc(ref, { notes: mergedNotes, folders: mergedFolders, updatedAt: Date.now() });
   } catch(e) { console.warn('Firebase save error:', e); }
 }
 async function addNoteFirebase(nota) {
   if (!db || !currentUser) return;
   try {
-    var { doc, updateDoc, arrayUnion, setDoc } = await import('https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js');
-    var ref = doc(db, 'users', currentUser.uid);
+    var fbm = await import('https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js');
+    var ref = fbm.doc(fbm.getFirestore(), 'users', currentUser.uid);
     try {
-      await updateDoc(ref, { notes: arrayUnion(nota), updatedAt: Date.now() });
+      await fbm.updateDoc(ref, { notes: fbm.arrayUnion(nota), updatedAt: Date.now() });
     } catch(e) {
-      // Si el doc no existe aún, crearlo
-      await setDoc(ref, { notes: [nota], folders: [], updatedAt: Date.now() });
+      await fbm.setDoc(ref, { notes: [nota], folders: [], updatedAt: Date.now() });
     }
   } catch(e) { console.warn('Firebase addNote error:', e); }
 }
@@ -1841,6 +1862,8 @@ function attachSwipeHandlers() {
             });
             setTimeout(function() {
               var id = wrap.dataset.id;
+              deletedNoteIds.add(id);
+              localStorage.setItem('transcriber-deleted', JSON.stringify(Array.from(deletedNoteIds)));
               notes = notes.filter(function(n){ return n.id !== id; });
               save();
               renderHome();
@@ -2096,6 +2119,8 @@ function renameCurrentNote() {
   });
 }
 function deleteCurrentNote() {
+  deletedNoteIds.add(currentNoteId);
+  localStorage.setItem('transcriber-deleted', JSON.stringify(Array.from(deletedNoteIds)));
   notes = notes.filter(function(n){ return n.id !== currentNoteId; });
   save(); renderHome(); if (detailFromFolder) renderFolderNotes(); goBackFromDetail(); showStatus('[NOTA ELIMINADA]');
 }
@@ -2506,10 +2531,12 @@ function cancelRecorder() {
           // Merge: Firestore + local por id, el de mayor createdAt gana
           // Esto asegura que notas del bot y de la app siempre se combinan
           var noteMap = {};
-          remoteNotes.forEach(function(n) { noteMap[n.id] = n; });
+          remoteNotes.forEach(function(n) {
+            if (!deletedNoteIds.has(n.id)) noteMap[n.id] = n;
+          });
           // Agregar notas locales que no están en Firestore aún (grabadas offline)
           (_firstSync ? _localNotesAtLogin : []).forEach(function(n) {
-            if (!noteMap[n.id]) noteMap[n.id] = n;
+            if (!noteMap[n.id] && !deletedNoteIds.has(n.id)) noteMap[n.id] = n;
           });
           var mergedNotes = Object.values(noteMap).sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); });
 
