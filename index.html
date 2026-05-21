@@ -2520,12 +2520,35 @@ function cancelRecorder() {
           localStorage.setItem('transcriber-notes', JSON.stringify(notes));
           localStorage.setItem('transcriber-folders', JSON.stringify(folders));
 
-          // Subir merge a Firestore si difiere
-          var changed = mergedNotes.length !== remoteNotes.length || mergedFolders.length !== remoteFolders.length;
-          if (changed) {
-            await setDoc(doc(db, 'users', user.uid), { notes: mergedNotes, folders: mergedFolders, updatedAt: Date.now() });
-          }
+          // Siempre subir el merge — garantiza que Firestore tiene todo
+          await setDoc(doc(db, 'users', user.uid), { notes: mergedNotes, folders: mergedFolders, updatedAt: Date.now() });
           showScreen('home'); renderHome(); showStatus('[SINCRONIZADO]');
+
+          // Listener en tiempo real — detecta notas nuevas del bot mientras la app está abierta
+          var { onSnapshot } = await import('https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js');
+          onSnapshot(doc(db, 'users', user.uid), function(snap) {
+            if (!snap.exists()) return;
+            var remoteNotes2 = snap.data().notes || [];
+            var remoteFolders2 = snap.data().folders || [];
+            // Merge con estado actual
+            var map = {};
+            notes.forEach(function(n) { map[n.id] = n; });
+            remoteNotes2.forEach(function(n) {
+              if (!map[n.id] || (n.createdAt || 0) > (map[n.id].createdAt || 0)) map[n.id] = n;
+            });
+            var merged = Object.values(map).sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); });
+            var folderMap = {};
+            folders.forEach(function(f) { folderMap[f.id] = f; });
+            remoteFolders2.forEach(function(f) { folderMap[f.id] = f; });
+            var mergedF = Object.values(folderMap);
+            // Solo actualizar UI si hay notas nuevas
+            if (merged.length > notes.length) {
+              notes = merged; folders = mergedF;
+              localStorage.setItem('transcriber-notes', JSON.stringify(notes));
+              localStorage.setItem('transcriber-folders', JSON.stringify(folders));
+              renderHome(); showStatus('[NUEVA NOTA]');
+            }
+          });
         }
       }
     });
