@@ -78,6 +78,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true });
   }
 
+  console.log('[BOT] Audio recibido. chatId:', chatId, 'FIREBASE_UID:', FIREBASE_UID);
   try {
     await tgSend(chatId, '⏳ Procesando audio...');
 
@@ -172,11 +173,13 @@ export default async function handler(req, res) {
     };
 
     // Agregar la nota atómicamente con arrayUnion (no pisa otras notas)
+    console.log('[BOT] Guardando nota:', nota.id, nota.title, 'uid:', FIREBASE_UID);
     const userRef = db.collection('users').doc(FIREBASE_UID);
     await userRef.set({
       notes:     FieldValue.arrayUnion(nota),
       updatedAt: now,
     }, { merge: true });
+    console.log('[BOT] Nota guardada OK en Firestore');
 
     // 6. Actualizar usage
     await db.collection('users').doc(FIREBASE_UID)
