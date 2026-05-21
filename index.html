@@ -2479,39 +2479,30 @@ function cancelRecorder() {
         return;
       }
       if (user) {
-        var { doc, getDoc, setDoc } = await import('https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js');
-        var snap = await getDoc(doc(db, 'users', user.uid));
+        var { doc, getDoc, setDoc, onSnapshot } = await import('https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js');
+        var userDocRef = doc(db, 'users', user.uid);
+        var _firstSync = true;
+        var _localNotesAtLogin = notes.slice();
+        var _localFoldersAtLogin = folders.slice();
 
-        // Datos locales actuales
-        var localNotes = notes.slice();
-        var localFolders = folders.slice();
+        // onSnapshot escucha en tiempo real — primer disparo = carga inicial
+        onSnapshot(userDocRef, async function(snap) {
+          var remoteNotes = snap.exists() ? (snap.data().notes || []) : [];
+          var remoteFolders = snap.exists() ? (snap.data().folders || []) : [];
 
-        if (!snap.exists()) {
-          // Primera vez con esta cuenta — subir lo que hay localmente
-          if (localNotes.length > 0 || localFolders.length > 0) {
-            await setDoc(doc(db, 'users', user.uid), { notes: localNotes, folders: localFolders, updatedAt: Date.now() });
-            showStatus('[NOTAS MIGRADAS]');
-          } else { showStatus('[SESIÓN INICIADA]'); }
-          showScreen('home'); renderHome();
-        } else {
-          // Merge inteligente: combinar Firestore + local, sin perder nada
-          var remoteData = snap.data();
-          var remoteNotes = remoteData.notes || [];
-          var remoteFolders = remoteData.folders || [];
-
-          // Merge notas: agrupar por id, ganar el de mayor createdAt
+          // Merge: local + remote por id, gana el de mayor createdAt
           var noteMap = {};
-          localNotes.forEach(function(n) { noteMap[n.id] = n; });
+          // En primer sync mezclar con notas locales pre-login, luego solo remote
+          var localBase = _firstSync ? _localNotesAtLogin : notes;
+          localBase.forEach(function(n) { noteMap[n.id] = n; });
           remoteNotes.forEach(function(n) {
-            if (!noteMap[n.id] || (n.createdAt || 0) > (noteMap[n.id].createdAt || 0)) {
-              noteMap[n.id] = n;
-            }
+            if (!noteMap[n.id] || (n.createdAt || 0) > (noteMap[n.id].createdAt || 0)) noteMap[n.id] = n;
           });
           var mergedNotes = Object.values(noteMap).sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); });
 
-          // Merge carpetas: unión por id, remote gana en conflicto de nombre
           var folderMap = {};
-          localFolders.forEach(function(f) { folderMap[f.id] = f; });
+          var localFolderBase = _firstSync ? _localFoldersAtLogin : folders;
+          localFolderBase.forEach(function(f) { folderMap[f.id] = f; });
           remoteFolders.forEach(function(f) { folderMap[f.id] = f; });
           var mergedFolders = Object.values(folderMap);
 
@@ -2520,36 +2511,16 @@ function cancelRecorder() {
           localStorage.setItem('transcriber-notes', JSON.stringify(notes));
           localStorage.setItem('transcriber-folders', JSON.stringify(folders));
 
-          // Siempre subir el merge — garantiza que Firestore tiene todo
-          await setDoc(doc(db, 'users', user.uid), { notes: mergedNotes, folders: mergedFolders, updatedAt: Date.now() });
-          showScreen('home'); renderHome(); showStatus('[SINCRONIZADO]');
-
-          // Listener en tiempo real — detecta notas nuevas del bot mientras la app está abierta
-          var { onSnapshot } = await import('https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js');
-          onSnapshot(doc(db, 'users', user.uid), function(snap) {
-            if (!snap.exists()) return;
-            var remoteNotes2 = snap.data().notes || [];
-            var remoteFolders2 = snap.data().folders || [];
-            // Merge con estado actual
-            var map = {};
-            notes.forEach(function(n) { map[n.id] = n; });
-            remoteNotes2.forEach(function(n) {
-              if (!map[n.id] || (n.createdAt || 0) > (map[n.id].createdAt || 0)) map[n.id] = n;
-            });
-            var merged = Object.values(map).sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); });
-            var folderMap = {};
-            folders.forEach(function(f) { folderMap[f.id] = f; });
-            remoteFolders2.forEach(function(f) { folderMap[f.id] = f; });
-            var mergedF = Object.values(folderMap);
-            // Solo actualizar UI si hay notas nuevas
-            if (merged.length > notes.length) {
-              notes = merged; folders = mergedF;
-              localStorage.setItem('transcriber-notes', JSON.stringify(notes));
-              localStorage.setItem('transcriber-folders', JSON.stringify(folders));
-              renderHome(); showStatus('[NUEVA NOTA]');
-            }
-          });
-        }
+          if (_firstSync) {
+            // Subir merge completo a Firestore solo la primera vez
+            _firstSync = false;
+            await setDoc(userDocRef, { notes: mergedNotes, folders: mergedFolders, updatedAt: Date.now() });
+            showScreen('home'); renderHome(); showStatus('[SINCRONIZADO]');
+          } else {
+            // Actualizaciones en tiempo real (bot, otro dispositivo)
+            renderHome(); showStatus('[NUEVA NOTA]');
+          }
+        });
       }
     });
   } catch(e) { console.warn('Firebase init error:', e); }
