@@ -149,7 +149,7 @@ export default async function handler(req, res) {
       resumenObj = { titulo: 'Audio Telegram', secciones: [{ titulo: 'Transcripción', puntos: [transcripcion] }] };
     }
 
-    // 5. Guardar nota en Firestore
+    // 5. Guardar nota en Firestore (mismo formato que la app)
     const db = getDb();
     const now = Date.now();
 
@@ -160,22 +160,29 @@ export default async function handler(req, res) {
     }
 
     const nota = {
-      id:           String(now),
-      title:        resumenObj.titulo || 'Audio Telegram',
-      date:         new Date().toLocaleDateString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
-      createdAt:    now,
-      duration:     formatDuration(durationSecs),
-      durationSecs: durationSecs,
-      resumen:      resumenObj,
+      id:            String(now),
+      title:         resumenObj.titulo || 'Audio Telegram',
+      date:          new Date().toLocaleDateString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
+      createdAt:     now,
+      duration:      formatDuration(durationSecs),
+      durationSecs:  durationSecs,
+      resumen:       resumenObj,
       transcripcion: transcripcion,
-      source:       'telegram',
+      source:        'telegram',
     };
 
-    const userDocRef = db.collection('users').doc(FIREBASE_UID);
-    const snap = await userDocRef.get();
-    const existing = snap.exists ? (snap.data().notes || []) : [];
-    existing.unshift(nota);
-    await userDocRef.set({ notes: existing }, { merge: true });
+    // Leer el doc actual, agregar la nota al array y guardar
+    const userRef = db.collection('users').doc(FIREBASE_UID);
+    const snap = await userRef.get();
+    const data = snap.exists ? snap.data() : {};
+    const existingNotes = Array.isArray(data.notes) ? data.notes : [];
+    const existingFolders = Array.isArray(data.folders) ? data.folders : [];
+    existingNotes.unshift(nota);
+    await userRef.set({
+      notes:     existingNotes,
+      folders:   existingFolders,
+      updatedAt: now,
+    });
 
     // 6. Actualizar usage
     await db.collection('users').doc(FIREBASE_UID)
