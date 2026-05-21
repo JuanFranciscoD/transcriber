@@ -1177,9 +1177,30 @@ async function handleAuthClick() {
     catch(e) { console.warn(e); }
   } else {
     try {
-      var { getAuth, GoogleAuthProvider, signInWithPopup } = await import('https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js');
-      await signInWithPopup(getAuth(), new GoogleAuthProvider());
-    } catch(e) { console.warn('Login error:', e); showStatus('[ERROR: INICIO DE SESIÓN]'); }
+      var { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, browserLocalPersistence, setPersistence } =
+        await import('https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js');
+      var auth = getAuth();
+      await setPersistence(auth, browserLocalPersistence);
+      var provider = new GoogleAuthProvider();
+      // iOS Safari standalone (PWA) no soporta popups — usar redirect
+      var isIOSStandalone = /iPhone|iPad|iPod/.test(navigator.userAgent) && window.navigator.standalone;
+      if (isIOSStandalone) {
+        await signInWithRedirect(auth, provider);
+      } else {
+        await signInWithPopup(auth, provider);
+      }
+    } catch(e) {
+      console.warn('Login error:', e);
+      // Si popup fue bloqueado, caer a redirect
+      if (e.code === 'auth/popup-blocked' || e.code === 'auth/popup-closed-by-user') {
+        try {
+          var { getAuth: ga2, GoogleAuthProvider: GAP2, signInWithRedirect: siwr, browserLocalPersistence: blp2, setPersistence: sp2 } =
+            await import('https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js');
+          var auth2 = ga2(); await sp2(auth2, blp2);
+          await siwr(auth2, new GAP2());
+        } catch(e2) { showStatus('[ERROR: INICIO DE SESIÓN]'); }
+      } else { showStatus('[ERROR: INICIO DE SESIÓN]'); }
+    }
   }
 }
 
@@ -2001,22 +2022,58 @@ function cancelRecorder() {
     var app = initializeApp(firebaseConfig);
     db = getFirestore(app);
     var auth = getAuth(app);
+    // Manejar redirect result PRIMERO (para iOS PWA)
+    var { getRedirectResult } = await import('https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js');
+    try { await getRedirectResult(auth); } catch(e) { console.warn('redirect result:', e); }
+
     onAuthStateChanged(auth, async function(user) {
       currentUser = user; updateAuthUI(user);
       if (user) {
         var { doc, getDoc, setDoc } = await import('https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js');
         var snap = await getDoc(doc(db, 'users', user.uid));
+
+        // Datos locales actuales
+        var localNotes = notes.slice();
+        var localFolders = folders.slice();
+
         if (!snap.exists()) {
-          var localNotes = JSON.parse(localStorage.getItem('transcriber-notes')||'[]');
-          var localFolders = JSON.parse(localStorage.getItem('transcriber-folders')||'[]');
+          // Primera vez con esta cuenta — subir lo que hay localmente
           if (localNotes.length > 0 || localFolders.length > 0) {
             await setDoc(doc(db, 'users', user.uid), { notes: localNotes, folders: localFolders, updatedAt: Date.now() });
             showStatus('[NOTAS MIGRADAS]');
           } else { showStatus('[SESIÓN INICIADA]'); }
         } else {
-          var data = snap.data();
-          if (data.notes) { notes = data.notes; localStorage.setItem('transcriber-notes', JSON.stringify(notes)); }
-          if (data.folders) { folders = data.folders; localStorage.setItem('transcriber-folders', JSON.stringify(folders)); }
+          // Merge inteligente: combinar Firestore + local, sin perder nada
+          var remoteData = snap.data();
+          var remoteNotes = remoteData.notes || [];
+          var remoteFolders = remoteData.folders || [];
+
+          // Merge notas: agrupar por id, ganar el de mayor createdAt
+          var noteMap = {};
+          localNotes.forEach(function(n) { noteMap[n.id] = n; });
+          remoteNotes.forEach(function(n) {
+            if (!noteMap[n.id] || (n.createdAt || 0) > (noteMap[n.id].createdAt || 0)) {
+              noteMap[n.id] = n;
+            }
+          });
+          var mergedNotes = Object.values(noteMap).sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); });
+
+          // Merge carpetas: unión por id, remote gana en conflicto de nombre
+          var folderMap = {};
+          localFolders.forEach(function(f) { folderMap[f.id] = f; });
+          remoteFolders.forEach(function(f) { folderMap[f.id] = f; });
+          var mergedFolders = Object.values(folderMap);
+
+          notes = mergedNotes;
+          folders = mergedFolders;
+          localStorage.setItem('transcriber-notes', JSON.stringify(notes));
+          localStorage.setItem('transcriber-folders', JSON.stringify(folders));
+
+          // Subir merge a Firestore si difiere
+          var changed = mergedNotes.length !== remoteNotes.length || mergedFolders.length !== remoteFolders.length;
+          if (changed) {
+            await setDoc(doc(db, 'users', user.uid), { notes: mergedNotes, folders: mergedFolders, updatedAt: Date.now() });
+          }
           renderHome(); showStatus('[SINCRONIZADO]');
         }
       } else { await loadFromFirebase(); }
