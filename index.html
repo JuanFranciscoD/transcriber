@@ -800,8 +800,32 @@ html, body {
   </symbol>
 </svg>
 
+<!-- LOGIN -->
+<div id="screen-login" class="screen">
+  <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 32px;gap:0;">
+    <div style="margin-bottom:32px;">
+      <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+        <rect width="48" height="48" rx="12" fill="var(--surface)"/>
+        <rect x="1" y="1" width="46" height="46" rx="11" stroke="var(--border-visible)" stroke-width="1"/>
+        <path d="M24 14a6 6 0 0 1 6 6v2h-2v-2a4 4 0 0 0-8 0v2h-2v-2a6 6 0 0 1 6-6zM16 22h16v12H16V22z" fill="var(--text-secondary)"/>
+        <circle cx="24" cy="28" r="2" fill="var(--text-display)"/>
+      </svg>
+    </div>
+    <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:12px;">Transcriber</div>
+    <div style="font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:500;color:var(--text-display);margin-bottom:8px;text-align:center;line-height:1.2;">Tus notas,<br>siempre sincronizadas.</div>
+    <div style="font-family:'Space Grotesk',sans-serif;font-size:15px;color:var(--text-secondary);text-align:center;margin-bottom:40px;line-height:1.6;">Iniciá sesión para guardar y acceder<br>a tus notas desde cualquier dispositivo.</div>
+    <button onclick="handleAuthClick()" style="display:flex;align-items:center;gap:10px;padding:14px 28px;background:var(--text-display);color:var(--black);border:none;border-radius:8px;font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:500;cursor:pointer;width:100%;max-width:320px;justify-content:center;">
+      <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.706A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.706V4.962H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.038l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.962L3.964 6.294C4.672 4.169 6.656 3.58 9 3.58z"/></svg>
+      Continuar con Google
+    </button>
+  </div>
+  <div style="padding:24px;text-align:center;">
+    <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-disabled);">Tus datos son privados y solo tuyos</div>
+  </div>
+</div>
+
 <!-- HOME -->
-<div id="screen-home" class="screen active">
+<div id="screen-home" class="screen">
   <div class="topbar">
     <span class="topbar-title">Transcriber</span>
     <button class="icon-btn" onclick="showScreen('dashboard')" title="Dashboard">
@@ -1004,7 +1028,49 @@ html, body {
         <div id="dash-folders"></div>
       </div>
     </div>
-    <!-- fila 4: última nota -->
+    <!-- fila 4: uso Groq -->
+    <div class="dash-card" style="margin-bottom:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">
+        <span class="dash-label">Uso Groq API</span>
+        <a href="https://console.groq.com/usage" target="_blank" style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-secondary);text-decoration:none;border-bottom:1px solid var(--border-visible);padding-bottom:1px;">Ver consola ↗</a>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div>
+          <div style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-disabled);margin-bottom:4px;">Audio transcrito</div>
+          <div style="display:flex;align-items:baseline;gap:3px;">
+            <span style="font-family:'Space Mono',monospace;font-size:20px;color:var(--text-display);" id="dash-groq-audio">0</span>
+            <span style="font-family:'Space Mono',monospace;font-size:10px;color:var(--text-secondary);">min</span>
+          </div>
+          <div style="font-family:'Space Mono',monospace;font-size:9px;color:var(--text-disabled);margin-top:2px;" id="dash-groq-audio-limit"></div>
+        </div>
+        <div>
+          <div style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-disabled);margin-bottom:4px;">Tokens LLaMA</div>
+          <div style="display:flex;align-items:baseline;gap:3px;">
+            <span style="font-family:'Space Mono',monospace;font-size:20px;color:var(--text-display);" id="dash-groq-tokens">0</span>
+            <span style="font-family:'Space Mono',monospace;font-size:10px;color:var(--text-secondary);">k</span>
+          </div>
+          <div style="font-family:'Space Mono',monospace;font-size:9px;color:var(--text-disabled);margin-top:2px;" id="dash-groq-tokens-limit"></div>
+        </div>
+      </div>
+      <!-- barra whisper -->
+      <div style="margin-top:10px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+          <span style="font-family:'Space Mono',monospace;font-size:9px;color:var(--text-disabled);">WHISPER — LÍMITE DIARIO</span>
+          <span style="font-family:'Space Mono',monospace;font-size:9px;color:var(--text-secondary);" id="dash-whisper-pct">0%</span>
+        </div>
+        <div class="dash-seg" id="dash-whisper-bar"></div>
+      </div>
+      <!-- barra llama -->
+      <div style="margin-top:8px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+          <span style="font-family:'Space Mono',monospace;font-size:9px;color:var(--text-disabled);">LLAMA 70B — LÍMITE DIARIO</span>
+          <span style="font-family:'Space Mono',monospace;font-size:9px;color:var(--text-secondary);" id="dash-llama-pct">0%</span>
+        </div>
+        <div class="dash-seg" id="dash-llama-bar"></div>
+      </div>
+      <div style="font-family:'Space Mono',monospace;font-size:9px;color:var(--text-disabled);margin-top:8px;">Estimado desde notas del día · Límites: Whisper 2h/día · LLaMA 200k tok/día</div>
+    </div>
+    <!-- fila 5: última nota -->
     <div class="dash-card" style="margin-bottom:8px;">
       <div class="dash-label">Última nota</div>
       <div id="dash-last-note" style="font-size:14px;color:var(--text-display);margin-top:4px;"></div>
@@ -1173,7 +1239,14 @@ function updateAuthUI(user) {
 async function handleAuthClick() {
   if (currentUser) {
     if (!confirm('¿Cerrar sesión?')) return;
-    try { var { getAuth, signOut } = await import('https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js'); await signOut(getAuth()); }
+    try {
+      var { getAuth, signOut } = await import('https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js');
+      await signOut(getAuth());
+      // Limpiar datos locales al cerrar sesión
+      notes = []; folders = [];
+      localStorage.removeItem('transcriber-notes');
+      localStorage.removeItem('transcriber-folders');
+    }
     catch(e) { console.warn(e); }
   } else {
     try {
@@ -1340,6 +1413,60 @@ function renderDashboard() {
     .filter(function(f){ return f.count > 0; })
     .sort(function(a, b){ return b.count - a.count; })
     .slice(0, 3);
+
+  // ── USO GROQ (estimado desde notas de hoy) ──
+  var todayStart = new Date(); todayStart.setHours(0,0,0,0); todayStart = todayStart.getTime();
+  var todayNotes = notes.filter(function(n){ return n.createdAt >= todayStart; });
+
+  // Minutos de audio hoy (Whisper)
+  var audioMinsToday = 0;
+  todayNotes.forEach(function(n) {
+    if (n.durationSecs) audioMinsToday += n.durationSecs / 60;
+    else if (n.duration) {
+      var m2 = n.duration.match(/(\d+)\s*min/), s2 = n.duration.match(/(\d+)\s*s/);
+      audioMinsToday += (m2 ? parseInt(m2[1]) : 0) + (s2 ? parseInt(s2[1]) / 60 : 0);
+    }
+  });
+  // Tokens LLaMA hoy (estimado: ~1.3 tokens/palabra, prompt ~200 tokens fijo)
+  var tokensToday = 0;
+  todayNotes.forEach(function(n) {
+    var words = n.transcripcion ? n.transcripcion.split(/\s+/).length : 0;
+    tokensToday += Math.round(words * 1.3) + 200;
+  });
+  var tokensTodayK = Math.round(tokensToday / 100) / 10; // en miles con 1 decimal
+
+  // Límites Groq free tier: Whisper 7200 seg/día (120 min), LLaMA 200k tok/día
+  var WHISPER_LIMIT_MIN = 120;
+  var LLAMA_LIMIT_K = 200;
+  var whisperPct = Math.min(audioMinsToday / WHISPER_LIMIT_MIN, 1);
+  var llamaPct = Math.min(tokensTodayK / LLAMA_LIMIT_K, 1);
+
+  countUp(document.getElementById('dash-groq-audio'), Math.round(audioMinsToday * 10) / 10, 600);
+  document.getElementById('dash-groq-audio-limit').textContent = Math.round(audioMinsToday) + ' / ' + WHISPER_LIMIT_MIN + ' min hoy';
+  countUp(document.getElementById('dash-groq-tokens'), tokensTodayK, 600);
+  document.getElementById('dash-groq-tokens-limit').textContent = tokensTodayK + ' / ' + LLAMA_LIMIT_K + 'k hoy';
+
+  // Barra Whisper
+  var whisperBar = document.getElementById('dash-whisper-bar');
+  whisperBar.innerHTML = '';
+  document.getElementById('dash-whisper-pct').textContent = Math.round(whisperPct * 100) + '%';
+  var whisperSegs = Math.round(whisperPct * SEG);
+  for (var w = 0; w < SEG; w++) {
+    var ws = document.createElement('div'); ws.className = 'dash-seg-block';
+    whisperBar.appendChild(ws);
+    if (w < whisperSegs) { (function(el, idx, cls){ setTimeout(function(){ el.classList.add(cls); }, 300 + idx * 30); })(ws, w, whisperPct > 0.8 ? 'warn' : 'on'); }
+  }
+
+  // Barra LLaMA
+  var llamaBar = document.getElementById('dash-llama-bar');
+  llamaBar.innerHTML = '';
+  document.getElementById('dash-llama-pct').textContent = Math.round(llamaPct * 100) + '%';
+  var llamaSegs = Math.round(llamaPct * SEG);
+  for (var l = 0; l < SEG; l++) {
+    var ls = document.createElement('div'); ls.className = 'dash-seg-block';
+    llamaBar.appendChild(ls);
+    if (l < llamaSegs) { (function(el, idx, cls){ setTimeout(function(){ el.classList.add(cls); }, 350 + idx * 30); })(ls, l, llamaPct > 0.8 ? 'warn' : 'on'); }
+  }
 
   // Última nota
   var sorted = notes.slice().sort(function(a,b){ return (b.createdAt||0) - (a.createdAt||0); });
@@ -2028,6 +2155,12 @@ function cancelRecorder() {
 
     onAuthStateChanged(auth, async function(user) {
       currentUser = user; updateAuthUI(user);
+      if (!user) {
+        // No hay sesión — mostrar pantalla de login
+        notes = []; folders = [];
+        showScreen('login');
+        return;
+      }
       if (user) {
         var { doc, getDoc, setDoc } = await import('https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js');
         var snap = await getDoc(doc(db, 'users', user.uid));
@@ -2042,6 +2175,7 @@ function cancelRecorder() {
             await setDoc(doc(db, 'users', user.uid), { notes: localNotes, folders: localFolders, updatedAt: Date.now() });
             showStatus('[NOTAS MIGRADAS]');
           } else { showStatus('[SESIÓN INICIADA]'); }
+          showScreen('home'); renderHome();
         } else {
           // Merge inteligente: combinar Firestore + local, sin perder nada
           var remoteData = snap.data();
@@ -2074,9 +2208,9 @@ function cancelRecorder() {
           if (changed) {
             await setDoc(doc(db, 'users', user.uid), { notes: mergedNotes, folders: mergedFolders, updatedAt: Date.now() });
           }
-          renderHome(); showStatus('[SINCRONIZADO]');
+          showScreen('home'); renderHome(); showStatus('[SINCRONIZADO]');
         }
-      } else { await loadFromFirebase(); }
+      }
     });
   } catch(e) { console.warn('Firebase init error:', e); }
 })();
@@ -2089,7 +2223,9 @@ function cancelRecorder() {
 })();
 
 checkKeys();
-renderHome();
+// renderHome se llama desde onAuthStateChanged al sincronizar
+// Si Firebase tarda, mostramos home temporalmente con datos locales
+// pero el onAuthStateChanged va a redirigir a login si no hay sesión
 </script>
 </body>
 </html>
