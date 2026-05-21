@@ -440,6 +440,56 @@ html, body {
   100% { background-position: -100% 0; }
 }
 
+/* ── AUDIO PLAYER ── */
+.audio-player {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.audio-play-btn {
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 1px solid var(--border-visible);
+  background: var(--surface-raised);
+  color: var(--text-display);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; flex-shrink: 0;
+  transition: background 120ms;
+}
+.audio-play-btn:active { background: var(--border-visible); }
+.audio-progress-wrap {
+  flex: 1; display: flex; flex-direction: column; gap: 4px;
+}
+.audio-progress-bar {
+  width: 100%; height: 2px;
+  background: var(--border-visible);
+  border-radius: 1px;
+  cursor: pointer;
+  position: relative;
+}
+.audio-progress-fill {
+  height: 100%; border-radius: 1px;
+  background: var(--text-display);
+  width: 0%; transition: width 100ms linear;
+  pointer-events: none;
+}
+.audio-time {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px; color: var(--text-secondary);
+  display: flex; justify-content: space-between;
+}
+
+/* ── DURATION BADGE COLORS ── */
+.dur-badge {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px; letter-spacing: 0.04em;
+  padding: 2px 7px; border-radius: 2px;
+  display: inline-block;
+}
+.dur-badge.short  { background: rgba(74,158,92,0.15);  color: var(--success); }   /* < 1 min */
+.dur-badge.medium { background: rgba(91,155,246,0.15); color: var(--interactive); } /* 1-3 min */
+.dur-badge.long   { background: rgba(212,168,67,0.15); color: var(--warning); }    /* > 3 min */
+
 /* ── DETAIL ── */
 .detail-title-row { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
 .detail-title-row h1 {
@@ -940,6 +990,23 @@ html, body {
       </button>
     </div>
   </div>
+  <!-- Audio player (visible solo si hay audioUrl) -->
+  <div class="audio-player" id="detail-audio-player" style="display:none;">
+    <button class="audio-play-btn" id="audio-play-btn" onclick="toggleAudioPlay()">
+      <svg id="audio-play-icon" width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+        <polygon points="3,1 13,7 3,13"/>
+      </svg>
+    </button>
+    <div class="audio-progress-wrap">
+      <div class="audio-progress-bar" id="audio-progress-bar" onclick="seekAudio(event)">
+        <div class="audio-progress-fill" id="audio-progress-fill"></div>
+      </div>
+      <div class="audio-time">
+        <span id="audio-time-cur">0:00</span>
+        <span id="audio-time-dur">0:00</span>
+      </div>
+    </div>
+  </div>
   <div class="tabs">
     <button class="tab active" id="tab-resumen" onclick="switchTab('resumen')">Resumen</button>
     <button class="tab" id="tab-transcripcion" onclick="switchTab('transcripcion')">Transcripción</button>
@@ -1198,6 +1265,8 @@ var detailFromFolder = false;
 var modalCallback = null;
 var db = null;
 var currentUser = null;
+var _audioEl = null; // audio element para el player del detalle
+var _audioRaf = null;
 var DEVICE_ID = localStorage.getItem('transcriber-device-id') || (function(){ var id = 'dev_' + Date.now() + '_' + Math.random().toString(36).slice(2); localStorage.setItem('transcriber-device-id', id); return id; })();
 var SEG_COUNT = 20;
 
@@ -1594,8 +1663,19 @@ function renderHome() {
   });
 }
 
+function durBadgeClass(n) {
+  var secs = 0;
+  if (n.durationSecs) { secs = n.durationSecs; }
+  else if (n.duration) {
+    var m = n.duration.match(/(\d+)\s*min/), s = n.duration.match(/(\d+)\s*s/);
+    secs = (m ? parseInt(m[1]) * 60 : 0) + (s ? parseInt(s[1]) : 0);
+  }
+  if (secs < 60) return 'short';
+  if (secs < 180) return 'medium';
+  return 'long';
+}
 function noteItemHtml(n) {
-  var dur = n.duration ? '<span class="note-duration">' + escHtml(n.duration) + '</span>' : '';
+  var dur = n.duration ? '<span class="dur-badge ' + durBadgeClass(n) + '">' + escHtml(n.duration) + '</span>' : '';
   return '<div class="note-item-wrap" data-id="' + n.id + '">' +
     '<div class="delete-reveal"><svg width="14" height="14"><use href="#ic-trash"/></svg>DELETE</div>' +
     '<div class="note-item">' +
@@ -1756,9 +1836,10 @@ function openNote(id) {
   document.getElementById('detail-title').textContent = note.title;
   renderResumen(note.resumen);
   document.getElementById('tab-content-transcripcion').innerHTML = '<p class="transcript-text">' + escHtml(note.transcripcion||'') + '</p>';
+  initAudioPlayer(note.audioUrl || null);
   switchTab('resumen'); showScreen('detail');
 }
-function goBackFromDetail() { if (detailFromFolder) { showScreen('folder', true); } else { showScreen('home', true); } }
+function goBackFromDetail() { stopAudioPlayer(); if (detailFromFolder) { showScreen('folder', true); } else { showScreen('home', true); } }
 function renderResumen(resumen) {
   var html = '';
   if (resumen && typeof resumen === 'object' && resumen.secciones) {
@@ -1772,6 +1853,59 @@ function renderResumen(resumen) {
   }
   document.getElementById('tab-content-resumen').innerHTML = html;
 }
+/* ── AUDIO PLAYER ── */
+function initAudioPlayer(url) {
+  var player = document.getElementById('detail-audio-player');
+  if (!url) { player.style.display = 'none'; stopAudioPlayer(); return; }
+  player.style.display = 'flex';
+  if (_audioEl) { _audioEl.pause(); _audioEl.src = ''; }
+  _audioEl = new Audio(url);
+  _audioEl.ontimeupdate = updateAudioProgress;
+  _audioEl.onended = function() {
+    document.getElementById('audio-play-icon').innerHTML = '<polygon points="3,1 13,7 3,13"/>';
+    cancelAnimationFrame(_audioRaf);
+  };
+  _audioEl.onloadedmetadata = function() {
+    document.getElementById('audio-time-dur').textContent = fmtTime(_audioEl.duration);
+  };
+}
+function stopAudioPlayer() {
+  if (_audioEl) { _audioEl.pause(); _audioEl = null; }
+  cancelAnimationFrame(_audioRaf);
+  document.getElementById('audio-progress-fill').style.width = '0%';
+  document.getElementById('audio-time-cur').textContent = '0:00';
+  document.getElementById('audio-time-dur').textContent = '0:00';
+  document.getElementById('audio-play-icon').innerHTML = '<polygon points="3,1 13,7 3,13"/>';
+}
+function toggleAudioPlay() {
+  if (!_audioEl) return;
+  if (_audioEl.paused) {
+    _audioEl.play();
+    document.getElementById('audio-play-icon').innerHTML = '<rect x="2" y="1" width="4" height="12"/><rect x="8" y="1" width="4" height="12"/>';
+  } else {
+    _audioEl.pause();
+    document.getElementById('audio-play-icon').innerHTML = '<polygon points="3,1 13,7 3,13"/>';
+  }
+}
+function updateAudioProgress() {
+  if (!_audioEl || !_audioEl.duration) return;
+  var pct = (_audioEl.currentTime / _audioEl.duration) * 100;
+  document.getElementById('audio-progress-fill').style.width = pct + '%';
+  document.getElementById('audio-time-cur').textContent = fmtTime(_audioEl.currentTime);
+}
+function seekAudio(e) {
+  if (!_audioEl || !_audioEl.duration) return;
+  var bar = document.getElementById('audio-progress-bar');
+  var rect = bar.getBoundingClientRect();
+  var pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  _audioEl.currentTime = pct * _audioEl.duration;
+  updateAudioProgress();
+}
+function fmtTime(s) {
+  var m = Math.floor(s / 60), sec = Math.floor(s % 60);
+  return m + ':' + (sec < 10 ? '0' : '') + sec;
+}
+
 function switchTab(tab) {
   currentTab = tab;
   document.getElementById('tab-resumen').className = 'tab' + (tab==='resumen'?' active':'');
@@ -1916,7 +2050,7 @@ async function processAudio(file, groqKey) {
     try { var jm = rawText.match(/\{[\s\S]*\}/); resumenObj = JSON.parse(jm ? jm[0] : rawText); }
     catch(e) { resumenObj = { titulo: file.name, icono: '🎙️', secciones: [{ titulo: 'Resumen', puntos: [rawText] }] }; }
     setProgress(95, 'Guardando', '');
-    // Si viene del grabador, asignar a carpeta "Mis Notas" (crearla si no existe)
+    // Si viene del grabador, asignar a carpeta "Mis Notas"
     var noteFolderId = null;
     if (_recordedFromApp) {
       _recordedFromApp = false;
@@ -1927,6 +2061,7 @@ async function processAudio(file, groqKey) {
       }
       noteFolderId = misNotas.id;
     }
+
     var nota = {
       id: Date.now().toString(),
       title: resumenObj.titulo || file.name,
@@ -1940,6 +2075,7 @@ async function processAudio(file, groqKey) {
     document.getElementById('detail-title').textContent = nota.title;
     renderResumen(nota.resumen);
     document.getElementById('tab-content-transcripcion').innerHTML = '<p class="transcript-text">' + escHtml(nota.transcripcion) + '</p>';
+    initAudioPlayer(null);
     switchTab('resumen'); showScreen('detail');
   } catch(e) { document.getElementById('error-msg').textContent = e.message; showScreen('error'); }
 }
