@@ -63,11 +63,17 @@ export default async function handler(req, res) {
     // 2. Descargar el audio
     const audioResp = await fetch(audioUrl);
     const audioBuffer = await audioResp.arrayBuffer();
-    const ext = filePath.split('.').pop() || 'ogg';
+    // Telegram voice notes come as .oga — map to ogg which Groq accepts
+    const rawExt = filePath.split('.').pop()?.toLowerCase() || 'ogg';
+    const ext = rawExt === 'oga' ? 'ogg' : rawExt;
+    const mimeMap = { ogg: 'audio/ogg', mp3: 'audio/mpeg', mp4: 'audio/mp4',
+                      m4a: 'audio/mp4', wav: 'audio/wav', webm: 'audio/webm',
+                      opus: 'audio/ogg', flac: 'audio/flac' };
+    const mime = mimeMap[ext] || 'audio/ogg';
 
     // 3. Transcribir con Groq Whisper
     const formData = new FormData();
-    formData.append('file', new Blob([audioBuffer], { type: `audio/${ext}` }), `audio.${ext}`);
+    formData.append('file', new Blob([audioBuffer], { type: mime }), `audio.${ext}`);
     formData.append('model', 'whisper-large-v3-turbo');
     formData.append('language', 'es');
     formData.append('response_format', 'verbose_json');
