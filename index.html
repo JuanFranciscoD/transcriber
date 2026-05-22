@@ -1482,6 +1482,7 @@ html, body {
     <div class="nds-tabs">
       <button class="nds-tab active" id="nds-tab-resumen" onclick="switchNdsTab('resumen')">Resumen</button>
       <button class="nds-tab" id="nds-tab-transcript" onclick="switchNdsTab('transcript')">Transcript</button>
+      <button class="nds-tab" id="nds-tab-wap" onclick="switchNdsTab('wap')">WAP</button>
     </div>
     <div class="nds-body" id="nds-body"></div>
     <div class="nds-actions">
@@ -2143,6 +2144,7 @@ function openNoteSheet(id) {
   // Tab state
   document.getElementById('nds-tab-resumen').classList.add('active');
   document.getElementById('nds-tab-transcript').classList.remove('active');
+  document.getElementById('nds-tab-wap').classList.remove('active');
 
   // Open
   document.getElementById('note-detail-sheet').classList.add('open');
@@ -2159,9 +2161,10 @@ function switchNdsTab(tab) {
   _ndsActiveTab = tab;
   var note = notes.find(function(n){ return n.id === _ndsNoteId; });
   if (!note) return;
-  renderNdsBody(tab, note);
   document.getElementById('nds-tab-resumen').classList.toggle('active', tab === 'resumen');
   document.getElementById('nds-tab-transcript').classList.toggle('active', tab === 'transcript');
+  document.getElementById('nds-tab-wap').classList.toggle('active', tab === 'wap');
+  renderNdsBody(tab, note);
 }
 
 function renderNdsBody(tab, note) {
@@ -2177,10 +2180,68 @@ function renderNdsBody(tab, note) {
     } else {
       html = '<p class="transcript-text">' + escHtml(note.transcripcion || '(sin resumen)') + '</p>';
     }
-  } else {
-    html = '<p class="transcript-text">' + escHtml(note.transcripcion || '(sin transcripción)') + '</p>';
+    body.innerHTML = html;
+  } else if (tab === 'transcript') {
+    body.innerHTML = '<p class="transcript-text">' + escHtml(note.transcripcion || '(sin transcripción)') + '</p>';
+  } else if (tab === 'wap') {
+    renderNdsWap(body, note);
   }
-  body.innerHTML = html;
+}
+
+async function renderNdsWap(el, note) {
+  // Si ya está generado, mostrar directo
+  if (note.whatsappText && note.whatsappV === 2) {
+    showNdsWapText(el, note.whatsappText);
+    return;
+  }
+  // Loading
+  el.innerHTML = '<div style="padding:20px 0;text-align:center;">' +
+    '<div style="font-family:\'Space Mono\',monospace;font-size:10px;letter-spacing:0.1em;color:var(--text-disabled);animation:shimmer 1.5s ease-in-out infinite;background:linear-gradient(90deg,var(--text-disabled) 0%,var(--text-display) 50%,var(--text-disabled) 100%);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;">GENERANDO RELATO...</div>' +
+    '</div>';
+  try {
+    var resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + GROQ_KEY },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        max_tokens: 600,
+        messages: [{ role: 'user', content:
+          'Esta es la transcripción de un audio de un broker inmobiliario describiendo una propiedad o situación. ' +
+          'Redactá un mensaje de WhatsApp como si fuera Juan, un broker que escuchó esto y se lo está contando a un cliente o lead. ' +
+          'El tono es directo, informal pero profesional, como se habla en Argentina. ' +
+          'No uses "el broker dijo" ni personificaciones — contalo como info propia, como si Juan lo hubiera visto o lo supiera de primera mano. ' +
+          'Párrafos cortos, sin bullets, sin títulos, sin markdown, sin saludos ni despedidas. Solo el mensaje. ' +
+          'Máximo 180 palabras.\n\nTranscripción:\n' + (note.transcripcion || '')
+        }]
+      })
+    });
+    if (!resp.ok) throw new Error('Error');
+    var data = await resp.json();
+    var text = data.choices[0].message.content.trim();
+    note.whatsappText = text;
+    note.whatsappV = 2;
+    save();
+    showNdsWapText(el, text);
+  } catch(e) {
+    el.innerHTML = '<p style="color:var(--text-disabled);font-size:13px;padding:20px 0;">No se pudo generar el relato.</p>';
+  }
+}
+
+function showNdsWapText(el, text) {
+  el.innerHTML =
+    '<div style="background:var(--surface);border-radius:4px;padding:16px;margin-bottom:16px;border:1px solid var(--border-visible);">' +
+      '<p style="font-family:\'Space Grotesk\',sans-serif;font-size:14px;color:var(--text-primary);line-height:1.75;white-space:pre-wrap;">' +
+      escHtml(text) + '</p>' +
+    '</div>' +
+    '<button onclick="copyNdsWap()" style="width:100%;padding:12px;background:var(--text-display);color:var(--black);border:none;border-radius:4px;font-family:\'Space Mono\',monospace;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;font-weight:700;">' +
+      'Copiar para WhatsApp' +
+    '</button>';
+}
+
+function copyNdsWap() {
+  var note = notes.find(function(n){ return n.id === _ndsNoteId; });
+  if (!note || !note.whatsappText) return;
+  navigator.clipboard.writeText(note.whatsappText).then(function(){ showStatus('[COPIADO]'); });
 }
 
 function copyNdsNote() {
