@@ -2488,13 +2488,16 @@ function softDelete(noteId, fromFolder) {
   _pendingDeleteNote = JSON.parse(JSON.stringify(note));
   _pendingDeleteFromFolder = fromFolder;
   notes = notes.filter(function(n){ return n.id !== noteId; });
+  // Marcar AHORA en deletedNoteIds para que onSnapshot no restaure la nota
+  // si llega un update de Firestore durante los 5 segundos de undo
+  deletedNoteIds.add(noteId);
+  localStorage.setItem('transcriber-deleted', JSON.stringify(Array.from(deletedNoteIds)));
   saveLocal(); renderHome(); if (currentFolderId) renderFolderNotes();
   showStatus('Nota eliminada', true);
 }
 
 function _commitDelete(noteId) {
-  deletedNoteIds.add(noteId);
-  localStorage.setItem('transcriber-deleted', JSON.stringify(Array.from(deletedNoteIds)));
+  // deletedNoteIds ya fue marcado en softDelete; acá solo sincronizamos con Firestore
   save();
   _pendingDeleteNote = null;
 }
@@ -2503,6 +2506,9 @@ function undoDelete() {
   if (!_pendingDeleteNote) return;
   if (statusTimer) clearTimeout(statusTimer);
   var note = _pendingDeleteNote;
+  // Sacar de deletedNoteIds para que la nota pueda volver a sincronizar
+  deletedNoteIds.delete(_pendingDeleteId);
+  localStorage.setItem('transcriber-deleted', JSON.stringify(Array.from(deletedNoteIds)));
   _pendingDeleteId = null; _pendingDeleteNote = null;
   notes.unshift(note);
   notes.sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); });
@@ -2691,23 +2697,30 @@ function cancelRecorder() {
           var remoteNotes = snap.exists() ? (snap.data().notes || []) : [];
           var remoteFolders = snap.exists() ? (snap.data().folders || []) : [];
 
-          // Merge: Firestore + local por id, el de mayor createdAt gana
-          // Esto asegura que notas del bot y de la app siempre se combinan
+          // Merge: SIEMPRE combinar remoto + local actual
+          // Así notas del bot, de otro dispositivo, o grabadas offline nunca se pierden
           var noteMap = {};
           remoteNotes.forEach(function(n) {
             if (!deletedNoteIds.has(n.id)) noteMap[n.id] = n;
           });
-          // Agregar notas locales que no están en Firestore aún (grabadas offline)
-          (_firstSync ? _localNotesAtLogin : []).forEach(function(n) {
+          // Notas locales en memoria que aún no llegaron a Firestore (ej: recién grabadas)
+          notes.forEach(function(n) {
             if (!noteMap[n.id] && !deletedNoteIds.has(n.id)) noteMap[n.id] = n;
           });
+          // En el primer sync también agregamos las que estaban en localStorage antes de login
+          if (_firstSync) {
+            _localNotesAtLogin.forEach(function(n) {
+              if (!noteMap[n.id] && !deletedNoteIds.has(n.id)) noteMap[n.id] = n;
+            });
+          }
           var mergedNotes = Object.values(noteMap).sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); });
 
           var folderMap = {};
           remoteFolders.forEach(function(f) { folderMap[f.id] = f; });
-          (_firstSync ? _localFoldersAtLogin : []).forEach(function(f) {
-            if (!folderMap[f.id]) folderMap[f.id] = f;
-          });
+          folders.forEach(function(f) { if (!folderMap[f.id]) folderMap[f.id] = f; });
+          if (_firstSync) {
+            _localFoldersAtLogin.forEach(function(f) { if (!folderMap[f.id]) folderMap[f.id] = f; });
+          }
           var mergedFolders = Object.values(folderMap);
 
           notes = mergedNotes;
