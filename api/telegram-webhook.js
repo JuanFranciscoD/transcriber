@@ -81,8 +81,7 @@ export default async function handler(req, res) {
   console.log('[BOT] Audio recibido. chatId:', chatId, 'FIREBASE_UID:', FIREBASE_UID, 'GROQ_KEY:', GROQ_KEY ? 'OK' : 'MISSING', 'TG_TOKEN:', TG_TOKEN ? 'OK' : 'MISSING');
 
   try {
-    await tgSend(chatId, '⏳ Procesando audio...');
-    console.log('[BOT] tgSend OK');
+    console.log('[BOT] Iniciando procesamiento...');
 
     // 1. Obtener URL del archivo en Telegram
     const fileRes = await fetch(
