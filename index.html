@@ -308,6 +308,15 @@ html, body {
 }
 .folder-item.expanded .folder-chevron { transform: rotate(90deg); }
 .folder-item.expanded { border-bottom: none; }
+.folder-menu-btn {
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: none;
+  color: var(--text-disabled); cursor: pointer; flex-shrink: 0;
+  border-radius: 4px;
+  transition: color 150ms, background 150ms;
+}
+.folder-menu-btn:active { color: var(--text-display); background: var(--surface-raised); }
 
 /* Notas dentro de carpeta expandida */
 .folder-notes-inline {
@@ -317,6 +326,74 @@ html, body {
 }
 .folder-notes-inline.open { max-height: 2000px; }
 .folder-notes-inline .note-item-wrap:last-child .note-item { border-bottom: 1px solid var(--border); }
+
+/* ── NOTE INLINE DETAIL ── */
+.note-inline-detail {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 300ms cubic-bezier(0.25,0.1,0.25,1), opacity 200ms ease-out;
+  background: var(--surface);
+  border-left: 2px solid var(--neon-orange);
+  margin-left: 48px; /* alinea con el texto de la nota */
+  border-bottom: 1px solid var(--border);
+}
+/* Cuando está dentro de una carpeta expandida, usa el color de carpeta */
+.folder-notes-inline .note-inline-detail {
+  border-left-color: var(--neon-blue);
+  margin-left: 36px;
+}
+.note-inline-detail.open {
+  max-height: 1200px;
+  opacity: 1;
+}
+.note-inline-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border-visible);
+}
+.note-inline-tab {
+  flex: 1; padding: 8px 10px;
+  font-family: 'Space Mono', monospace;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-disabled);
+  border: none; background: transparent; cursor: pointer;
+  border-right: 1px solid var(--border-visible);
+  transition: color 150ms, background 150ms;
+}
+.note-inline-tab:last-child { border-right: none; }
+.note-inline-tab.active { color: var(--text-display); background: var(--surface-raised); }
+.note-inline-body { padding: 12px 14px; max-height: 400px; overflow-y: auto; }
+.note-inline-actions {
+  display: flex;
+  border-top: 1px solid var(--border);
+}
+.note-inline-action {
+  flex: 1; padding: 10px 4px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  font-family: 'Space Mono', monospace;
+  font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--text-disabled);
+  border: none; background: transparent; cursor: pointer;
+  border-right: 1px solid var(--border);
+  transition: color 150ms;
+}
+.note-inline-action:last-child { border-right: none; }
+.note-inline-action:active { color: var(--text-display); }
+.note-inline-action.danger { color: var(--accent); }
+.note-inline-action.danger:active { opacity: 0.7; }
+
+/* nota seleccionada: highlight sutil */
+.note-item-wrap.inline-open .note-item {
+  background: var(--surface);
+}
+.note-item-wrap.inline-open .note-thumb {
+  border-color: var(--neon-orange);
+  color: var(--neon-orange);
+}
+.note-item-wrap.inline-open .note-chevron svg {
+  transform: rotate(90deg);
+  transition: transform 200ms cubic-bezier(0.25,0.1,0.25,1);
+}
 
 /* ── NOTE ITEM ── */
 .note-item-wrap {
@@ -1382,6 +1459,20 @@ html, body {
   <div id="move-folder-list"></div>
 </div>
 
+<!-- FOLDER MENU SHEET -->
+<div class="sheet" id="folder-menu-sheet">
+  <div class="sheet-handle"></div>
+  <p class="sheet-label" id="folder-menu-label">Carpeta</p>
+  <button class="sheet-option" onclick="closeAllSheets(); renameFolderById(_folderMenuId)">
+    <div class="opt-icon"><svg width="16" height="16"><use href="#ic-pencil"/></svg></div>
+    <span class="sheet-option-label">Renombrar</span>
+  </button>
+  <button class="sheet-option" onclick="closeAllSheets(); deleteFolderById(_folderMenuId)" style="color:var(--accent)">
+    <div class="opt-icon" style="border-color:var(--accent);color:var(--accent)"><svg width="16" height="16"><use href="#ic-trash"/></svg></div>
+    <span class="sheet-option-label" style="color:var(--accent)">Eliminar carpeta</span>
+  </button>
+</div>
+
 <!-- MODAL -->
 <div class="modal-backdrop" id="modal-backdrop">
   <div class="modal">
@@ -1826,6 +1917,9 @@ function renderHome() {
         html += '<div class="folder-item ' + isExpanded + '" onclick="toggleFolder(\'' + f.id + '\')" data-folder-id="' + f.id + '">' +
           '<div class="folder-icon-wrap"><svg width="16" height="16"><use href="#ic-folder"/></svg></div>' +
           '<div class="folder-info"><h3>' + escHtml(f.name) + '</h3><p>' + count + ' nota' + (count!==1?'s':'') + '</p></div>' +
+          '<button class="folder-menu-btn" onclick="event.stopPropagation(); openFolderMenu(\'' + f.id + '\')" title="Opciones">' +
+            '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>' +
+          '</button>' +
           '<span class="folder-chevron"><svg width="14" height="14"><use href="#ic-chevron-right"/></svg></span>' +
           '</div>' +
           '<div class="folder-notes-inline ' + isOpen + '" data-folder-notes="' + f.id + '">' +
@@ -1844,6 +1938,22 @@ function renderHome() {
     }
   }
   c.innerHTML = html;
+  // Restaurar panel inline si había uno abierto
+  if (_openInlineNoteId) {
+    var note = notes.find(function(n){ return n.id === _openInlineNoteId; });
+    if (note) {
+      var panel = document.getElementById('inline-' + _openInlineNoteId);
+      var wrap = document.querySelector('.note-item-wrap[data-id="' + _openInlineNoteId + '"]');
+      if (panel) { panel.innerHTML = buildInlinePanel(note, 'resumen'); panel.classList.add('open'); }
+      if (wrap) {
+        wrap.classList.add('inline-open');
+        var chevron = wrap.querySelector('.note-chevron svg');
+        if (chevron) chevron.style.transform = 'rotate(90deg)';
+      }
+    } else {
+      _openInlineNoteId = null;
+    }
+  }
   attachSwipeHandlers();
   // Stagger items in
   var items = c.querySelectorAll('.note-item-wrap, .folder-item');
@@ -1865,7 +1975,6 @@ function durBadgeClass(n) {
 }
 function noteItemHtml(n, fromInlineFolder) {
   var dur = n.duration ? '<span class="dur-badge ' + durBadgeClass(n) + '">' + escHtml(n.duration) + '</span>' : '';
-  var openFn = fromInlineFolder ? 'openNoteFromHome(\'' + n.id + '\')' : 'openNote(\'' + n.id + '\')';
   // Source badge + thumb icon
   var src = n.source || 'rec';
   var thumbIcon, sourceBadge;
@@ -1881,14 +1990,16 @@ function noteItemHtml(n, fromInlineFolder) {
   }
   return '<div class="note-item-wrap" data-id="' + n.id + '">' +
     '<div class="delete-reveal"><svg width="14" height="14"><use href="#ic-trash"/></svg>DELETE</div>' +
-    '<div class="note-item">' +
+    '<div class="note-item" onclick="toggleNoteInline(\'' + n.id + '\', this)">' +
       '<div class="note-thumb">' + thumbIcon + '</div>' +
-      '<div class="note-info" onclick="' + openFn + '">' +
+      '<div class="note-info">' +
         '<h3>' + escHtml(n.title) + '</h3>' +
         '<div class="note-meta"><span>' + escHtml(n.date) + '</span>' + sourceBadge + dur + '</div>' +
       '</div>' +
-      '<span class="note-chevron" onclick="' + openFn + '"><svg width="14" height="14"><use href="#ic-chevron-right"/></svg></span>' +
-    '</div></div>';
+      '<span class="note-chevron"><svg width="14" height="14" style="transition:transform 200ms cubic-bezier(0.25,0.1,0.25,1)"><use href="#ic-chevron-right"/></svg></span>' +
+    '</div>' +
+    '<div class="note-inline-detail" id="inline-' + n.id + '"></div>' +
+  '</div>';
 }
 
 /* ── SWIPE TO DELETE ── */
@@ -1962,6 +2073,7 @@ function attachSwipeHandlers() {
             });
             setTimeout(function() {
               var id = wrap.dataset.id;
+              if (_openInlineNoteId === id) _openInlineNoteId = null;
               softDelete(id, !!currentFolderId);
             }, 200);
           }, 160);
@@ -1982,6 +2094,131 @@ function attachSwipeHandlers() {
       closeOpenSwipe();
     }
   }, { passive: true });
+}
+
+/* ── INLINE NOTE DETAIL ── */
+var _openInlineNoteId = null;
+
+function toggleNoteInline(id, itemEl) {
+  // Si ya está abierta esta misma, cerrar
+  if (_openInlineNoteId === id) {
+    closeInlineNote(id);
+    return;
+  }
+  // Cerrar la anterior si hay una abierta
+  if (_openInlineNoteId) closeInlineNote(_openInlineNoteId);
+
+  var note = notes.find(function(n){ return n.id === id; });
+  if (!note) return;
+  _openInlineNoteId = id;
+
+  // Marcar el item como abierto
+  var wrap = itemEl ? itemEl.closest('.note-item-wrap') : document.querySelector('.note-item-wrap[data-id="' + id + '"]');
+  if (wrap) wrap.classList.add('inline-open');
+  var chevron = wrap ? wrap.querySelector('.note-chevron svg') : null;
+  if (chevron) chevron.style.transform = 'rotate(90deg)';
+
+  // Renderizar el panel inline
+  var panel = document.getElementById('inline-' + id);
+  if (!panel) return;
+  panel.innerHTML = buildInlinePanel(note, 'resumen');
+  panel.classList.add('open');
+
+  // Scroll suave para que el panel quede visible
+  setTimeout(function() {
+    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, 50);
+}
+
+function closeInlineNote(id) {
+  var panel = document.getElementById('inline-' + id);
+  if (panel) panel.classList.remove('open');
+  var wrap = document.querySelector('.note-item-wrap[data-id="' + id + '"]');
+  if (wrap) {
+    wrap.classList.remove('inline-open');
+    var chevron = wrap.querySelector('.note-chevron svg');
+    if (chevron) chevron.style.transform = '';
+  }
+  if (_openInlineNoteId === id) _openInlineNoteId = null;
+}
+
+function buildInlinePanel(note, activeTab) {
+  // Tabs
+  var tabs = '<div class="note-inline-tabs">' +
+    '<button class="note-inline-tab' + (activeTab==='resumen'?' active':'') + '" onclick="switchInlineTab(\'' + note.id + '\',\'resumen\')">Resumen</button>' +
+    '<button class="note-inline-tab' + (activeTab==='transcript'?' active':'') + '" onclick="switchInlineTab(\'' + note.id + '\',\'transcript\')">Transcript</button>' +
+    '</div>';
+
+  // Body
+  var body = '<div class="note-inline-body">';
+  if (activeTab === 'resumen') {
+    var resumen = note.resumen;
+    if (resumen && resumen.secciones) {
+      resumen.secciones.forEach(function(sec) {
+        body += '<div class="section-block"><span class="section-title">' + escHtml(sec.titulo) + '</span>';
+        (sec.puntos||[]).forEach(function(p){ body += '<div class="bullet">' + escHtml(p) + '</div>'; });
+        body += '</div>';
+      });
+    } else {
+      body += '<p class="transcript-text">' + escHtml(note.transcripcion || '') + '</p>';
+    }
+  } else {
+    body += '<p class="transcript-text">' + escHtml(note.transcripcion || '(sin transcripción)') + '</p>';
+  }
+  body += '</div>';
+
+  // Actions
+  var actions = '<div class="note-inline-actions">' +
+    '<button class="note-inline-action" onclick="copyInlineNote(\'' + note.id + '\')">' +
+      '<svg width="14" height="14"><use href="#ic-copy"/></svg>Copiar' +
+    '</button>' +
+    '<button class="note-inline-action" onclick="openMoveSheetFor(\'' + note.id + '\')">' +
+      '<svg width="14" height="14"><use href="#ic-move"/></svg>Mover' +
+    '</button>' +
+    '<button class="note-inline-action" onclick="shareInlineNote(\'' + note.id + '\')">' +
+      '<svg width="14" height="14"><use href="#ic-share"/></svg>Compartir' +
+    '</button>' +
+    '<button class="note-inline-action danger" onclick="deleteInlineNote(\'' + note.id + '\')">' +
+      '<svg width="14" height="14"><use href="#ic-trash"/></svg>Borrar' +
+    '</button>' +
+  '</div>';
+
+  return tabs + body + actions;
+}
+
+function switchInlineTab(id, tab) {
+  var note = notes.find(function(n){ return n.id === id; });
+  if (!note) return;
+  var panel = document.getElementById('inline-' + id);
+  if (!panel) return;
+  panel.innerHTML = buildInlinePanel(note, tab);
+}
+
+function copyInlineNote(id) {
+  var note = notes.find(function(n){ return n.id === id; }); if (!note) return;
+  var text = note.resumen && note.resumen.secciones
+    ? note.resumen.secciones.map(function(s){ return s.titulo.toUpperCase()+'\n'+(s.puntos||[]).map(function(p){return '– '+p;}).join('\n'); }).join('\n\n')
+    : (note.transcripcion||'');
+  if (navigator.clipboard) navigator.clipboard.writeText(text).then(function(){ showStatus('[COPIADO]'); });
+}
+
+function shareInlineNote(id) {
+  var note = notes.find(function(n){ return n.id === id; }); if (!note) return;
+  var text = note.title + '\n\n' + (note.resumen && note.resumen.secciones
+    ? note.resumen.secciones.map(function(s){ return s.titulo.toUpperCase()+'\n'+(s.puntos||[]).map(function(p){return '– '+p;}).join('\n'); }).join('\n\n')
+    : (note.transcripcion||''));
+  if (navigator.share) navigator.share({ text: text }).catch(function(){});
+  else if (navigator.clipboard) navigator.clipboard.writeText(text).then(function(){ showStatus('[COPIADO]'); });
+}
+
+function deleteInlineNote(id) {
+  closeInlineNote(id);
+  softDelete(id, false);
+}
+
+function openMoveSheetFor(id) {
+  currentNoteId = id;
+  openMoveSheet();
 }
 
 /* ── CARPETAS ── */
@@ -2019,6 +2256,33 @@ function renderFolderNotes() {
   list.querySelectorAll('.note-item-wrap').forEach(function(el, i) {
     setTimeout(function() { el.classList.add('visible'); }, i * 40);
   });
+}
+var _folderMenuId = null;
+function openFolderMenu(id) {
+  _folderMenuId = id;
+  var folder = folders.find(function(f){ return f.id === id; });
+  if (folder) document.getElementById('folder-menu-label').textContent = folder.name.toUpperCase();
+  document.getElementById('folder-menu-sheet').classList.add('open');
+  document.getElementById('overlay').classList.add('open');
+}
+function renameFolderById(id) {
+  var folder = folders.find(function(f){ return f.id === id; });
+  if (!folder) return;
+  openModal('Renombrar carpeta', folder.name, 'Nombre...', function(name) {
+    if (!name.trim()) return;
+    folder.name = name.trim(); save(); renderHome(); showStatus('[GUARDADO]');
+  });
+}
+function deleteFolderById(id) {
+  var folder = folders.find(function(f){ return f.id === id; });
+  var count = notes.filter(function(n){ return n.folderId === id; }).length;
+  var msg = count > 0
+    ? '¿Eliminar "' + (folder ? folder.name : '') + '"? Las ' + count + ' nota' + (count!==1?'s':'') + ' quedarán en Recientes.'
+    : '¿Eliminar "' + (folder ? folder.name : '') + '"?';
+  if (!confirm(msg)) return;
+  notes.forEach(function(n){ if (n.folderId === id) delete n.folderId; });
+  folders = folders.filter(function(f){ return f.id !== id; });
+  save(); renderHome(); showStatus('[CARPETA ELIMINADA]');
 }
 function openNewFolder() {
   openModal('Nueva carpeta', '', 'Nombre...', function(name) {
