@@ -211,12 +211,11 @@ html, body {
 .upload-card {
   border: 1px solid var(--border-visible);
   border-radius: 4px;
-  padding: 32px 20px;
+  padding: 18px 16px;
   text-align: center;
-  background: linear-gradient(160deg, var(--surface) 0%, rgba(200,255,0,0.02) 100%);
-  cursor: pointer;
-  margin-bottom: 24px;
   background: var(--surface);
+  cursor: pointer;
+  margin-bottom: 20px;
   transition: border-color 150ms;
   position: relative;
   overflow: hidden;
@@ -241,26 +240,26 @@ html, body {
 }
 .upload-card.drag-over h3 { color: var(--neon-orange); }
 .upload-icon-wrap {
-  width: 48px; height: 48px;
+  width: 36px; height: 36px;
   border: 1px solid var(--neon-orange);
   border-radius: 4px;
   display: flex; align-items: center; justify-content: center;
-  margin: 0 auto 16px;
+  margin: 0 auto 12px;
   color: var(--neon-orange);
   position: relative; z-index: 1;
 }
 .upload-card h3 {
   font-family: 'Space Grotesk', sans-serif;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--text-display);
-  margin-bottom: 4px;
+  margin-bottom: 3px;
   position: relative; z-index: 1;
 }
 .upload-card p {
   font-family: 'Space Mono', monospace;
   font-size: 11px;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   color: var(--text-disabled);
   position: relative; z-index: 1;
 }
@@ -270,9 +269,9 @@ html, body {
 .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; margin-top: 4px; }
 .section-label {
   font-family: 'Space Mono', monospace;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--text-disabled);
 }
@@ -378,6 +377,16 @@ html, body {
   border: 1px solid var(--border-visible);
   border-radius: 2px; padding: 1px 5px;
 }
+/* ── SOURCE BADGE ── */
+.source-badge {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 1px 5px; border-radius: 2px; display: inline-flex; align-items: center; gap: 3px;
+  flex-shrink: 0;
+}
+.source-badge.tg   { background: var(--neon-blue-bg);   color: var(--neon-blue);   border: 1px solid rgba(0,210,255,0.2); }
+.source-badge.up   { background: var(--neon-orange-bg); color: var(--neon-orange); border: 1px solid rgba(255,107,43,0.2); }
+.source-badge.rec  { background: rgba(200,255,0,0.05);  color: var(--text-disabled); border: 1px solid var(--border-visible); }
 .note-chevron { color: var(--text-disabled); flex-shrink: 0; }
 
 /* ── EMPTY STATE ── */
@@ -531,20 +540,20 @@ html, body {
 }
 .audio-time {
   font-family: 'Space Mono', monospace;
-  font-size: 9px; color: var(--text-secondary);
+  font-size: 11px; color: var(--text-secondary);
   display: flex; justify-content: space-between;
 }
 
 /* ── DURATION BADGE COLORS ── */
 .dur-badge {
   font-family: 'Space Mono', monospace;
-  font-size: 10px; letter-spacing: 0.04em;
+  font-size: 11px; letter-spacing: 0.04em;
   padding: 2px 7px; border-radius: 2px;
   display: inline-block;
 }
-.dur-badge.short  { background: var(--neon-green-bg); color: var(--neon-green); }
-.dur-badge.medium { background: var(--neon-green-bg); color: var(--neon-green); }
-.dur-badge.long   { background: var(--neon-green-bg); color: var(--neon-green); }
+.dur-badge.short  { background: var(--neon-green-bg);  color: var(--neon-green);  border: 1px solid rgba(200,255,0,0.18); }
+.dur-badge.medium { background: var(--neon-blue-bg);  color: var(--neon-blue);   border: 1px solid rgba(0,210,255,0.18); }
+.dur-badge.long   { background: var(--neon-orange-bg); color: var(--neon-orange); border: 1px solid rgba(255,107,43,0.18); }
 
 /* ── DETAIL ── */
 .detail-title-row { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
@@ -591,13 +600,15 @@ html, body {
 
 /* ── TAB CONTENT ── */
 .tab-content { padding: 20px 16px 100px; }
+/* Espacio para el FAB en home */
+#screen-home .content { padding-bottom: 88px; }
 
 /* Sección del resumen — cada grupo tiene acento neon rotativo */
 .section-block { margin-bottom: 4px; border-radius: 2px; overflow: hidden; }
 .section-title {
   font-family: 'Space Mono', monospace;
-  font-size: 9px; font-weight: 700;
-  letter-spacing: 0.14em; text-transform: uppercase;
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
   color: var(--neon-orange);
   margin: 0;
   padding: 10px 12px 8px;
@@ -644,7 +655,7 @@ html, body {
   border: none; border-right: 1px solid var(--border);
   padding: 10px 4px;
   font-family: 'Space Mono', monospace;
-  font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase;
+  font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--text-disabled); cursor: pointer;
   transition: color 150ms;
 }
@@ -759,8 +770,16 @@ html, body {
   z-index: 300;
   opacity: 0; pointer-events: none;
   transition: opacity 200ms;
+  display: flex; align-items: center; justify-content: space-between;
 }
-.status-bar.show { opacity: 1; }
+.status-bar.show { opacity: 1; pointer-events: auto; }
+.status-undo-btn {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--neon-orange); background: none; border: none; cursor: pointer; padding: 0;
+  display: none;
+}
+.status-bar.show .status-undo-btn { display: block; }
 
 /* ── ERROR ── */
 .error-detail {
@@ -784,12 +803,12 @@ html, body {
 .dash-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 4px;
   padding: 14px;
 }
 .dash-label {
   font-family: 'Space Mono', monospace;
-  font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+  font-size: 11px; letter-spacing: 0.07em; text-transform: uppercase;
   color: var(--text-disabled);
   margin-bottom: 8px;
 }
@@ -807,12 +826,12 @@ html, body {
 }
 .dash-unit {
   font-family: 'Space Mono', monospace;
-  font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+  font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase;
   color: var(--text-disabled); margin-left: 3px;
 }
 .dash-sub {
   font-family: 'Space Mono', monospace;
-  font-size: 10px; letter-spacing: 0.04em;
+  font-size: 11px; letter-spacing: 0.03em;
   color: var(--text-disabled); margin-top: 5px;
 }
 .dash-spark { display: flex; align-items: flex-end; gap: 3px; height: 40px; margin-top: 10px; }
@@ -820,7 +839,7 @@ html, body {
 .dash-spark-bar.today { background: var(--text-display); }
 .dash-day-labels { display: flex; justify-content: space-between; margin-top: 5px; }
 .dash-day-label {
-  font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: 0.05em;
+  font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 0.04em;
   text-transform: uppercase; color: var(--text-disabled); flex: 1; text-align: center;
 }
 .dash-day-label.today { color: var(--text-display); }
@@ -843,6 +862,50 @@ html, body {
   padding: 3px 10px; color: var(--success); display: inline-block;
 }
 .dash-status-pill.offline { border-color: var(--text-disabled); color: var(--text-disabled); }
+
+/* ── FAB ── */
+.fab-mic {
+  position: fixed;
+  bottom: 28px; right: 20px;
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: none;
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  z-index: 50;
+  box-shadow: 0 4px 20px rgba(215,25,33,0.4);
+  transition: transform 150ms cubic-bezier(0.25,0.1,0.25,1), box-shadow 150ms;
+}
+.fab-mic:active {
+  transform: scale(0.93);
+  box-shadow: 0 2px 10px rgba(215,25,33,0.3);
+}
+/* Ocultar FAB cuando hay un sheet o modal abierto */
+.overlay.open ~ * .fab-mic,
+.modal-backdrop.open .fab-mic { display: none; }
+
+/* ── SYNC DOT ── */
+.sync-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  flex-shrink: 0; transition: background 400ms, box-shadow 400ms;
+}
+.sync-dot.sync-ok {
+  background: var(--neon-green);
+  box-shadow: 0 0 5px var(--neon-green);
+}
+.sync-dot.sync-busy {
+  background: var(--neon-orange);
+  animation: dotPulse 1s ease-in-out infinite;
+}
+.sync-dot.sync-offline {
+  background: var(--text-disabled);
+  box-shadow: none;
+}
+@keyframes dotPulse {
+  0%,100% { opacity: 1; } 50% { opacity: 0.3; }
+}
 
 /* ── BTN PRIMARY ── */
 .btn-primary {
@@ -947,6 +1010,7 @@ html, body {
 <div id="screen-home" class="screen">
   <div class="topbar">
     <span class="topbar-title">Transcribeme</span>
+    <span id="sync-dot" class="sync-dot sync-offline" title="Sin conexión"></span>
     <button class="icon-btn" onclick="showScreen('dashboard')" title="Dashboard">
       <svg width="17" height="17"><use href="#ic-stats"/></svg>
     </button>
@@ -980,6 +1044,14 @@ html, body {
     <input type="file" id="file-input" accept="audio/*,.m4a,.ogg,.opus,.mp3,.wav,.webm" onchange="handleFile(this)" />
     <div id="home-content"></div>
   </div>
+  <!-- FAB: micrófono principal -->
+  <button class="fab-mic" id="fab-mic" onclick="startRecorderScreen()" title="Grabar audio">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/>
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+      <line x1="12" y1="19" x2="12" y2="22"/>
+    </svg>
+  </button>
 </div>
 
 <!-- CARPETA -->
@@ -1323,7 +1395,10 @@ html, body {
 </div>
 
 <!-- STATUS BAR (inline, no toast) -->
-<div class="status-bar" id="status-bar"></div>
+<div class="status-bar" id="status-bar">
+  <span id="status-msg"></span>
+  <button class="status-undo-btn" id="status-undo-btn" onclick="undoDelete()">Deshacer</button>
+</div>
 
 
 <script>
@@ -1414,6 +1489,7 @@ function saveLocal() {
 async function save() {
   saveLocal();
   if (!db || !currentUser) return;
+  setSyncDot('busy');
   try {
     var fbm = await import('https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js');
     var ref = fbm.doc(fbm.getFirestore(), 'users', currentUser.uid);
@@ -1438,7 +1514,8 @@ async function save() {
     localStorage.setItem('transcriber-notes', JSON.stringify(notes));
     localStorage.setItem('transcriber-folders', JSON.stringify(folders));
     await fbm.setDoc(ref, { notes: mergedNotes, folders: mergedFolders, updatedAt: Date.now() });
-  } catch(e) { console.warn('Firebase save error:', e); }
+    setSyncDot('ok');
+  } catch(e) { console.warn('Firebase save error:', e); setSyncDot('offline'); }
 }
 async function addNoteFirebase(nota) {
   if (!db || !currentUser) return;
@@ -1721,7 +1798,17 @@ function renderHome() {
   var query = (document.getElementById('search-input') ? document.getElementById('search-input').value : '').toLowerCase().trim();
   var html = '';
   if (query) {
-    var results = notes.filter(function(n){ return n.title.toLowerCase().includes(query) || (n.transcripcion||'').toLowerCase().includes(query); });
+    var results = notes.filter(function(n) {
+      if (n.title.toLowerCase().includes(query)) return true;
+      if ((n.transcripcion||'').toLowerCase().includes(query)) return true;
+      if (n.resumen && n.resumen.secciones) {
+        return n.resumen.secciones.some(function(s) {
+          if ((s.titulo||'').toLowerCase().includes(query)) return true;
+          return (s.puntos||[]).some(function(p){ return p.toLowerCase().includes(query); });
+        });
+      }
+      return false;
+    });
     if (results.length > 0) {
       html += '<div class="section-header"><span class="section-label">' + results.length + ' resultado' + (results.length!==1?'s':'') + '</span></div>';
       html += results.map(noteItemHtml).join('');
@@ -1779,13 +1866,26 @@ function durBadgeClass(n) {
 function noteItemHtml(n, fromInlineFolder) {
   var dur = n.duration ? '<span class="dur-badge ' + durBadgeClass(n) + '">' + escHtml(n.duration) + '</span>' : '';
   var openFn = fromInlineFolder ? 'openNoteFromHome(\'' + n.id + '\')' : 'openNote(\'' + n.id + '\')';
+  // Source badge + thumb icon
+  var src = n.source || 'rec';
+  var thumbIcon, sourceBadge;
+  if (src === 'telegram') {
+    thumbIcon = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2.5L2 10l7 2.5L21.5 2.5z"/><path d="M9 12.5L21.5 2.5l-5 16-7.5-6z"/><path d="M9 12.5v6l3.5-3"/></svg>';
+    sourceBadge = '<span class="source-badge tg">TG</span>';
+  } else if (src === 'upload' || src === 'file') {
+    thumbIcon = '<svg width="15" height="15"><use href="#ic-file-text"/></svg>';
+    sourceBadge = '<span class="source-badge up">FILE</span>';
+  } else {
+    thumbIcon = '<svg width="15" height="15"><use href="#ic-mic"/></svg>';
+    sourceBadge = '';
+  }
   return '<div class="note-item-wrap" data-id="' + n.id + '">' +
     '<div class="delete-reveal"><svg width="14" height="14"><use href="#ic-trash"/></svg>DELETE</div>' +
     '<div class="note-item">' +
-      '<div class="note-thumb"><svg width="15" height="15"><use href="#ic-mic"/></svg></div>' +
+      '<div class="note-thumb">' + thumbIcon + '</div>' +
       '<div class="note-info" onclick="' + openFn + '">' +
         '<h3>' + escHtml(n.title) + '</h3>' +
-        '<div class="note-meta"><span>' + escHtml(n.date) + '</span>' + dur + '</div>' +
+        '<div class="note-meta"><span>' + escHtml(n.date) + '</span>' + sourceBadge + dur + '</div>' +
       '</div>' +
       '<span class="note-chevron" onclick="' + openFn + '"><svg width="14" height="14"><use href="#ic-chevron-right"/></svg></span>' +
     '</div></div>';
@@ -1862,13 +1962,7 @@ function attachSwipeHandlers() {
             });
             setTimeout(function() {
               var id = wrap.dataset.id;
-              deletedNoteIds.add(id);
-              localStorage.setItem('transcriber-deleted', JSON.stringify(Array.from(deletedNoteIds)));
-              notes = notes.filter(function(n){ return n.id !== id; });
-              save();
-              renderHome();
-              if (currentFolderId) renderFolderNotes();
-              showStatus('[NOTA ELIMINADA]');
+              softDelete(id, !!currentFolderId);
             }, 200);
           }, 160);
           _openSwipeItem = null;
@@ -2119,10 +2213,10 @@ function renameCurrentNote() {
   });
 }
 function deleteCurrentNote() {
-  deletedNoteIds.add(currentNoteId);
-  localStorage.setItem('transcriber-deleted', JSON.stringify(Array.from(deletedNoteIds)));
-  notes = notes.filter(function(n){ return n.id !== currentNoteId; });
-  save(); renderHome(); if (detailFromFolder) renderFolderNotes(); goBackFromDetail(); showStatus('[NOTA ELIMINADA]');
+  var id = currentNoteId;
+  var fromFolder = detailFromFolder;
+  goBackFromDetail();
+  softDelete(id, fromFolder);
 }
 
 /* ── MOVER ── */
@@ -2291,7 +2385,8 @@ async function processAudio(file, groqKey) {
       date: new Date().toLocaleDateString('es-AR', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }),
       createdAt: Date.now(),
       duration: duration, durationSecs: durationSecs, resumen: resumenObj, transcripcion: transcripcion,
-      folderId: noteFolderId || undefined
+      folderId: noteFolderId || undefined,
+      source: noteFolderId ? 'rec' : 'upload'
     };
     notes.unshift(nota); saveLocal(); addNoteFirebase(nota); renderHome();
     currentNoteId = nota.id; detailFromFolder = false;
@@ -2351,13 +2446,68 @@ function closeModal() { document.getElementById('modal-backdrop').classList.remo
 function modalConfirm() { var val = document.getElementById('modal-input').value; var cb = modalCallback; closeModal(); if (cb) cb(val); }
 document.getElementById('modal-input').addEventListener('keydown', function(e){ if (e.key==='Enter') modalConfirm(); if (e.key==='Escape') closeModal(); });
 
+/* ── SYNC DOT ── */
+var _syncOkTimer = null;
+function setSyncDot(state) {
+  var dot = document.getElementById('sync-dot');
+  if (!dot) return;
+  dot.className = 'sync-dot sync-' + state;
+  dot.title = state === 'ok' ? 'Sincronizado' : state === 'busy' ? 'Guardando...' : 'Sin conexión';
+  if (state === 'ok') {
+    if (_syncOkTimer) clearTimeout(_syncOkTimer);
+    _syncOkTimer = setTimeout(function(){ dot.className = 'sync-dot sync-offline'; dot.title = 'Sin conexión'; }, 4000);
+  }
+}
+
 /* ── STATUS (inline, Nothing style) ── */
 var statusTimer = null;
-function showStatus(msg) {
+function showStatus(msg, withUndo) {
   var bar = document.getElementById('status-bar');
-  bar.textContent = msg; bar.classList.add('show');
+  var msgEl = document.getElementById('status-msg');
+  var undoBtn = document.getElementById('status-undo-btn');
+  if (msgEl) msgEl.textContent = msg; else bar.textContent = msg;
+  if (undoBtn) undoBtn.style.display = withUndo ? '' : 'none';
+  bar.classList.add('show');
   if (statusTimer) clearTimeout(statusTimer);
-  statusTimer = setTimeout(function(){ bar.classList.remove('show'); }, 2000);
+  statusTimer = setTimeout(function(){
+    bar.classList.remove('show');
+    // Si no se deshizo, commitear el borrado pendiente
+    if (_pendingDeleteId) { _commitDelete(_pendingDeleteId); _pendingDeleteId = null; }
+  }, withUndo ? 5000 : 2000);
+}
+
+/* ── UNDO DELETE ── */
+var _pendingDeleteId = null;
+var _pendingDeleteNote = null;
+var _pendingDeleteFromFolder = false;
+
+function softDelete(noteId, fromFolder) {
+  var note = notes.find(function(n){ return n.id === noteId; });
+  if (!note) return;
+  _pendingDeleteId = noteId;
+  _pendingDeleteNote = JSON.parse(JSON.stringify(note));
+  _pendingDeleteFromFolder = fromFolder;
+  notes = notes.filter(function(n){ return n.id !== noteId; });
+  saveLocal(); renderHome(); if (currentFolderId) renderFolderNotes();
+  showStatus('Nota eliminada', true);
+}
+
+function _commitDelete(noteId) {
+  deletedNoteIds.add(noteId);
+  localStorage.setItem('transcriber-deleted', JSON.stringify(Array.from(deletedNoteIds)));
+  save();
+  _pendingDeleteNote = null;
+}
+
+function undoDelete() {
+  if (!_pendingDeleteNote) return;
+  if (statusTimer) clearTimeout(statusTimer);
+  var note = _pendingDeleteNote;
+  _pendingDeleteId = null; _pendingDeleteNote = null;
+  notes.unshift(note);
+  notes.sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); });
+  saveLocal(); renderHome(); if (currentFolderId) renderFolderNotes();
+  showStatus('Nota restaurada');
 }
 
 
@@ -2428,8 +2578,19 @@ async function startRecording() {
     _recSeconds++;
     var m = Math.floor(_recSeconds / 60);
     var s = _recSeconds % 60;
-    document.getElementById('rec-timer').textContent =
-      String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+    var timerEl = document.getElementById('rec-timer');
+    var statusEl = document.getElementById('rec-status');
+    timerEl.textContent = String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+    // Advertencia a 10min
+    if (_recSeconds === 600) {
+      timerEl.style.color = 'var(--neon-orange)';
+      if (statusEl) { statusEl.textContent = 'Advertencia: 10 min'; statusEl.style.color = 'var(--neon-orange)'; }
+    }
+    // Stop automático a 15min
+    if (_recSeconds >= 900) {
+      if (statusEl) { statusEl.textContent = 'Límite 15 min — guardando...'; }
+      stopRecording();
+    }
   }, 1000);
 
   // Animate waveform
@@ -2462,6 +2623,8 @@ function stopRecording() {
   cancelAnimationFrame(_recAnimFrame);
   if (_recAudioCtx) _recAudioCtx.close();
   resetRecWaveform();
+  var timerEl = document.getElementById('rec-timer');
+  if (timerEl) timerEl.style.color = '';
   var inner = document.getElementById('rec-btn-inner');
   inner.style.borderRadius = '50%';
   inner.style.width = '28px'; inner.style.height = '28px';
@@ -2558,6 +2721,7 @@ function cancelRecorder() {
           } else {
             renderHome(); showStatus('[ACTUALIZADO]');
           }
+          setSyncDot('ok');
         });
       }
     });
