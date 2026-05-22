@@ -78,9 +78,10 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true });
   }
 
-  console.log('[BOT] Audio recibido. chatId:', chatId, 'FIREBASE_UID:', FIREBASE_UID);
+  console.log('[BOT] Audio recibido. chatId:', chatId, 'FIREBASE_UID:', FIREBASE_UID, 'GROQ_KEY:', GROQ_KEY ? 'OK' : 'MISSING', 'TG_TOKEN:', TG_TOKEN ? 'OK' : 'MISSING');
   try {
     await tgSend(chatId, '⏳ Procesando audio...');
+    console.log('[BOT] tgSend OK');
 
     // 1. Obtener URL del archivo en Telegram
     const fileRes = await fetch(
@@ -109,14 +110,17 @@ export default async function handler(req, res) {
     formData.append('response_format', 'verbose_json');
     formData.append('temperature', '0');
 
+    console.log('[BOT] Descargando audio, ext:', ext, 'mime:', mime, 'size:', audioBuffer.byteLength);
     const whisperResp = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
       method: 'POST',
       headers: { Authorization: `Bearer ${GROQ_KEY}` },
       body: formData,
     });
+    console.log('[BOT] Whisper status:', whisperResp.status);
     if (!whisperResp.ok) throw new Error('Whisper error: ' + await whisperResp.text());
     const whisperData = await whisperResp.json();
     const transcripcion = whisperData.text || '';
+    console.log('[BOT] Transcripcion OK, chars:', transcripcion.length);
     const durationSecs  = whisperData.duration || null;
 
     // 4. Resumir con LLaMA
@@ -137,6 +141,7 @@ export default async function handler(req, res) {
         }],
       }),
     });
+    console.log('[BOT] LLaMA status:', llamaResp.status);
     if (!llamaResp.ok) throw new Error('LLaMA error: ' + await llamaResp.text());
     const llamaData = await llamaResp.json();
     const rawText   = llamaData.choices[0].message.content;
@@ -202,7 +207,7 @@ export default async function handler(req, res) {
     );
 
   } catch (err) {
-    console.error(err);
+    console.error('[BOT] ERROR:', err.message, err.stack);
     await tgSend(chatId, '❌ Error procesando el audio: ' + err.message);
   }
 
