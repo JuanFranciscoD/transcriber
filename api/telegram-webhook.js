@@ -71,10 +71,85 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true });
   }
 
-  // Solo procesar mensajes de voz o audio
   const audio = msg.voice || msg.audio || msg.document;
+  const textMsg = msg.text;
+
+  // Manejar mensajes de texto
+  if (!audio && textMsg) {
+    // Comandos
+    if (textMsg.startsWith('/')) {
+      await tgSend(chatId,
+        '🤖 *Comandos disponibles:*\n\n' +
+        '• Mandame un 🎤 *audio de voz* → lo transcribo y resumo\n' +
+        '• Mandame un 📁 *archivo de audio* → ídem\n' +
+        '• Mandame un 📝 *mensaje de texto* → lo guardo como nota\n' +
+        '• /start → este mensaje\n\n' +
+        '_Todo se guarda automáticamente en Transcribeme._',
+        'Markdown'
+      );
+      return res.status(200).json({ ok: true });
+    }
+
+    // Guardar texto como nota
+    console.log('[BOT] Texto recibido, guardando como nota. chars:', textMsg.length);
+    try {
+      const llamaResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${GROQ_KEY}` },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          max_tokens: 512,
+          messages: [{
+            role: 'user',
+            content:
+              'Analizá este texto y generá un resumen estructurado en JSON.\n\n' +
+              'Texto:\n' + textMsg + '\n\n' +
+              'Devolvé SOLO un JSON válido con este formato exacto:\n' +
+              '{\n  "titulo": "título descriptivo corto (máx 5 palabras)",\n' +
+              '  "secciones": [\n    { "titulo": "Nombre de sección", "puntos": ["punto 1", "punto 2"] }\n  ]\n}',
+          }],
+        }),
+      });
+      const llamaData = await llamaResp.json();
+      const rawText = llamaData.choices[0].message.content;
+      let resumenObj;
+      try {
+        const jm = rawText.match(/\{[\s\S]*\}/);
+        resumenObj = JSON.parse(jm ? jm[0] : rawText);
+      } catch {
+        resumenObj = { titulo: 'Nota de texto', secciones: [{ titulo: 'Contenido', puntos: [textMsg] }] };
+      }
+
+      const db = getDb();
+      const now = Date.now();
+      const nota = {
+        id: String(now),
+        title: resumenObj.titulo || 'Nota de texto',
+        date: new Date().toLocaleDateString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
+        createdAt: now,
+        duration: null,
+        durationSecs: null,
+        resumen: resumenObj,
+        transcripcion: textMsg,
+        source: 'telegram',
+      };
+
+      const userRef = db.collection('users').doc(FIREBASE_UID);
+      const snap2 = await userRef.get();
+      const existing = snap2.exists ? (snap2.data().notes || []) : [];
+      const newNotes = [nota, ...existing.filter(n => n.id !== nota.id)];
+      await userRef.set({ notes: newNotes, updatedAt: now, lastBotUpdate: now }, { merge: true });
+
+      await tgSend(chatId, `✅ *${resumenObj.titulo}*\n\n_Guardado en Transcribeme_`, 'Markdown');
+    } catch (err) {
+      console.error('[BOT] Error guardando texto:', err.message);
+      await tgSend(chatId, '❌ Error guardando el texto: ' + err.message);
+    }
+    return res.status(200).json({ ok: true });
+  }
+
   if (!audio) {
-    await tgSend(chatId, '🎙️ Mandame un audio de voz y lo transcribo.');
+    await tgSend(chatId, '🎙️ Mandame un audio de voz o un mensaje de texto y lo guardo como nota.');
     return res.status(200).json({ ok: true });
   }
 
