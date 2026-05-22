@@ -177,14 +177,20 @@ export default async function handler(req, res) {
       source:        'telegram',
     };
 
-    // Agregar la nota atómicamente con arrayUnion (no pisa otras notas)
+    // Guardar nota: read-modify-write para garantizar que onSnapshot detecte el cambio
     console.log('[BOT] Guardando nota:', nota.id, nota.title, 'uid:', FIREBASE_UID);
     const userRef = db.collection('users').doc(FIREBASE_UID);
+    const snap2 = await userRef.get();
+    const existing = snap2.exists ? (snap2.data().notes || []) : [];
+    // Insertar al inicio, sin duplicados
+    const alreadyExists = existing.some(n => n.id === nota.id);
+    const newNotes = alreadyExists ? existing : [nota, ...existing];
     await userRef.set({
-      notes:     FieldValue.arrayUnion(nota),
+      notes:     newNotes,
       updatedAt: now,
+      lastBotUpdate: now,
     }, { merge: true });
-    console.log('[BOT] Nota guardada OK en Firestore');
+    console.log('[BOT] Nota guardada OK en Firestore, total notas:', newNotes.length);
 
     // 6. Actualizar usage
     await db.collection('users').doc(FIREBASE_UID)
