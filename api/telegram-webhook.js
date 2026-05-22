@@ -54,7 +54,7 @@ const TG_TOKEN       = process.env.TELEGRAM_BOT_TOKEN;
 const ALLOWED_CHAT   = process.env.TELEGRAM_ALLOWED_CHAT_ID; // tu chat_id personal
 const FIREBASE_UID   = process.env.FIREBASE_USER_UID;        // tu uid de Firebase Auth
 
-export const config = { api: { bodyParser: true } };
+export const config = { api: { bodyParser: true }, maxDuration: 60 };
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(200).json({ ok: true });
@@ -79,6 +79,10 @@ export default async function handler(req, res) {
   }
 
   console.log('[BOT] Audio recibido. chatId:', chatId, 'FIREBASE_UID:', FIREBASE_UID, 'GROQ_KEY:', GROQ_KEY ? 'OK' : 'MISSING', 'TG_TOKEN:', TG_TOKEN ? 'OK' : 'MISSING');
+
+  // Responder a Telegram de inmediato para evitar timeouts y reintentos
+  res.status(200).json({ ok: true });
+
   try {
     await tgSend(chatId, '⏳ Procesando audio...');
     console.log('[BOT] tgSend OK');
@@ -216,8 +220,6 @@ export default async function handler(req, res) {
     console.error('[BOT] ERROR:', err.message, err.stack);
     await tgSend(chatId, '❌ Error procesando el audio: ' + err.message);
   }
-
-  return res.status(200).json({ ok: true });
 }
 
 async function tgSend(chatId, text, parseMode) {
