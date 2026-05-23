@@ -71,7 +71,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true });
   }
 
-  const audio = msg.voice || msg.audio || msg.document;
+  const audio = msg.voice || msg.audio || msg.video_note || msg.video || msg.document;
   const textMsg = msg.text;
 
   // Manejar mensajes de texto
@@ -81,6 +81,7 @@ export default async function handler(req, res) {
       await tgSend(chatId,
         '🤖 *Comandos disponibles:*\n\n' +
         '• Mandame un 🎤 *audio de voz* → lo transcribo y resumo\n' +
+        '• Mandame un 🎥 *video* → extraigo el audio y resumo\n' +
         '• Mandame un 📁 *archivo de audio* → ídem\n' +
         '• Mandame un 📝 *mensaje de texto* → lo guardo como nota\n' +
         '• /start → este mensaje\n\n' +
@@ -172,9 +173,10 @@ export default async function handler(req, res) {
     // Telegram voice notes come as .oga — map to ogg which Groq accepts
     const rawExt = filePath.split('.').pop()?.toLowerCase() || 'ogg';
     const ext = rawExt === 'oga' ? 'ogg' : rawExt;
-    const mimeMap = { ogg: 'audio/ogg', mp3: 'audio/mpeg', mp4: 'audio/mp4',
-                      m4a: 'audio/mp4', wav: 'audio/wav', webm: 'audio/webm',
-                      opus: 'audio/ogg', flac: 'audio/flac' };
+    const mimeMap = { ogg: 'audio/ogg', mp3: 'audio/mpeg', mp4: 'video/mp4',
+                      m4a: 'audio/mp4', wav: 'audio/wav', webm: 'video/webm',
+                      mov: 'video/quicktime', opus: 'audio/ogg', flac: 'audio/flac' };
+    const isVideo = msg.video || msg.video_note;
     const mime = mimeMap[ext] || 'audio/ogg';
 
     // 3. Transcribir con Groq Whisper
@@ -249,7 +251,7 @@ export default async function handler(req, res) {
       durationSecs:  durationSecs,
       resumen:       resumenObj,
       transcripcion: transcripcion,
-      source:        'telegram',
+      source:        isVideo ? 'telegram-video' : 'telegram',
     };
 
     // Guardar nota: read-modify-write para garantizar que onSnapshot detecte el cambio
