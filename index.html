@@ -2398,10 +2398,10 @@ function deleteFolderById(id) {
   var folder = folders.find(function(f){ return f.id === id; });
   var count = notes.filter(function(n){ return n.folderId === id; }).length;
   var msg = count > 0
-    ? '¿Eliminar "' + (folder ? folder.name : '') + '"? Las ' + count + ' nota' + (count!==1?'s':'') + ' quedarán en Recientes.'
+    ? '¿Eliminar "' + (folder ? folder.name : '') + '" y sus ' + count + ' nota' + (count!==1?'s':'') + '?'
     : '¿Eliminar "' + (folder ? folder.name : '') + '"?';
   openConfirm(msg, function() {
-    notes.forEach(function(n){ if (n.folderId === id) delete n.folderId; });
+    notes = notes.filter(function(n){ return n.folderId !== id; });
     folders = folders.filter(function(f){ return f.id !== id; });
     save(); renderHome(); showStatus('[CARPETA ELIMINADA]');
   });
