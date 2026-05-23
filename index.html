@@ -1332,22 +1332,49 @@ html, body {
         <span class="dash-label">Uso Groq API</span>
         <a href="https://console.groq.com/usage" target="_blank" style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-secondary);text-decoration:none;border-bottom:1px solid var(--border-visible);padding-bottom:1px;">Ver consola ↗</a>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <!-- hoy vs total -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <!-- Audio -->
         <div>
-          <div style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-disabled);margin-bottom:4px;">Audio transcrito</div>
-          <div style="display:flex;align-items:baseline;gap:3px;">
-            <span style="font-family:'Space Mono',monospace;font-size:20px;color:var(--text-display);" id="dash-groq-audio">0</span>
-            <span style="font-family:'Space Mono',monospace;font-size:10px;color:var(--text-secondary);">min</span>
+          <div style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-disabled);margin-bottom:6px;">Audio transcrito</div>
+          <div style="display:flex;gap:16px;align-items:flex-end;">
+            <div>
+              <div style="font-family:'Space Mono',monospace;font-size:9px;color:var(--text-disabled);margin-bottom:1px;">HOY</div>
+              <div style="display:flex;align-items:baseline;gap:2px;">
+                <span style="font-family:'Space Mono',monospace;font-size:20px;color:var(--text-display);" id="dash-groq-audio">0</span>
+                <span style="font-family:'Space Mono',monospace;font-size:10px;color:var(--text-secondary);">min</span>
+              </div>
+            </div>
+            <div>
+              <div style="font-family:'Space Mono',monospace;font-size:9px;color:var(--text-disabled);margin-bottom:1px;">TOTAL</div>
+              <div style="display:flex;align-items:baseline;gap:2px;">
+                <span style="font-family:'Space Mono',monospace;font-size:14px;color:var(--text-secondary);" id="dash-groq-audio-total">—</span>
+                <span style="font-family:'Space Mono',monospace;font-size:9px;color:var(--text-disabled);">min</span>
+              </div>
+            </div>
           </div>
-          <div style="font-family:'Space Mono',monospace;font-size:9px;color:var(--text-disabled);margin-top:2px;" id="dash-groq-audio-limit"></div>
+          <div style="font-family:'Space Mono',monospace;font-size:9px;color:var(--text-disabled);margin-top:3px;" id="dash-groq-audio-limit"></div>
         </div>
+        <!-- Tokens -->
         <div>
-          <div style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-disabled);margin-bottom:4px;">Tokens LLaMA</div>
-          <div style="display:flex;align-items:baseline;gap:3px;">
-            <span style="font-family:'Space Mono',monospace;font-size:20px;color:var(--text-display);" id="dash-groq-tokens">0</span>
-            <span style="font-family:'Space Mono',monospace;font-size:10px;color:var(--text-secondary);">k</span>
+          <div style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-disabled);margin-bottom:6px;">Tokens LLaMA</div>
+          <div style="display:flex;gap:16px;align-items:flex-end;">
+            <div>
+              <div style="font-family:'Space Mono',monospace;font-size:9px;color:var(--text-disabled);margin-bottom:1px;">HOY</div>
+              <div style="display:flex;align-items:baseline;gap:2px;">
+                <span style="font-family:'Space Mono',monospace;font-size:20px;color:var(--text-display);" id="dash-groq-tokens">0</span>
+                <span style="font-family:'Space Mono',monospace;font-size:10px;color:var(--text-secondary);">k</span>
+              </div>
+            </div>
+            <div>
+              <div style="font-family:'Space Mono',monospace;font-size:9px;color:var(--text-disabled);margin-bottom:1px;">TOTAL</div>
+              <div style="display:flex;align-items:baseline;gap:2px;">
+                <span style="font-family:'Space Mono',monospace;font-size:14px;color:var(--text-secondary);" id="dash-groq-tokens-total">—</span>
+                <span style="font-family:'Space Mono',monospace;font-size:9px;color:var(--text-disabled);">k</span>
+              </div>
+            </div>
           </div>
-          <div style="font-family:'Space Mono',monospace;font-size:9px;color:var(--text-disabled);margin-top:2px;" id="dash-groq-tokens-limit"></div>
+          <div style="font-family:'Space Mono',monospace;font-size:9px;color:var(--text-disabled);margin-top:3px;" id="dash-groq-tokens-limit"></div>
         </div>
       </div>
       <!-- barra whisper -->
@@ -1366,7 +1393,7 @@ html, body {
         </div>
         <div class="dash-seg" id="dash-llama-bar"></div>
       </div>
-      <div style="font-family:'Space Mono',monospace;font-size:9px;color:var(--text-disabled);margin-top:8px;">Acumulado total · Barras = uso diario vs límite · Límites se reinician cada día a medianoche UTC</div>
+      <div style="font-family:'Space Mono',monospace;font-size:9px;color:var(--text-disabled);margin-top:8px;">Barras = uso de hoy vs límite diario · Se reinicia medianoche UTC</div>
     </div>
     <!-- fila 5: última nota -->
     <div class="dash-card" style="margin-bottom:8px;">
@@ -1821,9 +1848,10 @@ function renderDashboard() {
         var SEG2 = 20;
 
         countUp(document.getElementById('dash-groq-audio'), wMinsToday, 400);
-        document.getElementById('dash-groq-audio-limit').textContent = wMinsToday + ' min hoy · ' + callsToday + ' transcripciones · ' + wMinsTotal + ' min total';
+        document.getElementById('dash-groq-audio-total').textContent = wMinsTotal;
+        document.getElementById('dash-groq-audio-limit').textContent = callsToday + ' transcripciones hoy · ' + callsTotal + ' totales';
         countUp(document.getElementById('dash-groq-tokens'), lTokTodayK, 400);
-        document.getElementById('dash-groq-tokens-limit').textContent = lTokTodayK + 'k tokens hoy · ' + lTokTotalK + 'k total';
+        document.getElementById('dash-groq-tokens-total').textContent = lTokTotalK;
 
         // Barras = % del límite diario, basado en uso de HOY
         var wBar = document.getElementById('dash-whisper-bar');
