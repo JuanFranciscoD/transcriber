@@ -1928,7 +1928,7 @@ function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-var GROQ_KEY = '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';
+var GROQ_KEY = null; // key moved to server-side proxy /api/groq
 function checkKeys() {}
 
 /* ── RENDER HOME ── */
@@ -2204,9 +2204,9 @@ async function renderNdsWap(el, note) {
     '<div style="font-family:\'Space Mono\',monospace;font-size:10px;letter-spacing:0.1em;color:var(--text-disabled);animation:shimmer 1.5s ease-in-out infinite;background:linear-gradient(90deg,var(--text-disabled) 0%,var(--text-display) 50%,var(--text-disabled) 100%);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;">GENERANDO RELATO...</div>' +
     '</div>';
   try {
-    var resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    var resp = await fetch('/api/groq', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + GROQ_KEY },
+      headers: { 'Content-Type': 'application/json', 'x-groq-path': 'openai/v1/chat/completions' },
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile',
         max_tokens: 600,
@@ -2490,9 +2490,9 @@ async function renderWhatsapp() {
 
   try {
     var transcripcion = note.transcripcion || '';
-    var resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    var resp = await fetch('/api/groq', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + GROQ_KEY },
+      headers: { 'Content-Type': 'application/json', 'x-groq-path': 'openai/v1/chat/completions' },
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile',
         max_tokens: 600,
@@ -2635,7 +2635,8 @@ function buildSegBar(pct) {
   document.getElementById('seg-pct').textContent = pct + '%';
 }
 
-async function processAudio(file, groqKey) {
+async function processAudio(file, _unused) {
+  var groqKey = null; // key is handled server-side via /api/groq
   showScreen('process');
   setProgress(15, 'Transcribiendo', file.name);
   var duration = null;
@@ -2659,8 +2660,8 @@ async function processAudio(file, groqKey) {
     formData.append('language', 'es');
     formData.append('response_format', 'verbose_json');
     formData.append('temperature', '0');
-    var groqResp = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
-      method: 'POST', headers: { 'Authorization': 'Bearer ' + groqKey }, body: formData
+    var groqResp = await fetch('/api/groq', {
+      method: 'POST', headers: { 'x-groq-path': 'openai/v1/audio/transcriptions' }, body: formData
     });
     if (!groqResp.ok) { var errText = await groqResp.text(); throw new Error(errText.substring(0,200)); }
     var groqWhisperData = await groqResp.json();
@@ -2668,9 +2669,9 @@ async function processAudio(file, groqKey) {
     // duration real del audio según Whisper (más preciso que metadata del archivo)
     if (groqWhisperData.duration) durationSecs = groqWhisperData.duration;
     setProgress(60, 'Generando resumen', '');
-    var llamaResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    var llamaResp = await fetch('/api/groq', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + groqKey },
+      headers: { 'Content-Type': 'application/json', 'x-groq-path': 'openai/v1/chat/completions' },
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile', max_tokens: 1024,
         messages: [{ role: 'user', content: 'Analizá esta transcripción de audio y generá un resumen ejecutivo estructurado en JSON.\n\nTranscripción:\n' + transcripcion + '\n\nDevolvé SOLO un JSON válido con este formato exacto:\n{\n  "titulo": "título descriptivo corto (máx 5 palabras)",\n  "secciones": [\n    {\n      "titulo": "Nombre de sección",\n      "puntos": ["punto 1", "punto 2"]\n    }\n  ]\n}' }]
