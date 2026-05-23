@@ -54,27 +54,7 @@
   --neon-green-bg:  rgba(200,255,0,0.07);
   --neon-blue-bg:   rgba(0,210,255,0.07);
 }
-[data-theme="light"] {
-  --black: #F2F2F2;
-  --surface: #FFFFFF;
-  --surface-raised: #EBEBEB;
-  --border: #E0E0E0;
-  --border-visible: #CCCCCC;
-  --text-disabled: #AAAAAA;
-  --text-secondary: #666666;
-  --text-primary: #1A1A1A;
-  --text-display: #000000;
-  --neon-orange: #E05A1A;
-  --neon-green:  #5A8800;
-  --neon-blue:   #007AAA;
-  --neon-red:    #CC1133;
-  --success: #5A8800;
-  --warning: #E05A1A;
-  --interactive: #007AAA;
-  --neon-orange-bg: rgba(224,90,26,0.06);
-  --neon-green-bg:  rgba(90,136,0,0.06);
-  --neon-blue-bg:   rgba(0,122,170,0.06);
-}
+/* light mode eliminado — dark only */
 
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 html, body {
@@ -85,57 +65,37 @@ html, body {
   font-size: 16px;
   line-height: 1.5;
 }
-
-/* ── TRANSITIONS.DEV TOKENS ── */
-:root {
-  /* page-slide */
-  --t-page-slide-dur: 220ms;
-  --t-page-fade-dur: 220ms;
-  --t-page-distance: 16px;
-  --t-page-blur: 3px;
-  --t-page-ease: cubic-bezier(0.22, 1, 0.36, 1);
-  /* panel-reveal (sheets) */
-  --t-panel-open-dur: 320ms;
-  --t-panel-close-dur: 220ms;
-  --t-panel-blur: 4px;
-  --t-panel-ease: cubic-bezier(0.22, 1, 0.36, 1);
-  /* modal */
-  --t-modal-open-dur: 240ms;
-  --t-modal-close-dur: 140ms;
-  --t-modal-scale-in: 0.96;
-  --t-modal-ease: cubic-bezier(0.22, 1, 0.36, 1);
-  /* icon-swap (theme toggle) */
-  --t-icon-dur: 180ms;
-  --t-icon-blur: 2px;
-  --t-icon-start-scale: 0.3;
-  --t-icon-ease: ease-in-out;
-  /* overlay fade */
-  --t-overlay-dur: 200ms;
+/* Ambient glow background */
+body {
+  background-image:
+    radial-gradient(ellipse 70% 50% at 10% 5%,  rgba(255,107,43,0.18) 0%, transparent 65%),
+    radial-gradient(ellipse 60% 45% at 90% 85%, rgba(0,210,255,0.14) 0%, transparent 65%),
+    radial-gradient(ellipse 50% 40% at 55% 55%, rgba(200,255,0,0.07) 0%, transparent 65%);
+  background-attachment: fixed;
 }
 
 /* ── SCREEN TRANSITIONS ── */
 .screen {
-  display: none; min-height: 100vh; flex-direction: column; background: var(--black);
-  opacity: 0;
-  transform: translateX(var(--t-page-distance));
+  display: none; min-height: 100vh; flex-direction: column; background: transparent;
+  opacity: 0; transform: translateX(16px);
+  position: relative;
 }
 .screen.active {
   display: flex;
-  animation: screenIn var(--t-page-slide-dur) var(--t-page-ease) forwards;
+  animation: screenIn 220ms cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
 }
+/* Screen inicial ya visible sin animación */
+#screen-home.active:not(.animated) { opacity: 1; transform: none; animation: none; }
 .screen.back {
-  animation: screenBack var(--t-page-slide-dur) var(--t-page-ease) forwards;
+  animation: screenBack 220ms cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
 }
 @keyframes screenIn {
-  from { opacity: 0; transform: translateX(var(--t-page-distance)); filter: blur(var(--t-page-blur)); }
-  to   { opacity: 1; transform: translateX(0); filter: blur(0); }
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 @keyframes screenBack {
-  from { opacity: 0; transform: translateX(calc(-1 * var(--t-page-distance))); filter: blur(var(--t-page-blur)); }
-  to   { opacity: 1; transform: translateX(0); filter: blur(0); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .screen.active, .screen.back { animation: none; opacity: 1; filter: none; transform: none; }
+  from { opacity: 0; transform: translateX(-16px); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 
 /* ── LIST STAGGER ── */
@@ -155,26 +115,6 @@ html, body {
 /* ── DASH COUNT-UP ── */
 .dash-val-xl, .dash-val-md { transition: opacity 300ms ease-out; }
 
-/* number-pop-in: dash values animate in when dashboard renders */
-:root {
-  --t-num-dur: 480ms;
-  --t-num-distance: 6px;
-  --t-num-blur: 3px;
-  --t-num-ease: cubic-bezier(0.34, 1.45, 0.64, 1);
-  --t-num-stagger: 60ms;
-}
-.dash-val-xl.pop-in,
-.dash-val-md.pop-in {
-  animation: numPopIn var(--t-num-dur) var(--t-num-ease) both;
-}
-@keyframes numPopIn {
-  from { opacity: 0; transform: translateY(var(--t-num-distance)); filter: blur(var(--t-num-blur)); }
-  to   { opacity: 1; transform: translateY(0); filter: blur(0); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .dash-val-xl.pop-in, .dash-val-md.pop-in { animation: none; }
-}
-
 /* ── SEG BAR ANIMATED ── */
 .seg-bar-block { transition: background 120ms ease-out; }
 .dash-seg-block { transition: background 120ms ease-out; }
@@ -185,8 +125,11 @@ html, body {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: var(--black);
-  border-bottom: 1px solid var(--border);
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  position: sticky; top: 0; z-index: 10;
 }
 .topbar-title {
   font-family: 'Space Mono', monospace;
@@ -209,11 +152,13 @@ html, body {
 .back-btn {
   display: flex; align-items: center; justify-content: center;
   width: 36px; height: 36px;
-  border: 1px solid var(--border-visible);
+  border: 1px solid rgba(255,255,255,0.1);
   border-radius: 50%;
-  background: var(--surface);
+  background: rgba(255,255,255,0.06);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   color: var(--text-primary); cursor: pointer;
-  transition: border-color 150ms ease-out, color 150ms ease-out;
+  transition: border-color 150ms ease-out, color 150ms ease-out, background 150ms;
   flex-shrink: 0;
 }
 .back-btn:active { border-color: var(--text-display); color: var(--text-display); }
@@ -243,33 +188,37 @@ html, body {
 .search-wrap svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-disabled); pointer-events: none; }
 .search-input {
   width: 100%;
-  background: var(--surface);
-  border: 1px solid var(--border-visible);
-  border-radius: 4px;
+  background: rgba(255,255,255,0.05);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
   padding: 10px 12px 10px 36px;
   font-family: 'Space Mono', monospace;
   font-size: 12px;
   letter-spacing: 0.04em;
   color: var(--text-primary);
   outline: none;
-  transition: border-color 150ms;
+  transition: border-color 150ms, background 150ms;
 }
 .search-input:focus { border-color: var(--text-secondary); }
 .search-input::placeholder { color: var(--text-disabled); }
 
 /* ── UPLOAD ── */
 .upload-card {
-  border: 1px solid var(--border-visible);
-  border-radius: 4px;
-  padding: 32px 20px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 18px 16px;
   text-align: center;
-  background: linear-gradient(160deg, var(--surface) 0%, rgba(200,255,0,0.02) 100%);
+  background: rgba(255,255,255,0.03);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
   cursor: pointer;
-  margin-bottom: 24px;
-  background: var(--surface);
-  transition: border-color 150ms;
+  margin-bottom: 20px;
+  transition: border-color 150ms, background 150ms;
   position: relative;
   overflow: hidden;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 8px 24px rgba(0,0,0,0.3);
 }
 .upload-card::before {
   content: '';
@@ -281,36 +230,36 @@ html, body {
 }
 .upload-card:active { border-color: var(--text-display); }
 .upload-card.drag-over {
-  border-color: var(--neon-green);
+  border-color: var(--neon-orange);
   border-style: dashed;
   background: var(--neon-green-bg);
 }
 .upload-card.drag-over .upload-icon-wrap {
-  border-color: var(--neon-green);
-  color: var(--neon-green);
+  border-color: var(--neon-orange);
+  color: var(--neon-orange);
 }
-.upload-card.drag-over h3 { color: var(--neon-green); }
+.upload-card.drag-over h3 { color: var(--neon-orange); }
 .upload-icon-wrap {
-  width: 48px; height: 48px;
-  border: 1px solid var(--neon-green);
-  border-radius: 4px;
+  width: 36px; height: 36px;
+  border: 1px solid var(--neon-orange);
+  border-radius: 10px;
   display: flex; align-items: center; justify-content: center;
-  margin: 0 auto 16px;
-  color: var(--neon-green);
+  margin: 0 auto 12px;
+  color: var(--neon-orange);
   position: relative; z-index: 1;
 }
 .upload-card h3 {
   font-family: 'Space Grotesk', sans-serif;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--text-display);
-  margin-bottom: 4px;
+  margin-bottom: 3px;
   position: relative; z-index: 1;
 }
 .upload-card p {
   font-family: 'Space Mono', monospace;
   font-size: 11px;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   color: var(--text-disabled);
   position: relative; z-index: 1;
 }
@@ -320,150 +269,148 @@ html, body {
 .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; margin-top: 4px; }
 .section-label {
   font-family: 'Space Mono', monospace;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--text-disabled);
 }
 
-/* ── FOLDER CARD ── */
-.folder-card {
-  border: 1px solid var(--border-visible);
-  border-radius: 12px;
-  overflow: hidden;
-  margin-bottom: 8px;
-  background: var(--surface);
-}
-.folder-card-head {
+/* ── FOLDER ITEM ── */
+.folder-item {
   display: flex; align-items: center; gap: 12px;
-  padding: 12px 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
   cursor: pointer;
-  transition: background 150ms;
-  /* color accent set inline per-folder */
+  transition: opacity 150ms;
 }
-.folder-card-head:active { opacity: 0.7; }
+.folder-item:last-of-type { border-bottom: none; }
+.folder-item:active { opacity: 0.6; }
 .folder-icon-wrap {
   width: 36px; height: 36px;
+  border: 1px solid var(--neon-blue);
   border-radius: 10px;
   display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-  /* bg + color set inline */
+  color: var(--neon-blue); flex-shrink: 0;
+  background: var(--neon-blue-bg);
 }
 .folder-info { flex: 1; min-width: 0; }
-.folder-info h3 { font-size: 14px; font-weight: 500; color: var(--text-display); }
+.folder-info h3 { font-size: 14px; font-weight: 400; color: var(--text-primary); }
 .folder-info p {
   font-family: 'Space Mono', monospace;
   font-size: 11px; letter-spacing: 0.04em;
   color: var(--text-disabled); margin-top: 2px;
 }
 .folder-chevron {
-  transition: transform 250ms cubic-bezier(0.22, 1, 0.36, 1);
+  color: var(--text-disabled);
+  transition: transform 200ms cubic-bezier(0.25,0.1,0.25,1);
   flex-shrink: 0;
-  /* color set inline */
 }
-.folder-card.expanded .folder-chevron { transform: rotate(180deg); }
+.folder-item.expanded .folder-chevron { transform: rotate(90deg); }
+.folder-item.expanded { border-bottom: none; }
+.folder-menu-btn {
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: none;
+  color: var(--text-disabled); cursor: pointer; flex-shrink: 0;
+  border-radius: 4px;
+  transition: color 150ms, background 150ms;
+}
+.folder-menu-btn:active { color: var(--text-display); background: var(--surface-raised); }
 
-/* Notas dentro de carpeta — panel-reveal */
+/* Notas dentro de carpeta expandida */
 .folder-notes-inline {
   overflow: hidden;
   max-height: 0;
+  transition: max-height 280ms cubic-bezier(0.25,0.1,0.25,1);
+}
+.folder-notes-inline.open { max-height: 2000px; }
+.folder-notes-inline .note-item-wrap:last-child .note-item { border-bottom: 1px solid var(--border); }
+
+/* ── NOTE INLINE DETAIL ── */
+/* ── NOTE BOTTOM SHEET ── */
+#note-detail-sheet {
+  position: fixed; inset: 0; z-index: 200;
+  pointer-events: none;
+}
+#note-detail-sheet.open { pointer-events: all; }
+#note-detail-sheet .sheet-backdrop {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.6);
   opacity: 0;
-  transform: translateY(-8px);
-  filter: blur(2px);
-  transition:
-    max-height var(--t-panel-open-dur) var(--t-panel-ease),
-    opacity   var(--t-panel-open-dur) var(--t-panel-ease),
-    transform var(--t-panel-open-dur) var(--t-panel-ease),
-    filter    var(--t-panel-open-dur) var(--t-panel-ease);
-  border-top: 0px solid transparent;
+  transition: opacity 280ms ease;
 }
-.folder-notes-inline.open {
-  max-height: 2000px;
-  opacity: 1;
-  transform: translateY(0);
-  filter: blur(0);
-  border-top: 1px solid var(--border);
+#note-detail-sheet.open .sheet-backdrop { opacity: 1; }
+#note-detail-sheet .sheet-card {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: rgba(18,18,18,0.82);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border-radius: 20px 20px 0 0;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  border-left: 1px solid rgba(255,255,255,0.05);
+  border-right: 1px solid rgba(255,255,255,0.05);
+  box-shadow: 0 -8px 40px rgba(0,0,0,0.6), 0 1px 0 rgba(255,255,255,0.08) inset;
+  display: flex; flex-direction: column;
+  max-height: 88vh;
+  transform: translateY(100%);
+  transition: transform 320ms cubic-bezier(0.32,0.72,0,1);
 }
-.folder-notes-inline .note-item { background: var(--surface); }
-.folder-notes-inline .note-item-wrap:last-child .note-item { border-bottom: none; }
-@media (prefers-reduced-motion: reduce) {
-  .folder-notes-inline { transition: max-height 200ms; filter: none; transform: none; }
-}
-
-/* ── RECIENTES CARRIL HORIZONTAL ── */
-.recent-rail {
-  display: flex;
-  gap: 10px;
-  overflow-x: auto;
-  overflow-y: visible;
-  padding: 4px 0 12px;
-  scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-}
-.recent-rail::-webkit-scrollbar { display: none; }
-
-.recent-card {
-  flex-shrink: 0;
-  width: 140px;
-  border: 1px solid var(--border-visible);
-  border-radius: 12px;
-  padding: 12px;
-  background: var(--surface);
-  cursor: pointer;
-  scroll-snap-align: start;
-  transition: opacity 150ms, transform 150ms var(--t-panel-ease);
-  /* stagger-in animation */
-  opacity: 0;
-  transform: translateX(12px);
-  filter: blur(3px);
-}
-.recent-card.visible {
-  animation: recentCardIn 320ms var(--t-panel-ease) forwards;
-}
-@keyframes recentCardIn {
-  to { opacity: 1; transform: translateX(0); filter: blur(0); }
-}
-.recent-card:active { opacity: 0.6; transform: scale(0.97); }
-
-.recent-card-icon {
-  width: 32px; height: 32px;
-  border-radius: 8px;
-  display: flex; align-items: center; justify-content: center;
-  margin-bottom: 10px;
+#note-detail-sheet.open .sheet-card { transform: translateY(0); }
+.nds-handle {
+  width: 36px; height: 4px; border-radius: 2px;
+  background: rgba(255,255,255,0.15);
+  margin: 10px auto 6px;
   flex-shrink: 0;
 }
-.recent-card-title {
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 12px; font-weight: 500;
-  color: var(--text-display);
-  line-height: 1.35;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  margin-bottom: 6px;
-  min-height: 32px;
+.nds-header {
+  padding: 8px 16px 10px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
-.recent-card-meta {
+.nds-title {
+  font-size: 15px; font-weight: 500; color: var(--text-display);
+  line-height: 1.3; margin-bottom: 4px;
+}
+.nds-meta {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; color: var(--text-disabled);
+}
+.nds-tabs {
+  display: flex; border-bottom: 1px solid var(--border-visible);
+  flex-shrink: 0;
+}
+.nds-tab {
+  flex: 1; padding: 10px 8px;
   font-family: 'Space Mono', monospace;
-  font-size: 10px; letter-spacing: 0.04em;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--text-disabled);
-  margin-bottom: 8px;
+  border: none; background: transparent; cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 150ms, border-color 150ms;
 }
-.recent-card-dur {
-  display: inline-block;
+.nds-tab.active { color: var(--neon-orange); border-bottom-color: var(--neon-orange); }
+.nds-body {
+  flex: 1; overflow-y: auto; padding: 14px 16px;
+  -webkit-overflow-scrolling: touch;
+}
+.nds-actions {
+  display: flex; border-top: 1px solid var(--border);
+  flex-shrink: 0; padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.nds-action {
+  flex: 1; padding: 12px 4px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
   font-family: 'Space Mono', monospace;
-  font-size: 10px; letter-spacing: 0.04em;
-  padding: 2px 6px; border-radius: 4px;
+  font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--text-secondary);
+  border: none; background: transparent; cursor: pointer;
+  border-right: 1px solid var(--border);
+  transition: color 120ms;
 }
-
-/* ── NOTE LIST — acento izquierdo por fuente ── */
-.note-item-wrap[data-source="telegram"] .note-item { border-left: 2px solid var(--neon-blue); }
-.note-item-wrap[data-source="telegram-video"] .note-item { border-left: 2px solid var(--neon-blue); }
-.note-item-wrap[data-source="mic"] .note-item { border-left: 2px solid var(--accent); }
-.note-item-wrap[data-source="upload"] .note-item { border-left: 2px solid var(--neon-green); }
+.nds-action:last-child { border-right: none; }
+.nds-action:active { color: var(--text-display); }
+.nds-action.danger { color: var(--accent); }
 
 /* ── NOTE ITEM ── */
 .note-item-wrap {
@@ -492,7 +439,7 @@ html, body {
   padding: 14px 0;
   border-bottom: 1px solid var(--border);
   cursor: pointer;
-  background: var(--black);
+  background: transparent;
   transition: transform 0.2s ease-out;
   touch-action: pan-y;
   width: 100%;        /* stay full-width inside flex wrapper */
@@ -502,23 +449,12 @@ html, body {
 .note-item:active { opacity: 0.6; }
 .note-thumb {
   width: 36px; height: 36px;
-  border: 1px solid var(--border-visible);
+  border: 1px solid rgba(255,255,255,0.1);
   border-radius: 10px;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
-  background: var(--surface);
+  background: rgba(255,255,255,0.05);
   color: var(--text-disabled);
-}
-/* icon color by source */
-.note-item-wrap[data-source="telegram"] .note-thumb,
-.note-item-wrap[data-source="telegram-video"] .note-thumb {
-  border-color: var(--neon-blue); color: var(--neon-blue); background: var(--neon-blue-bg);
-}
-.note-item-wrap[data-source="mic"] .note-thumb {
-  border-color: var(--accent); color: var(--accent); background: rgba(215,25,33,0.07);
-}
-.note-item-wrap[data-source="upload"] .note-thumb {
-  border-color: var(--neon-green); color: var(--neon-green); background: var(--neon-green-bg);
 }
 .note-info { flex: 1; min-width: 0; }
 .note-info h3 { font-size: 14px; font-weight: 500; color: var(--text-display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.01em; }
@@ -534,6 +470,16 @@ html, body {
   border: 1px solid var(--border-visible);
   border-radius: 2px; padding: 1px 5px;
 }
+/* ── SOURCE BADGE ── */
+.source-badge {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 1px 5px; border-radius: 2px; display: inline-flex; align-items: center; gap: 3px;
+  flex-shrink: 0;
+}
+.source-badge.tg   { background: var(--neon-blue-bg);   color: var(--neon-blue);   border: 1px solid rgba(0,210,255,0.2); }
+.source-badge.up   { background: var(--neon-orange-bg); color: var(--neon-orange); border: 1px solid rgba(255,107,43,0.2); }
+.source-badge.rec  { background: rgba(200,255,0,0.05);  color: var(--text-disabled); border: 1px solid var(--border-visible); }
 .note-chevron { color: var(--text-disabled); flex-shrink: 0; }
 
 /* ── EMPTY STATE ── */
@@ -541,7 +487,7 @@ html, body {
 .empty-icon {
   width: 48px; height: 48px;
   border: 1px solid var(--border-visible);
-  border-radius: 4px;
+  border-radius: 12px;
   display: flex; align-items: center; justify-content: center;
   margin: 0 auto 16px; color: var(--text-disabled);
 }
@@ -687,20 +633,20 @@ html, body {
 }
 .audio-time {
   font-family: 'Space Mono', monospace;
-  font-size: 9px; color: var(--text-secondary);
+  font-size: 11px; color: var(--text-secondary);
   display: flex; justify-content: space-between;
 }
 
 /* ── DURATION BADGE COLORS ── */
 .dur-badge {
   font-family: 'Space Mono', monospace;
-  font-size: 10px; letter-spacing: 0.04em;
+  font-size: 11px; letter-spacing: 0.04em;
   padding: 2px 7px; border-radius: 2px;
   display: inline-block;
 }
-.dur-badge.short  { background: var(--neon-green-bg);  color: var(--neon-green); }
-.dur-badge.medium { background: var(--neon-blue-bg);   color: var(--neon-blue); }
-.dur-badge.long   { background: var(--neon-orange-bg); color: var(--neon-orange); }
+.dur-badge.short  { background: var(--neon-green-bg);  color: var(--neon-green);  border: 1px solid rgba(200,255,0,0.18); }
+.dur-badge.medium { background: var(--neon-blue-bg);  color: var(--neon-blue);   border: 1px solid rgba(0,210,255,0.18); }
+.dur-badge.long   { background: var(--neon-orange-bg); color: var(--neon-orange); border: 1px solid rgba(255,107,43,0.18); }
 
 /* ── DETAIL ── */
 .detail-title-row { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
@@ -747,13 +693,15 @@ html, body {
 
 /* ── TAB CONTENT ── */
 .tab-content { padding: 20px 16px 100px; }
+/* Espacio para el FAB en home */
+#screen-home .content { padding-bottom: 88px; }
 
 /* Sección del resumen — cada grupo tiene acento neon rotativo */
 .section-block { margin-bottom: 4px; border-radius: 2px; overflow: hidden; }
 .section-title {
   font-family: 'Space Mono', monospace;
-  font-size: 9px; font-weight: 700;
-  letter-spacing: 0.14em; text-transform: uppercase;
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
   color: var(--neon-orange);
   margin: 0;
   padding: 10px 12px 8px;
@@ -788,8 +736,10 @@ html, body {
 
 /* ── BOTTOM BAR ── */
 .bottombar {
-  background: var(--black);
-  border-top: 1px solid var(--border);
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border-top: 1px solid rgba(255,255,255,0.06);
   padding: 10px 16px 32px;
   display: flex; gap: 0;
 }
@@ -800,7 +750,7 @@ html, body {
   border: none; border-right: 1px solid var(--border);
   padding: 10px 4px;
   font-family: 'Space Mono', monospace;
-  font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase;
+  font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--text-disabled); cursor: pointer;
   transition: color 150ms;
 }
@@ -812,44 +762,26 @@ html, body {
 /* ── SHEET ── */
 .overlay {
   position: fixed; inset: 0;
-  background: rgba(0,0,0,0.8);
-  z-index: 99;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--t-overlay-dur) var(--t-panel-ease);
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 99; display: none;
 }
-.overlay.open {
-  opacity: 1;
-  pointer-events: auto;
-}
+.overlay.open { display: block; }
 .sheet {
   position: fixed; bottom: 0; left: 0; right: 0;
-  background: var(--surface);
-  border-top: 1px solid var(--border-visible);
+  background: rgba(18,18,18,0.88);
+  backdrop-filter: blur(32px) saturate(160%);
+  -webkit-backdrop-filter: blur(32px) saturate(160%);
+  border-top: 1px solid rgba(255,255,255,0.1);
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -4px 32px rgba(0,0,0,0.5);
   padding: 16px 16px 48px;
-  /* panel-reveal: starts translated + blurred */
   transform: translateY(100%);
-  filter: blur(var(--t-panel-blur));
-  opacity: 0;
-  transition:
-    transform var(--t-panel-close-dur) var(--t-panel-ease),
-    opacity   var(--t-panel-close-dur) var(--t-panel-ease),
-    filter    var(--t-panel-close-dur) var(--t-panel-ease);
+  transition: transform 300ms cubic-bezier(0.25,0.1,0.25,1);
   z-index: 100; max-height: 80vh; overflow-y: auto;
 }
-.sheet.open {
-  transform: translateY(0);
-  filter: blur(0);
-  opacity: 1;
-  transition:
-    transform var(--t-panel-open-dur) var(--t-panel-ease),
-    opacity   var(--t-panel-open-dur) var(--t-panel-ease),
-    filter    var(--t-panel-open-dur) var(--t-panel-ease);
-}
-@media (prefers-reduced-motion: reduce) {
-  .sheet, .sheet.open { transition: none; filter: none; }
-  .overlay, .overlay.open { transition: none; }
-}
+.sheet.open { transform: translateY(0); }
 .sheet-handle {
   width: 32px; height: 2px;
   background: var(--border-visible);
@@ -874,7 +806,7 @@ html, body {
 .opt-icon {
   width: 36px; height: 36px;
   border: 1px solid var(--border-visible);
-  border-radius: 4px;
+  border-radius: 10px;
   display: flex; align-items: center; justify-content: center;
   color: var(--text-secondary); flex-shrink: 0;
 }
@@ -886,43 +818,22 @@ html, body {
 /* ── MODAL ── */
 .modal-backdrop {
   position: fixed; inset: 0;
-  background: rgba(0,0,0,0.85);
-  z-index: 200;
-  display: flex;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 200; display: none;
   align-items: center; justify-content: center; padding: 20px;
-  /* modal backdrop fade */
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--t-modal-close-dur) var(--t-modal-ease);
 }
-.modal-backdrop.open {
-  opacity: 1;
-  pointer-events: auto;
-  transition: opacity var(--t-modal-open-dur) var(--t-modal-ease);
-}
+.modal-backdrop.open { display: flex; }
 .modal {
-  background: var(--surface);
-  border: 1px solid var(--border-visible);
-  border-radius: 0;
+  background: rgba(22,22,22,0.9);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 16px;
+  box-shadow: 0 8px 48px rgba(0,0,0,0.6), 0 1px 0 rgba(255,255,255,0.08) inset;
   padding: 24px 20px;
   width: 100%; max-width: 340px;
-  /* modal dialog scale+fade */
-  transform: scale(var(--t-modal-scale-in));
-  opacity: 0;
-  transition:
-    transform var(--t-modal-close-dur) var(--t-modal-ease),
-    opacity   var(--t-modal-close-dur) var(--t-modal-ease);
-}
-.modal-backdrop.open .modal {
-  transform: scale(1);
-  opacity: 1;
-  transition:
-    transform var(--t-modal-open-dur) var(--t-modal-ease),
-    opacity   var(--t-modal-open-dur) var(--t-modal-ease);
-}
-@media (prefers-reduced-motion: reduce) {
-  .modal, .modal-backdrop.open .modal,
-  .modal-backdrop, .modal-backdrop.open { transition: none; transform: none; }
 }
 .modal-title-label {
   font-family: 'Space Mono', monospace;
@@ -956,26 +867,27 @@ html, body {
 /* ── INLINE STATUS (no toasts) ── */
 .status-bar {
   position: fixed; bottom: 0; left: 0; right: 0;
-  background: var(--black);
-  border-top: 1px solid var(--border);
+  background: rgba(10,10,10,0.85);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border-top: 1px solid rgba(255,255,255,0.08);
   padding: 8px 16px;
   font-family: 'Space Mono', monospace;
   font-size: 11px; letter-spacing: 0.06em;
   color: var(--text-display);
   z-index: 300;
   opacity: 0; pointer-events: none;
-  transform: translateY(4px);
-  filter: blur(2px);
-  transition: opacity 200ms var(--t-page-ease), transform 200ms var(--t-page-ease), filter 200ms var(--t-page-ease);
+  transition: opacity 200ms;
+  display: flex; align-items: center; justify-content: space-between;
 }
-.status-bar.show {
-  opacity: 1;
-  transform: translateY(0);
-  filter: blur(0);
+.status-bar.show { opacity: 1; pointer-events: auto; }
+.status-undo-btn {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--neon-orange); background: none; border: none; cursor: pointer; padding: 0;
+  display: none;
 }
-@media (prefers-reduced-motion: reduce) {
-  .status-bar { transition: opacity 200ms; transform: none; filter: none; }
-}
+.status-bar.show .status-undo-btn { display: block; }
 
 /* ── ERROR ── */
 .error-detail {
@@ -997,14 +909,17 @@ html, body {
 .dash-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
 .dash-grid-23 { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; margin-bottom: 8px; }
 .dash-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
   border-radius: 12px;
   padding: 14px;
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.05) inset, 0 4px 16px rgba(0,0,0,0.25);
 }
 .dash-label {
   font-family: 'Space Mono', monospace;
-  font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+  font-size: 11px; letter-spacing: 0.07em; text-transform: uppercase;
   color: var(--text-disabled);
   margin-bottom: 8px;
 }
@@ -1022,12 +937,12 @@ html, body {
 }
 .dash-unit {
   font-family: 'Space Mono', monospace;
-  font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+  font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase;
   color: var(--text-disabled); margin-left: 3px;
 }
 .dash-sub {
   font-family: 'Space Mono', monospace;
-  font-size: 10px; letter-spacing: 0.04em;
+  font-size: 11px; letter-spacing: 0.03em;
   color: var(--text-disabled); margin-top: 5px;
 }
 .dash-spark { display: flex; align-items: flex-end; gap: 3px; height: 40px; margin-top: 10px; }
@@ -1035,7 +950,7 @@ html, body {
 .dash-spark-bar.today { background: var(--text-display); }
 .dash-day-labels { display: flex; justify-content: space-between; margin-top: 5px; }
 .dash-day-label {
-  font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: 0.05em;
+  font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 0.04em;
   text-transform: uppercase; color: var(--text-disabled); flex: 1; text-align: center;
 }
 .dash-day-label.today { color: var(--text-display); }
@@ -1059,44 +974,50 @@ html, body {
 }
 .dash-status-pill.offline { border-color: var(--text-disabled); color: var(--text-disabled); }
 
-/* ── ICON SWAP (theme toggle) ── */
-.t-icon-wrap {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+/* ── FAB ── */
+.fab-mic {
+  position: fixed;
+  bottom: 28px; right: 20px;
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  background: rgba(215,25,33,0.75);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255,100,100,0.25);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  z-index: 50;
+  box-shadow: 0 4px 24px rgba(215,25,33,0.5), 0 1px 0 rgba(255,255,255,0.15) inset;
+  transition: transform 150ms cubic-bezier(0.25,0.1,0.25,1), box-shadow 150ms;
 }
-.t-icon {
-  transition:
-    opacity   var(--t-icon-dur) var(--t-icon-ease),
-    filter    var(--t-icon-dur) var(--t-icon-ease),
-    transform var(--t-icon-dur) var(--t-icon-ease);
-  display: block;
+.fab-mic:active {
+  transform: scale(0.93);
+  box-shadow: 0 2px 12px rgba(215,25,33,0.35);
 }
-.t-icon-b {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
+/* Ocultar FAB cuando hay un sheet o modal abierto */
+.overlay.open ~ .fab-mic,
+.modal-backdrop.open ~ .fab-mic { display: none !important; }
+
+/* ── SYNC DOT ── */
+.sync-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  flex-shrink: 0; transition: background 400ms, box-shadow 400ms;
 }
-/* Default: A visible, B hidden */
-.t-icon-a { opacity: 1; transform: scale(1); filter: blur(0); }
-.t-icon-b .t-icon { opacity: 0; transform: scale(var(--t-icon-start-scale)); filter: blur(var(--t-icon-blur)); }
-/* Swapped: A hidden, B visible */
-.t-icon-wrap[data-icon="b"] .t-icon-a {
-  opacity: 0;
-  transform: scale(var(--t-icon-start-scale));
-  filter: blur(var(--t-icon-blur));
+.sync-dot.sync-ok {
+  background: var(--neon-green);
+  box-shadow: 0 0 5px var(--neon-green);
 }
-.t-icon-wrap[data-icon="b"] .t-icon-b .t-icon {
-  opacity: 1;
-  transform: scale(1);
-  filter: blur(0);
+.sync-dot.sync-busy {
+  background: var(--neon-orange);
+  animation: dotPulse 1s ease-in-out infinite;
 }
-@media (prefers-reduced-motion: reduce) {
-  .t-icon { transition: none; }
+.sync-dot.sync-offline {
+  background: var(--text-disabled);
+  box-shadow: none;
+}
+@keyframes dotPulse {
+  0%,100% { opacity: 1; } 50% { opacity: 0.3; }
 }
 
 /* ── BTN PRIMARY ── */
@@ -1117,6 +1038,9 @@ html, body {
 <svg style="display:none" xmlns="http://www.w3.org/2000/svg">
   <symbol id="ic-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
     <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/>
+  </symbol>
+  <symbol id="ic-upload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
   </symbol>
   <symbol id="ic-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
     <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
@@ -1199,20 +1123,12 @@ html, body {
 </div>
 
 <!-- HOME -->
-<div id="screen-home" class="screen">
+<div id="screen-home" class="screen active">
   <div class="topbar">
     <span class="topbar-title">Transcribeme</span>
+    <span id="sync-dot" class="sync-dot sync-offline" title="Sin conexión"></span>
     <button class="icon-btn" onclick="showScreen('dashboard')" title="Dashboard">
       <svg width="17" height="17"><use href="#ic-stats"/></svg>
-    </button>
-    <button class="icon-btn" id="theme-btn" onclick="toggleTheme()" title="Tema">
-      <!-- icon-swap: dark = moon visible, light = sun visible -->
-      <span class="t-icon-wrap" id="theme-icon-wrap" data-icon="a" style="width:17px;height:17px;">
-        <svg class="t-icon t-icon-a" width="17" height="17" id="theme-icon-moon"><use href="#ic-moon"/></svg>
-        <span class="t-icon-b" style="inset:0;display:flex;align-items:center;justify-content:center;">
-          <svg class="t-icon" width="17" height="17" id="theme-icon-sun"><use href="#ic-sun"/></svg>
-        </span>
-      </span>
     </button>
     <button class="icon-btn" onclick="loadFromFirebase()" title="Sincronizar">
       <svg width="17" height="17"><use href="#ic-refresh"/></svg>
@@ -1231,14 +1147,14 @@ html, body {
       <svg width="14" height="14"><use href="#ic-search"/></svg>
       <input class="search-input" id="search-input" type="search" placeholder="Buscar notas..." oninput="renderHome()" />
     </div>
-    <div class="upload-card" id="upload-card" onclick="openUploadSheet()">
+    <div class="upload-card" id="upload-card" onclick="document.getElementById('file-input').click()">
       <div class="upload-icon-wrap">
-        <svg width="22" height="22"><use href="#ic-mic"/></svg>
+        <svg width="22" height="22"><use href="#ic-upload"/></svg>
       </div>
-      <h3>Subir audio</h3>
-      <p>.m4a · .ogg · .mp3 · .wav</p>
+      <h3>Subir o soltar tu audio</h3>
+      <p>.m4a · .ogg · .mp3 · .wav · .webm</p>
     </div>
-    <input type="file" id="file-input" accept="audio/*,.m4a,.ogg,.opus,.mp3,.wav,.webm" onchange="handleFile(this)" />
+    <input type="file" id="file-input" accept="audio/*,video/*,.m4a,.ogg,.opus,.mp3,.wav,.webm,.mp4,.mov" onchange="handleFile(this)" />
     <div id="home-content"></div>
   </div>
 </div>
@@ -1433,22 +1349,49 @@ html, body {
         <span class="dash-label">Uso Groq API</span>
         <a href="https://console.groq.com/usage" target="_blank" style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-secondary);text-decoration:none;border-bottom:1px solid var(--border-visible);padding-bottom:1px;">Ver consola ↗</a>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <!-- hoy vs total -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <!-- Audio -->
         <div>
-          <div style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-disabled);margin-bottom:4px;">Audio transcrito</div>
-          <div style="display:flex;align-items:baseline;gap:3px;">
-            <span style="font-family:'Space Mono',monospace;font-size:20px;color:var(--text-display);" id="dash-groq-audio">0</span>
-            <span style="font-family:'Space Mono',monospace;font-size:10px;color:var(--text-secondary);">min</span>
+          <div style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-disabled);margin-bottom:6px;">Audio transcrito</div>
+          <div style="display:flex;gap:16px;align-items:flex-end;">
+            <div>
+              <div style="font-family:'Space Mono',monospace;font-size:9px;color:var(--text-disabled);margin-bottom:1px;">HOY</div>
+              <div style="display:flex;align-items:baseline;gap:2px;">
+                <span style="font-family:'Space Mono',monospace;font-size:20px;color:var(--text-display);" id="dash-groq-audio">0</span>
+                <span style="font-family:'Space Mono',monospace;font-size:10px;color:var(--text-secondary);">min</span>
+              </div>
+            </div>
+            <div>
+              <div style="font-family:'Space Mono',monospace;font-size:9px;color:var(--text-disabled);margin-bottom:1px;">TOTAL</div>
+              <div style="display:flex;align-items:baseline;gap:2px;">
+                <span style="font-family:'Space Mono',monospace;font-size:14px;color:var(--text-secondary);" id="dash-groq-audio-total">—</span>
+                <span style="font-family:'Space Mono',monospace;font-size:9px;color:var(--text-disabled);">min</span>
+              </div>
+            </div>
           </div>
-          <div style="font-family:'Space Mono',monospace;font-size:9px;color:var(--text-disabled);margin-top:2px;" id="dash-groq-audio-limit"></div>
+          <div style="font-family:'Space Mono',monospace;font-size:9px;color:var(--text-disabled);margin-top:3px;" id="dash-groq-audio-limit"></div>
         </div>
+        <!-- Tokens -->
         <div>
-          <div style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-disabled);margin-bottom:4px;">Tokens LLaMA</div>
-          <div style="display:flex;align-items:baseline;gap:3px;">
-            <span style="font-family:'Space Mono',monospace;font-size:20px;color:var(--text-display);" id="dash-groq-tokens">0</span>
-            <span style="font-family:'Space Mono',monospace;font-size:10px;color:var(--text-secondary);">k</span>
+          <div style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-disabled);margin-bottom:6px;">Tokens LLaMA</div>
+          <div style="display:flex;gap:16px;align-items:flex-end;">
+            <div>
+              <div style="font-family:'Space Mono',monospace;font-size:9px;color:var(--text-disabled);margin-bottom:1px;">HOY</div>
+              <div style="display:flex;align-items:baseline;gap:2px;">
+                <span style="font-family:'Space Mono',monospace;font-size:20px;color:var(--text-display);" id="dash-groq-tokens">0</span>
+                <span style="font-family:'Space Mono',monospace;font-size:10px;color:var(--text-secondary);">k</span>
+              </div>
+            </div>
+            <div>
+              <div style="font-family:'Space Mono',monospace;font-size:9px;color:var(--text-disabled);margin-bottom:1px;">TOTAL</div>
+              <div style="display:flex;align-items:baseline;gap:2px;">
+                <span style="font-family:'Space Mono',monospace;font-size:14px;color:var(--text-secondary);" id="dash-groq-tokens-total">—</span>
+                <span style="font-family:'Space Mono',monospace;font-size:9px;color:var(--text-disabled);">k</span>
+              </div>
+            </div>
           </div>
-          <div style="font-family:'Space Mono',monospace;font-size:9px;color:var(--text-disabled);margin-top:2px;" id="dash-groq-tokens-limit"></div>
+          <div style="font-family:'Space Mono',monospace;font-size:9px;color:var(--text-disabled);margin-top:3px;" id="dash-groq-tokens-limit"></div>
         </div>
       </div>
       <!-- barra whisper -->
@@ -1467,7 +1410,7 @@ html, body {
         </div>
         <div class="dash-seg" id="dash-llama-bar"></div>
       </div>
-      <div style="font-family:'Space Mono',monospace;font-size:9px;color:var(--text-disabled);margin-top:8px;">Estimado desde notas del día · Límites: Whisper 2h/día · LLaMA 200k tok/día</div>
+      <div style="font-family:'Space Mono',monospace;font-size:9px;color:var(--text-disabled);margin-top:8px;">Barras = uso de hoy vs límite diario · Se reinicia medianoche UTC</div>
     </div>
     <!-- fila 5: última nota -->
     <div class="dash-card" style="margin-bottom:8px;">
@@ -1492,6 +1435,15 @@ html, body {
     <button class="btn-primary" style="margin-top:28px" onclick="showScreen('home', true)">Volver</button>
   </div>
 </div>
+
+<!-- FAB global — siempre visible, se oculta solo cuando hay sheets/modales abiertos -->
+<button class="fab-mic" id="fab-mic" onclick="startRecorderScreen()" title="Grabar audio">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/>
+    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+    <line x1="12" y1="19" x2="12" y2="22"/>
+  </svg>
+</button>
 
 <!-- OVERLAY -->
 <div class="overlay" id="overlay" onclick="closeAllSheets()"></div>
@@ -1571,6 +1523,57 @@ html, body {
   <div id="move-folder-list"></div>
 </div>
 
+<!-- NOTE DETAIL SHEET -->
+<div id="note-detail-sheet">
+  <div class="sheet-backdrop" onclick="closeNoteSheet()"></div>
+  <div class="sheet-card">
+    <div class="nds-handle"></div>
+    <div class="nds-header" style="display:flex;align-items:flex-start;gap:8px;">
+      <div style="flex:1;min-width:0;">
+        <div class="nds-title" id="nds-title"></div>
+        <div class="nds-meta" id="nds-meta"></div>
+      </div>
+      <button onclick="renameNdsNote()" style="flex-shrink:0;margin-top:2px;background:none;border:none;cursor:pointer;color:var(--text-disabled);padding:4px;" title="Renombrar">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      </button>
+    </div>
+    <div class="nds-tabs">
+      <button class="nds-tab active" id="nds-tab-resumen" onclick="switchNdsTab('resumen')">Resumen</button>
+      <button class="nds-tab" id="nds-tab-transcript" onclick="switchNdsTab('transcript')">Transcript</button>
+      <button class="nds-tab" id="nds-tab-wap" onclick="switchNdsTab('wap')">WAP</button>
+    </div>
+    <div class="nds-body" id="nds-body"></div>
+    <div class="nds-actions">
+      <button class="nds-action" onclick="copyNdsNote()">
+        <svg width="15" height="15"><use href="#ic-copy"/></svg>Copiar
+      </button>
+      <button class="nds-action" onclick="openMoveSheetFor(_ndsNoteId)">
+        <svg width="15" height="15"><use href="#ic-move"/></svg>Mover
+      </button>
+      <button class="nds-action" onclick="shareNdsNote()">
+        <svg width="15" height="15"><use href="#ic-share"/></svg>Compartir
+      </button>
+      <button class="nds-action danger" onclick="deleteNdsNote()">
+        <svg width="15" height="15"><use href="#ic-trash"/></svg>Borrar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- FOLDER MENU SHEET -->
+<div class="sheet" id="folder-menu-sheet">
+  <div class="sheet-handle"></div>
+  <p class="sheet-label" id="folder-menu-label">Carpeta</p>
+  <button class="sheet-option" onclick="closeAllSheets(); renameFolderById(_folderMenuId)">
+    <div class="opt-icon"><svg width="16" height="16"><use href="#ic-pencil"/></svg></div>
+    <span class="sheet-option-label">Renombrar</span>
+  </button>
+  <button class="sheet-option" onclick="closeAllSheets(); setTimeout(function(){ deleteFolderById(_folderMenuId); }, 50)" style="color:var(--accent)">
+    <div class="opt-icon" style="border-color:var(--accent);color:var(--accent)"><svg width="16" height="16"><use href="#ic-trash"/></svg></div>
+    <span class="sheet-option-label" style="color:var(--accent)">Eliminar carpeta</span>
+  </button>
+</div>
+
 <!-- MODAL -->
 <div class="modal-backdrop" id="modal-backdrop">
   <div class="modal">
@@ -1584,12 +1587,16 @@ html, body {
 </div>
 
 <!-- STATUS BAR (inline, no toast) -->
-<div class="status-bar" id="status-bar"></div>
+<div class="status-bar" id="status-bar">
+  <span id="status-msg"></span>
+  <button class="status-undo-btn" id="status-undo-btn" onclick="undoDelete()">Deshacer</button>
+</div>
 
 
 <script>
 var notes = JSON.parse(localStorage.getItem('transcriber-notes') || '[]');
 var folders = JSON.parse(localStorage.getItem('transcriber-folders') || '[]');
+var deletedNoteIds = new Set(JSON.parse(localStorage.getItem('transcriber-deleted') || '[]'));
 var currentNoteId = null;
 var currentFolderId = null;
 var currentTab = 'resumen';
@@ -1605,24 +1612,8 @@ var SEG_COUNT = 20;
 
 function getUserId() { return currentUser ? currentUser.uid : DEVICE_ID; }
 
-/* ── THEME ── */
-function applyTheme(dark) {
-  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
-  // icon-swap: dark mode shows moon (a), light mode shows sun (b)
-  var wrap = document.getElementById('theme-icon-wrap');
-  if (wrap) wrap.setAttribute('data-icon', dark ? 'a' : 'b');
-  document.getElementById('theme-meta').setAttribute('content', dark ? '#000000' : '#F5F5F5');
-}
-function toggleTheme() {
-  var isDark = document.documentElement.getAttribute('data-theme') !== 'light';
-  localStorage.setItem('transcriber-theme', isDark ? 'light' : 'dark');
-  applyTheme(!isDark);
-}
-(function() {
-  var saved = localStorage.getItem('transcriber-theme');
-  var prefersDark = !saved || saved === 'dark' || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
-  applyTheme(saved ? saved === 'dark' : prefersDark);
-})();
+/* ── THEME — dark only ── */
+document.documentElement.setAttribute('data-theme', 'dark');
 
 /* ── AUTH ── */
 function updateAuthUI(user) {
@@ -1674,11 +1665,46 @@ function saveLocal() {
 }
 async function save() {
   saveLocal();
-  if (!db) return;
+  if (!db || !currentUser) return;
+  setSyncDot('busy');
   try {
-    var { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js');
-    await setDoc(doc(db, 'users', getUserId()), { notes: notes, folders: folders, updatedAt: Date.now() });
-  } catch(e) { console.warn('Firebase save error:', e); }
+    var fbm = await import('https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js');
+    var ref = fbm.doc(fbm.getFirestore(), 'users', currentUser.uid);
+    // Leer estado actual de Firestore y mergear antes de escribir
+    // Así nunca se pierden notas que llegaron de otro dispositivo o del bot
+    var snap = await fbm.getDoc(ref);
+    var remoteNotes = snap.exists() ? (snap.data().notes || []) : [];
+    var remoteFolders = snap.exists() ? (snap.data().folders || []) : [];
+    // Merge: combinar remote con local, cada nota por id
+    var noteMap = {};
+    remoteNotes.forEach(function(n) { noteMap[n.id] = n; });
+    notes.forEach(function(n) { noteMap[n.id] = n; }); // local gana (tiene edits/deletes del usuario)
+    var mergedNotes = Object.values(noteMap).sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); });
+    // Folders: local gana también
+    var folderMap = {};
+    remoteFolders.forEach(function(f) { folderMap[f.id] = f; });
+    folders.forEach(function(f) { folderMap[f.id] = f; });
+    var mergedFolders = Object.values(folderMap);
+    // Aplicar deletes: excluir notas que el usuario borró explícitamente
+    mergedNotes = mergedNotes.filter(function(n){ return !deletedNoteIds.has(n.id); });
+    notes = mergedNotes; folders = mergedFolders;
+    localStorage.setItem('transcriber-notes', JSON.stringify(notes));
+    localStorage.setItem('transcriber-folders', JSON.stringify(folders));
+    await fbm.setDoc(ref, { notes: mergedNotes, folders: mergedFolders, updatedAt: Date.now() });
+    setSyncDot('ok');
+  } catch(e) { console.warn('Firebase save error:', e); setSyncDot('offline'); }
+}
+async function addNoteFirebase(nota) {
+  if (!db || !currentUser) return;
+  try {
+    var fbm = await import('https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js');
+    var ref = fbm.doc(fbm.getFirestore(), 'users', currentUser.uid);
+    try {
+      await fbm.updateDoc(ref, { notes: fbm.arrayUnion(nota), updatedAt: Date.now() });
+    } catch(e) {
+      await fbm.setDoc(ref, { notes: [nota], folders: [], updatedAt: Date.now() });
+    }
+  } catch(e) { console.warn('Firebase addNote error:', e); }
 }
 async function loadFromFirebase() {
   if (!db) return;
@@ -1701,7 +1727,7 @@ function showScreen(name, isBack) {
     s.classList.remove('active', 'back');
   });
   var el = document.getElementById('screen-' + name);
-  el.classList.add('active');
+  el.classList.add('active', 'animated');
   if (isBack) el.classList.add('back');
 
   if (!isBack) {
@@ -1711,6 +1737,10 @@ function showScreen(name, isBack) {
   }
 
   if (name === 'dashboard') renderDashboard();
+
+  // FAB visible solo en home y folder
+  var fab = document.getElementById('fab-mic');
+  if (fab) fab.style.display = (name === 'home' || name === 'folder') ? '' : 'none';
 }
 
 function goBack() {
@@ -1804,59 +1834,69 @@ function renderDashboard() {
     .sort(function(a, b){ return b.count - a.count; })
     .slice(0, 3);
 
-  // ── USO GROQ (estimado desde notas de hoy) ──
-  var todayStart = new Date(); todayStart.setHours(0,0,0,0); todayStart = todayStart.getTime();
-  var todayNotes = notes.filter(function(n){ return n.createdAt >= todayStart; });
+  // ── USO GROQ (real desde Firestore + estimado hoy) ──
+  var WHISPER_LIMIT_MIN = 480;  // 28,800 seg/día según Groq free tier
+  var LLAMA_LIMIT_K = 100;      // 100K tokens/día llama-3.3-70b-versatile
 
-  // Minutos de audio hoy (Whisper)
-  var audioMinsToday = 0;
-  todayNotes.forEach(function(n) {
-    if (n.durationSecs) audioMinsToday += n.durationSecs / 60;
-    else if (n.duration) {
-      var m2 = n.duration.match(/(\d+)\s*min/), s2 = n.duration.match(/(\d+)\s*s/);
-      audioMinsToday += (m2 ? parseInt(m2[1]) : 0) + (s2 ? parseInt(s2[1]) / 60 : 0);
-    }
-  });
-  // Tokens LLaMA hoy (estimado: ~1.3 tokens/palabra, prompt ~200 tokens fijo)
-  var tokensToday = 0;
-  todayNotes.forEach(function(n) {
-    var words = n.transcripcion ? n.transcripcion.split(/\s+/).length : 0;
-    tokensToday += Math.round(words * 1.3) + 200;
-  });
-  var tokensTodayK = Math.round(tokensToday / 100) / 10; // en miles con 1 decimal
+  // Valores por defecto mientras carga
+  var audioMinsTotal = 0, llamaTokensTotal = 0, llamaCallsTotal = 0;
 
-  // Límites Groq free tier: Whisper 7200 seg/día (120 min), LLaMA 200k tok/día
-  var WHISPER_LIMIT_MIN = 120;
-  var LLAMA_LIMIT_K = 200;
-  var whisperPct = Math.min(audioMinsToday / WHISPER_LIMIT_MIN, 1);
-  var llamaPct = Math.min(tokensTodayK / LLAMA_LIMIT_K, 1);
+  // Carga async desde Firestore y actualiza UI cuando llega
+  if (currentUser) {
+    import('https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js').then(function(fb) {
+      var db2 = fb.getFirestore();
+      var usageRef = fb.doc(db2, 'users', currentUser.uid, 'meta', 'usage');
+      fb.getDoc(usageRef).then(function(snap) {
+        var d = snap.exists() ? snap.data() : {};
+        var today2 = new Date().toISOString().slice(0, 10);
+        // Hoy
+        var wMinsToday = Math.round((d['day_' + today2 + '_whisperMins'] || 0) * 10) / 10;
+        var lTokTodayK = Math.round((d['day_' + today2 + '_llamaTokens'] || 0) / 100) / 10;
+        var callsToday = d['day_' + today2 + '_calls'] || 0;
+        // Total acumulado
+        var wMinsTotal = Math.round((d.whisperMins || 0) * 10) / 10;
+        var lTokTotalK = Math.round((d.llamaTokens || 0) / 100) / 10;
+        var callsTotal = d.calls || 0;
 
-  countUp(document.getElementById('dash-groq-audio'), Math.round(audioMinsToday * 10) / 10, 600);
-  document.getElementById('dash-groq-audio-limit').textContent = Math.round(audioMinsToday) + ' / ' + WHISPER_LIMIT_MIN + ' min hoy';
-  countUp(document.getElementById('dash-groq-tokens'), tokensTodayK, 600);
-  document.getElementById('dash-groq-tokens-limit').textContent = tokensTodayK + ' / ' + LLAMA_LIMIT_K + 'k hoy';
+        var whisperPct2 = Math.min(wMinsToday / WHISPER_LIMIT_MIN, 1);
+        var llamaPct2 = Math.min(lTokTodayK / LLAMA_LIMIT_K, 1);
+        var SEG2 = 20;
 
-  // Barra Whisper
-  var whisperBar = document.getElementById('dash-whisper-bar');
-  whisperBar.innerHTML = '';
-  document.getElementById('dash-whisper-pct').textContent = Math.round(whisperPct * 100) + '%';
-  var whisperSegs = Math.round(whisperPct * SEG);
-  for (var w = 0; w < SEG; w++) {
-    var ws = document.createElement('div'); ws.className = 'dash-seg-block';
-    whisperBar.appendChild(ws);
-    if (w < whisperSegs) { (function(el, idx, cls){ setTimeout(function(){ el.classList.add(cls); }, 300 + idx * 30); })(ws, w, whisperPct > 0.8 ? 'warn' : 'on'); }
+        countUp(document.getElementById('dash-groq-audio'), wMinsToday, 400);
+        document.getElementById('dash-groq-audio-total').textContent = wMinsTotal;
+        document.getElementById('dash-groq-audio-limit').textContent = callsToday + ' transcripciones hoy · ' + callsTotal + ' totales';
+        countUp(document.getElementById('dash-groq-tokens'), lTokTodayK, 400);
+        document.getElementById('dash-groq-tokens-total').textContent = lTokTotalK;
+
+        // Barras = % del límite diario, basado en uso de HOY
+        var wBar = document.getElementById('dash-whisper-bar');
+        wBar.innerHTML = '';
+        document.getElementById('dash-whisper-pct').textContent = Math.round(whisperPct2 * 100) + '% día';
+        var wSegs = Math.round(whisperPct2 * SEG2);
+        for (var w = 0; w < SEG2; w++) {
+          var ws = document.createElement('div'); ws.className = 'dash-seg-block'; wBar.appendChild(ws);
+          if (w < wSegs) { (function(el,i,cls){ setTimeout(function(){ el.classList.add(cls); }, 300+i*30); })(ws,w,whisperPct2>0.8?'warn':'on'); }
+        }
+        var lBar = document.getElementById('dash-llama-bar');
+        lBar.innerHTML = '';
+        document.getElementById('dash-llama-pct').textContent = Math.round(llamaPct2 * 100) + '% día';
+        var lSegs = Math.round(llamaPct2 * SEG2);
+        for (var l = 0; l < SEG2; l++) {
+          var ls = document.createElement('div'); ls.className = 'dash-seg-block'; lBar.appendChild(ls);
+          if (l < lSegs) { (function(el,i,cls){ setTimeout(function(){ el.classList.add(cls); }, 350+i*30); })(ls,l,llamaPct2>0.8?'warn':'on'); }
+        }
+      }).catch(function(){});
+    }).catch(function(){});
   }
 
-  // Barra LLaMA
-  var llamaBar = document.getElementById('dash-llama-bar');
-  llamaBar.innerHTML = '';
-  document.getElementById('dash-llama-pct').textContent = Math.round(llamaPct * 100) + '%';
-  var llamaSegs = Math.round(llamaPct * SEG);
-  for (var l = 0; l < SEG; l++) {
-    var ls = document.createElement('div'); ls.className = 'dash-seg-block';
-    llamaBar.appendChild(ls);
-    if (l < llamaSegs) { (function(el, idx, cls){ setTimeout(function(){ el.classList.add(cls); }, 350 + idx * 30); })(ls, l, llamaPct > 0.8 ? 'warn' : 'on'); }
-  }
+  // Mostrar 0 mientras carga (se sobreescribe arriba)
+  var whisperPct = 0, llamaPct = 0, SEG = 20;
+  countUp(document.getElementById('dash-groq-audio'), 0, 0);
+  document.getElementById('dash-groq-audio-limit').textContent = 'Cargando...';
+  countUp(document.getElementById('dash-groq-tokens'), 0, 0);
+  document.getElementById('dash-groq-tokens-limit').textContent = 'Cargando...';
+
+  // (barras renderizadas async desde Firestore arriba)
 
   // Última nota
   var sorted = notes.slice().sort(function(a,b){ return (b.createdAt||0) - (a.createdAt||0); });
@@ -1866,15 +1906,6 @@ function renderDashboard() {
   var pill = document.getElementById('dash-sync-pill');
   if (currentUser) { pill.textContent = '● SYNCED'; pill.className = 'dash-status-pill'; }
   else { pill.textContent = '○ LOCAL'; pill.className = 'dash-status-pill offline'; }
-
-  // number-pop-in: reset then re-trigger animation with stagger for each hero value
-  document.querySelectorAll('.dash-val-xl, .dash-val-md').forEach(function(el, i) {
-    el.classList.remove('pop-in');
-    el.style.animationDelay = '';
-    void el.offsetWidth; // force reflow
-    el.style.animationDelay = (i * 60) + 'ms';
-    el.classList.add('pop-in');
-  });
 
   // Render — count-up for hero numbers
   countUp(document.getElementById('dash-total'), total, 600);
@@ -1947,27 +1978,26 @@ function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-var GROQ_KEY = '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';
+var GROQ_KEY = null; // key moved to server-side proxy /api/groq
 function checkKeys() {}
 
 /* ── RENDER HOME ── */
-/* Paleta de colores por índice para las carpetas (cicla) */
-var FOLDER_COLORS = [
-  { bg: 'rgba(0,210,255,0.10)', color: 'var(--neon-blue)',   border: 'rgba(0,210,255,0.25)' },
-  { bg: 'rgba(255,107,43,0.10)', color: 'var(--neon-orange)', border: 'rgba(255,107,43,0.25)' },
-  { bg: 'rgba(200,255,0,0.10)',  color: 'var(--neon-green)',  border: 'rgba(200,255,0,0.25)' },
-  { bg: 'rgba(215,25,33,0.10)',  color: 'var(--accent)',      border: 'rgba(215,25,33,0.25)' },
-];
-
-function folderColor(idx) { return FOLDER_COLORS[idx % FOLDER_COLORS.length]; }
-
 function renderHome() {
   var c = document.getElementById('home-content');
   var query = (document.getElementById('search-input') ? document.getElementById('search-input').value : '').toLowerCase().trim();
   var html = '';
-
   if (query) {
-    var results = notes.filter(function(n){ return n.title.toLowerCase().includes(query) || (n.transcripcion||'').toLowerCase().includes(query); });
+    var results = notes.filter(function(n) {
+      if (n.title.toLowerCase().includes(query)) return true;
+      if ((n.transcripcion||'').toLowerCase().includes(query)) return true;
+      if (n.resumen && n.resumen.secciones) {
+        return n.resumen.secciones.some(function(s) {
+          if ((s.titulo||'').toLowerCase().includes(query)) return true;
+          return (s.puntos||[]).some(function(p){ return p.toLowerCase().includes(query); });
+        });
+      }
+      return false;
+    });
     if (results.length > 0) {
       html += '<div class="section-header"><span class="section-label">' + results.length + ' resultado' + (results.length!==1?'s':'') + '</span></div>';
       html += results.map(noteItemHtml).join('');
@@ -1975,117 +2005,43 @@ function renderHome() {
       html = '<div class="empty-state"><div class="empty-icon"><svg width="20" height="20"><use href="#ic-search"/></svg></div><p>Sin resultados</p></div>';
     }
   } else {
-
-    /* ── CARPETAS como cards ── */
     if (folders.length > 0) {
       html += '<div class="section-header"><span class="section-label">Carpetas</span></div>';
-      folders.forEach(function(f, idx) {
-        var clr = folderColor(idx);
+      folders.forEach(function(f) {
         var folderNotes = notes.filter(function(n){ return n.folderId === f.id; });
         var count = folderNotes.length;
         var isExpanded = _expandedFolders[f.id] ? 'expanded' : '';
         var isOpen = _expandedFolders[f.id] ? 'open' : '';
-        html += '<div class="folder-card ' + isExpanded + '" data-folder-id="' + f.id + '">' +
-          '<div class="folder-card-head" onclick="toggleFolder(\'' + f.id + '\')" style="background:' + clr.bg + '">' +
-            '<div class="folder-icon-wrap" style="background:' + clr.bg + ';color:' + clr.color + ';border:1px solid ' + clr.border + '">' +
-              '<svg width="16" height="16"><use href="#ic-folder"/></svg>' +
-            '</div>' +
-            '<div class="folder-info">' +
-              '<h3>' + escHtml(f.name) + '</h3>' +
-              '<p>' + count + ' nota' + (count!==1?'s':'') + '</p>' +
-            '</div>' +
-            '<span class="folder-chevron" style="color:' + clr.color + '">' +
-              '<svg width="14" height="14"><use href="#ic-chevron-right"/></svg>' +
-            '</span>' +
+        html += '<div class="folder-item ' + isExpanded + '" onclick="toggleFolder(\'' + f.id + '\')" data-folder-id="' + f.id + '">' +
+          '<div class="folder-icon-wrap"><svg width="16" height="16"><use href="#ic-folder"/></svg></div>' +
+          '<div class="folder-info"><h3>' + escHtml(f.name) + '</h3><p>' + count + ' nota' + (count!==1?'s':'') + '</p></div>' +
+          '<button class="folder-menu-btn" onclick="event.stopPropagation(); openFolderMenu(\'' + f.id + '\')" title="Opciones">' +
+            '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>' +
+          '</button>' +
+          '<span class="folder-chevron"><svg width="14" height="14"><use href="#ic-chevron-right"/></svg></span>' +
           '</div>' +
           '<div class="folder-notes-inline ' + isOpen + '" data-folder-notes="' + f.id + '">' +
-            (folderNotes.length > 0
-              ? folderNotes.map(function(n){ return noteItemHtml(n, true); }).join('')
-              : '<div style="padding:14px 14px;font-family:\'Space Mono\',monospace;font-size:11px;color:var(--text-disabled);">Sin notas aún</div>') +
-          '</div>' +
-        '</div>';
+          (folderNotes.length > 0 ? folderNotes.map(function(n){ return noteItemHtml(n, true); }).join('') :
+            '<div style="padding:12px 0 12px 48px;font-size:13px;color:var(--text-disabled);">Sin notas</div>') +
+          '</div>';
       });
     }
-
-    /* ── RECIENTES: carril horizontal (3–5 más recientes) + lista resto ── */
     var unfoldered = notes.filter(function(n){ return !n.folderId; });
     if (unfoldered.length > 0) {
-      var railNotes = unfoldered.slice(0, 5);
-      var listNotes = unfoldered.slice(5);
-      var mt = folders.length > 0 ? 'margin-top:24px' : '';
-
-      html += '<div class="section-header" style="' + mt + '"><span class="section-label">Recientes</span></div>';
-
-      /* carril */
-      html += '<div class="recent-rail" id="recent-rail">';
-      railNotes.forEach(function(n) {
-        html += recentCardHtml(n);
-      });
-      html += '</div>';
-
-      /* lista del resto */
-      if (listNotes.length > 0) {
-        html += '<div class="section-header" style="margin-top:4px"><span class="section-label">Todas</span></div>';
-        html += listNotes.map(noteItemHtml).join('');
-      }
+      html += '<div class="section-header" style="margin-top:' + (folders.length>0?'24px':'0') + '"><span class="section-label">Recientes</span></div>';
+      html += unfoldered.map(noteItemHtml).join('');
     }
-
     if (folders.length === 0 && unfoldered.length === 0) {
       html = '<div class="empty-state"><div class="empty-icon"><svg width="20" height="20"><use href="#ic-inbox"/></svg></div><p>Tus notas aparecerán acá</p></div>';
     }
   }
-
   c.innerHTML = html;
   attachSwipeHandlers();
-
-  /* stagger carpetas */
-  c.querySelectorAll('.folder-card').forEach(function(el, i) {
-    el.style.opacity = '0';
-    el.style.transform = 'translateY(8px)';
-    el.style.filter = 'blur(2px)';
-    el.style.transition = 'opacity 260ms var(--t-panel-ease), transform 260ms var(--t-panel-ease), filter 260ms var(--t-panel-ease)';
-    setTimeout(function() {
-      el.style.opacity = '1';
-      el.style.transform = 'translateY(0)';
-      el.style.filter = 'blur(0)';
-    }, 30 + i * 60);
-  });
-
-  /* stagger carril horizontal con delay escalonado */
-  c.querySelectorAll('.recent-card').forEach(function(el, i) {
-    setTimeout(function() { el.classList.add('visible'); }, i * 55);
-  });
-
-  /* stagger lista "Todas" */
-  c.querySelectorAll('.note-item-wrap').forEach(function(el, i) {
+  // Stagger items in
+  var items = c.querySelectorAll('.note-item-wrap, .folder-item');
+  items.forEach(function(el, i) {
     setTimeout(function() { el.classList.add('visible'); }, i * 40);
   });
-}
-
-function recentCardHtml(n) {
-  var src = n.source || 'upload';
-  var iconHref = src === 'mic' ? '#ic-mic' : src.startsWith('telegram') ? '#ic-share' : '#ic-file-text';
-  var iconBg, iconColor;
-  if (src.startsWith('telegram')) { iconBg = 'rgba(0,210,255,0.12)'; iconColor = 'var(--neon-blue)'; }
-  else if (src === 'mic')         { iconBg = 'rgba(215,25,33,0.10)'; iconColor = 'var(--accent)'; }
-  else                            { iconBg = 'rgba(200,255,0,0.10)'; iconColor = 'var(--neon-green)'; }
-
-  var dur = '';
-  if (n.duration) {
-    var cls = durBadgeClass(n);
-    var bgMap = { short: 'rgba(200,255,0,0.12)', medium: 'rgba(0,210,255,0.12)', long: 'rgba(255,107,43,0.12)' };
-    var clrMap = { short: 'var(--neon-green)', medium: 'var(--neon-blue)', long: 'var(--neon-orange)' };
-    dur = '<span class="recent-card-dur" style="background:' + bgMap[cls] + ';color:' + clrMap[cls] + '">' + escHtml(n.duration) + '</span>';
-  }
-
-  return '<div class="recent-card" data-id="' + n.id + '" onclick="openNote(\'' + n.id + '\')">' +
-    '<div class="recent-card-icon" style="background:' + iconBg + ';color:' + iconColor + '">' +
-      '<svg width="15" height="15"><use href="' + iconHref + '"/></svg>' +
-    '</div>' +
-    '<div class="recent-card-title">' + escHtml(n.title) + '</div>' +
-    '<div class="recent-card-meta">' + escHtml(n.date || '') + '</div>' +
-    dur +
-  '</div>';
 }
 
 function durBadgeClass(n) {
@@ -2101,19 +2057,30 @@ function durBadgeClass(n) {
 }
 function noteItemHtml(n, fromInlineFolder) {
   var dur = n.duration ? '<span class="dur-badge ' + durBadgeClass(n) + '">' + escHtml(n.duration) + '</span>' : '';
-  var openFn = fromInlineFolder ? 'openNoteFromHome(\'' + n.id + '\')' : 'openNote(\'' + n.id + '\')';
-  var src = n.source || 'upload';
-  var iconHref = src === 'mic' ? '#ic-mic' : src.startsWith('telegram') ? '#ic-share' : '#ic-file-text';
-  return '<div class="note-item-wrap" data-id="' + n.id + '" data-source="' + src + '">' +
+  // Source badge + thumb icon
+  var src = n.source || 'rec';
+  var thumbIcon, sourceBadge;
+  if (src === 'telegram') {
+    thumbIcon = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2.5L2 10l7 2.5L21.5 2.5z"/><path d="M9 12.5L21.5 2.5l-5 16-7.5-6z"/><path d="M9 12.5v6l3.5-3"/></svg>';
+    sourceBadge = '<span class="source-badge tg">TG</span>';
+  } else if (src === 'upload' || src === 'file') {
+    thumbIcon = '<svg width="15" height="15"><use href="#ic-file-text"/></svg>';
+    sourceBadge = '<span class="source-badge up">FILE</span>';
+  } else {
+    thumbIcon = '<svg width="15" height="15"><use href="#ic-mic"/></svg>';
+    sourceBadge = '';
+  }
+  return '<div class="note-item-wrap" data-id="' + n.id + '">' +
     '<div class="delete-reveal"><svg width="14" height="14"><use href="#ic-trash"/></svg>DELETE</div>' +
-    '<div class="note-item">' +
-      '<div class="note-thumb"><svg width="15" height="15"><use href="' + iconHref + '"/></svg></div>' +
-      '<div class="note-info" onclick="' + openFn + '">' +
+    '<div class="note-item" onclick="openNoteSheet(\'' + n.id + '\')">' +
+      '<div class="note-thumb">' + thumbIcon + '</div>' +
+      '<div class="note-info">' +
         '<h3>' + escHtml(n.title) + '</h3>' +
-        '<div class="note-meta"><span>' + escHtml(n.date) + '</span>' + dur + '</div>' +
+        '<div class="note-meta"><span>' + escHtml(n.date) + '</span>' + sourceBadge + dur + '</div>' +
       '</div>' +
-      '<span class="note-chevron" onclick="' + openFn + '"><svg width="14" height="14"><use href="#ic-chevron-right"/></svg></span>' +
-    '</div></div>';
+      '<span class="note-chevron"><svg width="14" height="14"><use href="#ic-chevron-right"/></svg></span>' +
+    '</div>' +
+  '</div>';
 }
 
 /* ── SWIPE TO DELETE ── */
@@ -2187,11 +2154,8 @@ function attachSwipeHandlers() {
             });
             setTimeout(function() {
               var id = wrap.dataset.id;
-              notes = notes.filter(function(n){ return n.id !== id; });
-              save();
-              renderHome();
-              if (currentFolderId) renderFolderNotes();
-              showStatus('[NOTA ELIMINADA]');
+              if (_openInlineNoteId === id) _openInlineNoteId = null;
+              softDelete(id, !!currentFolderId);
             }, 200);
           }, 160);
           _openSwipeItem = null;
@@ -2213,10 +2177,175 @@ function attachSwipeHandlers() {
   }, { passive: true });
 }
 
+/* ── NOTE BOTTOM SHEET ── */
+var _ndsNoteId = null;
+var _ndsActiveTab = 'resumen';
+
+function openNoteSheet(id) {
+  var note = notes.find(function(n){ return n.id === id; });
+  if (!note) return;
+  _ndsNoteId = id;
+  _ndsActiveTab = 'resumen';
+
+  // Header
+  document.getElementById('nds-title').textContent = note.title;
+  var metaEl = document.getElementById('nds-meta');
+  var dur = note.duration ? '<span class="dur-badge ' + durBadgeClass(note) + '" style="margin-left:4px">' + escHtml(note.duration) + '</span>' : '';
+  metaEl.innerHTML = '<span>' + escHtml(note.date||'') + '</span>' + dur;
+
+  // Body
+  renderNdsBody('resumen', note);
+
+  // Tab state
+  document.getElementById('nds-tab-resumen').classList.add('active');
+  document.getElementById('nds-tab-transcript').classList.remove('active');
+  document.getElementById('nds-tab-wap').classList.remove('active');
+
+  // Open
+  document.getElementById('note-detail-sheet').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeNoteSheet() {
+  document.getElementById('note-detail-sheet').classList.remove('open');
+  document.body.style.overflow = '';
+  _ndsNoteId = null;
+}
+
+function switchNdsTab(tab) {
+  _ndsActiveTab = tab;
+  var note = notes.find(function(n){ return n.id === _ndsNoteId; });
+  if (!note) return;
+  document.getElementById('nds-tab-resumen').classList.toggle('active', tab === 'resumen');
+  document.getElementById('nds-tab-transcript').classList.toggle('active', tab === 'transcript');
+  document.getElementById('nds-tab-wap').classList.toggle('active', tab === 'wap');
+  renderNdsBody(tab, note);
+}
+
+function renderNdsBody(tab, note) {
+  var body = document.getElementById('nds-body');
+  var html = '';
+  if (tab === 'resumen') {
+    if (note.resumen && note.resumen.secciones && note.resumen.secciones.length) {
+      note.resumen.secciones.forEach(function(sec) {
+        html += '<div class="section-block"><span class="section-title">' + escHtml(sec.titulo) + '</span>';
+        (sec.puntos||[]).forEach(function(p){ html += '<div class="bullet">' + escHtml(p) + '</div>'; });
+        html += '</div>';
+      });
+    } else {
+      html = '<p class="transcript-text">' + escHtml(note.transcripcion || '(sin resumen)') + '</p>';
+    }
+    body.innerHTML = html;
+  } else if (tab === 'transcript') {
+    body.innerHTML = '<p class="transcript-text">' + escHtml(note.transcripcion || '(sin transcripción)') + '</p>';
+  } else if (tab === 'wap') {
+    renderNdsWap(body, note);
+  }
+}
+
+async function renderNdsWap(el, note) {
+  // Si ya está generado, mostrar directo
+  if (note.whatsappText && note.whatsappV === 2) {
+    showNdsWapText(el, note.whatsappText);
+    return;
+  }
+  // Loading
+  el.innerHTML = '<div style="padding:20px 0;text-align:center;">' +
+    '<div style="font-family:\'Space Mono\',monospace;font-size:10px;letter-spacing:0.1em;color:var(--text-disabled);animation:shimmer 1.5s ease-in-out infinite;background:linear-gradient(90deg,var(--text-disabled) 0%,var(--text-display) 50%,var(--text-disabled) 100%);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;">GENERANDO RELATO...</div>' +
+    '</div>';
+  try {
+    var resp = await fetch('/api/groq', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-groq-path': 'openai/v1/chat/completions' },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        max_tokens: 600,
+        messages: [{ role: 'user', content:
+          'Esta es la transcripción de un audio de un broker inmobiliario describiendo una propiedad o situación. ' +
+          'Redactá un mensaje de WhatsApp como si fuera Juan, un broker que escuchó esto y se lo está contando a un cliente o lead. ' +
+          'El tono es directo, informal pero profesional, como se habla en Argentina. ' +
+          'No uses "el broker dijo" ni personificaciones — contalo como info propia, como si Juan lo hubiera visto o lo supiera de primera mano. ' +
+          'Párrafos cortos, sin bullets, sin títulos, sin markdown, sin saludos ni despedidas. Solo el mensaje. ' +
+          'IMPORTANTE: nunca empieces con frases introductorias como "Estuve hablando con alguien", "Mira te cuento", "Tengo una propiedad que", "Estoy pensando en", "Te quería contar" ni similares. Arrancá directo con la info de la propiedad o situación, sin preámbulo. ' +
+          'Máximo 180 palabras.\n\nTranscripción:\n' + (note.transcripcion || '')
+        }]
+      })
+    });
+    if (!resp.ok) throw new Error('Error');
+    var data = await resp.json();
+    var text = data.choices[0].message.content.trim();
+    note.whatsappText = text;
+    note.whatsappV = 2;
+    save();
+    showNdsWapText(el, text);
+  } catch(e) {
+    el.innerHTML = '<p style="color:var(--text-disabled);font-size:13px;padding:20px 0;">No se pudo generar el relato.</p>';
+  }
+}
+
+function showNdsWapText(el, text) {
+  el.innerHTML =
+    '<div style="background:var(--surface);border-radius:4px;padding:16px;margin-bottom:16px;border:1px solid var(--border-visible);">' +
+      '<p style="font-family:\'Space Grotesk\',sans-serif;font-size:14px;color:var(--text-primary);line-height:1.75;white-space:pre-wrap;">' +
+      escHtml(text) + '</p>' +
+    '</div>' +
+    '<button onclick="copyNdsWap()" style="width:100%;padding:12px;background:var(--text-display);color:var(--black);border:none;border-radius:4px;font-family:\'Space Mono\',monospace;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;font-weight:700;">' +
+      'Copiar para WhatsApp' +
+    '</button>';
+}
+
+function copyNdsWap() {
+  var note = notes.find(function(n){ return n.id === _ndsNoteId; });
+  if (!note || !note.whatsappText) return;
+  navigator.clipboard.writeText(note.whatsappText).then(function(){ showStatus('[COPIADO]'); });
+}
+
+function renameNdsNote() {
+  var note = notes.find(function(n){ return n.id === _ndsNoteId; });
+  if (!note) return;
+  openModal('Renombrar nota', note.title, 'Título...', function(name) {
+    if (!name.trim()) return;
+    note.title = name.trim();
+    save();
+    document.getElementById('nds-title').textContent = note.title;
+    renderHome();
+    showStatus('[GUARDADO]');
+  });
+}
+
+function copyNdsNote() {
+  var note = notes.find(function(n){ return n.id === _ndsNoteId; }); if (!note) return;
+  var text = note.resumen && note.resumen.secciones
+    ? note.resumen.secciones.map(function(s){ return s.titulo.toUpperCase()+'\n'+(s.puntos||[]).map(function(p){return '– '+p;}).join('\n'); }).join('\n\n')
+    : (note.transcripcion||'');
+  if (navigator.clipboard) navigator.clipboard.writeText(text).then(function(){ showStatus('[COPIADO]'); });
+}
+
+function shareNdsNote() {
+  var note = notes.find(function(n){ return n.id === _ndsNoteId; }); if (!note) return;
+  var text = note.title + '\n\n' + (note.resumen && note.resumen.secciones
+    ? note.resumen.secciones.map(function(s){ return s.titulo.toUpperCase()+'\n'+(s.puntos||[]).map(function(p){return '– '+p;}).join('\n'); }).join('\n\n')
+    : (note.transcripcion||''));
+  if (navigator.share) navigator.share({ text: text }).catch(function(){});
+  else if (navigator.clipboard) navigator.clipboard.writeText(text).then(function(){ showStatus('[COPIADO]'); });
+}
+
+function deleteNdsNote() {
+  var id = _ndsNoteId;
+  closeNoteSheet();
+  softDelete(id, false);
+}
+
+function openMoveSheetFor(id) {
+  currentNoteId = id || _ndsNoteId;
+  closeNoteSheet();
+  openMoveSheet();
+}
+
 /* ── CARPETAS ── */
 function toggleFolder(id) {
   _expandedFolders[id] = !_expandedFolders[id];
-  var folderEl = document.querySelector('.folder-card[data-folder-id="' + id + '"]');
+  var folderEl = document.querySelector('.folder-item[data-folder-id="' + id + '"]');
   var notesEl = document.querySelector('.folder-notes-inline[data-folder-notes="' + id + '"]');
   if (!folderEl || !notesEl) return;
   if (_expandedFolders[id]) {
@@ -2247,6 +2376,34 @@ function renderFolderNotes() {
   attachSwipeHandlers();
   list.querySelectorAll('.note-item-wrap').forEach(function(el, i) {
     setTimeout(function() { el.classList.add('visible'); }, i * 40);
+  });
+}
+var _folderMenuId = null;
+function openFolderMenu(id) {
+  _folderMenuId = id;
+  var folder = folders.find(function(f){ return f.id === id; });
+  if (folder) document.getElementById('folder-menu-label').textContent = folder.name.toUpperCase();
+  document.getElementById('folder-menu-sheet').classList.add('open');
+  document.getElementById('overlay').classList.add('open');
+}
+function renameFolderById(id) {
+  var folder = folders.find(function(f){ return f.id === id; });
+  if (!folder) return;
+  openModal('Renombrar carpeta', folder.name, 'Nombre...', function(name) {
+    if (!name.trim()) return;
+    folder.name = name.trim(); save(); renderHome(); showStatus('[GUARDADO]');
+  });
+}
+function deleteFolderById(id) {
+  var folder = folders.find(function(f){ return f.id === id; });
+  var count = notes.filter(function(n){ return n.folderId === id; }).length;
+  var msg = count > 0
+    ? '¿Eliminar "' + (folder ? folder.name : '') + '" y sus ' + count + ' nota' + (count!==1?'s':'') + '?'
+    : '¿Eliminar "' + (folder ? folder.name : '') + '"?';
+  openConfirm(msg, function() {
+    notes = notes.filter(function(n){ return n.folderId !== id; });
+    folders = folders.filter(function(f){ return f.id !== id; });
+    save(); renderHome(); showStatus('[CARPETA ELIMINADA]');
   });
 }
 function openNewFolder() {
@@ -2385,9 +2542,9 @@ async function renderWhatsapp() {
 
   try {
     var transcripcion = note.transcripcion || '';
-    var resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    var resp = await fetch('/api/groq', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + GROQ_KEY },
+      headers: { 'Content-Type': 'application/json', 'x-groq-path': 'openai/v1/chat/completions' },
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile',
         max_tokens: 600,
@@ -2397,6 +2554,7 @@ async function renderWhatsapp() {
           'El tono es directo, informal pero profesional, como se habla en Argentina. ' +
           'No uses "el broker dijo" ni personificaciones — contalo como info propia, como si Juan lo hubiera visto o lo supiera de primera mano. ' +
           'Párrafos cortos, sin bullets, sin títulos, sin markdown, sin saludos ni despedidas. Solo el mensaje. ' +
+          'IMPORTANTE: nunca empieces con frases introductorias como "Estuve hablando con alguien", "Mira te cuento", "Tengo una propiedad que", "Estoy pensando en", "Te quería contar" ni similares. Arrancá directo con la info de la propiedad o situación, sin preámbulo. ' +
           'Máximo 180 palabras.\n\nTranscripción:\n' + transcripcion
         }]
       })
@@ -2442,8 +2600,10 @@ function renameCurrentNote() {
   });
 }
 function deleteCurrentNote() {
-  notes = notes.filter(function(n){ return n.id !== currentNoteId; });
-  save(); renderHome(); if (detailFromFolder) renderFolderNotes(); goBackFromDetail(); showStatus('[NOTA ELIMINADA]');
+  var id = currentNoteId;
+  var fromFolder = detailFromFolder;
+  goBackFromDetail();
+  softDelete(id, fromFolder);
 }
 
 /* ── MOVER ── */
@@ -2528,15 +2688,21 @@ function buildSegBar(pct) {
   document.getElementById('seg-pct').textContent = pct + '%';
 }
 
-async function processAudio(file, groqKey) {
+async function processAudio(file, _unused) {
+  var groqKey = null; // key is handled server-side via /api/groq
   showScreen('process');
   setProgress(15, 'Transcribiendo', file.name);
   var duration = null;
+  var durationSecs = null;
   try {
     var audioURL = URL.createObjectURL(file);
     await new Promise(function(resolve) {
       var audio = new Audio(audioURL);
-      audio.onloadedmetadata = function() { duration = formatDuration(audio.duration); URL.revokeObjectURL(audioURL); resolve(); };
+      audio.onloadedmetadata = function() {
+        durationSecs = isFinite(audio.duration) ? audio.duration : null;
+        duration = formatDuration(audio.duration);
+        URL.revokeObjectURL(audioURL); resolve();
+      };
       audio.onerror = resolve; setTimeout(resolve, 2000);
     });
   } catch(e) {}
@@ -2545,17 +2711,20 @@ async function processAudio(file, groqKey) {
     formData.append('file', file, file.name);
     formData.append('model', 'whisper-large-v3-turbo');
     formData.append('language', 'es');
-    formData.append('response_format', 'text');
+    formData.append('response_format', 'verbose_json');
     formData.append('temperature', '0');
-    var groqResp = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
-      method: 'POST', headers: { 'Authorization': 'Bearer ' + groqKey }, body: formData
+    var groqResp = await fetch('/api/groq', {
+      method: 'POST', headers: { 'x-groq-path': 'openai/v1/audio/transcriptions' }, body: formData
     });
     if (!groqResp.ok) { var errText = await groqResp.text(); throw new Error(errText.substring(0,200)); }
-    var transcripcion = await groqResp.text();
+    var groqWhisperData = await groqResp.json();
+    var transcripcion = groqWhisperData.text || '';
+    // duration real del audio según Whisper (más preciso que metadata del archivo)
+    if (groqWhisperData.duration) durationSecs = groqWhisperData.duration;
     setProgress(60, 'Generando resumen', '');
-    var llamaResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    var llamaResp = await fetch('/api/groq', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + groqKey },
+      headers: { 'Content-Type': 'application/json', 'x-groq-path': 'openai/v1/chat/completions' },
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile', max_tokens: 1024,
         messages: [{ role: 'user', content: 'Analizá esta transcripción de audio y generá un resumen ejecutivo estructurado en JSON.\n\nTranscripción:\n' + transcripcion + '\n\nDevolvé SOLO un JSON válido con este formato exacto:\n{\n  "titulo": "título descriptivo corto (máx 5 palabras)",\n  "secciones": [\n    {\n      "titulo": "Nombre de sección",\n      "puntos": ["punto 1", "punto 2"]\n    }\n  ]\n}' }]
@@ -2567,6 +2736,28 @@ async function processAudio(file, groqKey) {
     var resumenObj;
     try { var jm = rawText.match(/\{[\s\S]*\}/); resumenObj = JSON.parse(jm ? jm[0] : rawText); }
     catch(e) { resumenObj = { titulo: file.name, icono: '🎙️', secciones: [{ titulo: 'Resumen', puntos: [rawText] }] }; }
+
+    // ── Acumular uso real en Firestore ──
+    try {
+      if (currentUser) {
+        var whisperMinUsed = durationSecs ? durationSecs / 60 : 0;
+        var llamaTokensUsed = llamaData.usage ? (llamaData.usage.total_tokens || 0) : 0;
+        var { getFirestore, doc, getDoc, setDoc, increment } = await import('https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js');
+        var db2 = getFirestore();
+        var usageRef = doc(db2, 'users', currentUser.uid, 'meta', 'usage');
+        var today = new Date().toISOString().slice(0, 10); // "2026-05-23"
+        await setDoc(usageRef, {
+          whisperMins: increment(whisperMinUsed),
+          llamaTokens: increment(llamaTokensUsed),
+          calls: increment(1),
+          lastUpdated: Date.now(),
+          ['day_' + today + '_whisperMins']: increment(whisperMinUsed),
+          ['day_' + today + '_llamaTokens']: increment(llamaTokensUsed),
+          ['day_' + today + '_calls']: increment(1),
+        }, { merge: true });
+      }
+    } catch(ue) { /* silent */ }
+
     setProgress(95, 'Guardando', '');
     // Si viene del grabador, asignar a carpeta "Mis Notas"
     var noteFolderId = null;
@@ -2585,10 +2776,11 @@ async function processAudio(file, groqKey) {
       title: resumenObj.titulo || file.name,
       date: new Date().toLocaleDateString('es-AR', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }),
       createdAt: Date.now(),
-      duration: duration, resumen: resumenObj, transcripcion: transcripcion,
-      folderId: noteFolderId || undefined
+      duration: duration, durationSecs: durationSecs, resumen: resumenObj, transcripcion: transcripcion,
+      folderId: noteFolderId || undefined,
+      source: noteFolderId ? 'rec' : 'upload'
     };
-    notes.unshift(nota); save(); renderHome();
+    notes.unshift(nota); saveLocal(); addNoteFirebase(nota); renderHome();
     currentNoteId = nota.id; detailFromFolder = false;
     document.getElementById('detail-title').textContent = nota.title;
     renderResumen(nota.resumen);
@@ -2614,6 +2806,12 @@ function copyCurrentNote() {
 function openUploadSheet() {
   document.getElementById('upload-sheet').classList.add('open');
   document.getElementById('overlay').classList.add('open');
+  var fab = document.getElementById('fab-mic'); if (fab) fab.style.display = 'none';
+}
+function _openSheet(id) {
+  document.getElementById(id).classList.add('open');
+  document.getElementById('overlay').classList.add('open');
+  var fab = document.getElementById('fab-mic'); if (fab) fab.style.display = 'none';
 }
 function openShareSheet() {
   document.getElementById('share-sheet').classList.add('open');
@@ -2631,28 +2829,120 @@ function shareOption(type) {
 function closeAllSheets() {
   document.querySelectorAll('.sheet').forEach(function(s){ s.classList.remove('open'); });
   document.getElementById('overlay').classList.remove('open');
+  closeNoteSheet();
+  var fab = document.getElementById('fab-mic');
+  var curScreen = document.querySelector('.screen.active');
+  var curName = curScreen ? curScreen.id.replace('screen-', '') : 'home';
+  if (fab) fab.style.display = (curName === 'home' || curName === 'folder') ? '' : 'none';
 }
 
 /* ── MODAL ── */
 function openModal(title, value, placeholder, callback) {
   document.getElementById('modal-title').textContent = title.toUpperCase();
   var input = document.getElementById('modal-input');
+  input.style.display = '';
   input.value = value||''; input.placeholder = placeholder||'';
   modalCallback = callback;
   document.getElementById('modal-backdrop').classList.add('open');
   setTimeout(function(){ input.focus(); input.select(); }, 100);
 }
-function closeModal() { document.getElementById('modal-backdrop').classList.remove('open'); modalCallback = null; }
+function openConfirm(msg, callback) {
+  document.getElementById('modal-title').textContent = msg;
+  var input = document.getElementById('modal-input');
+  input.style.display = 'none';
+  input.value = '';
+  var okBtn = document.querySelector('.modal-ok');
+  okBtn.textContent = 'Eliminar';
+  okBtn.style.background = 'var(--accent)';
+  okBtn.style.color = '#fff';
+  modalCallback = function() {
+    okBtn.textContent = 'Guardar';
+    okBtn.style.background = '';
+    okBtn.style.color = '';
+    callback();
+  };
+  document.getElementById('modal-backdrop').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('modal-backdrop').classList.remove('open');
+  modalCallback = null;
+  var okBtn = document.querySelector('.modal-ok');
+  okBtn.textContent = 'Guardar';
+  okBtn.style.background = '';
+  okBtn.style.color = '';
+  document.getElementById('modal-input').style.display = '';
+}
 function modalConfirm() { var val = document.getElementById('modal-input').value; var cb = modalCallback; closeModal(); if (cb) cb(val); }
 document.getElementById('modal-input').addEventListener('keydown', function(e){ if (e.key==='Enter') modalConfirm(); if (e.key==='Escape') closeModal(); });
 
+/* ── SYNC DOT ── */
+var _syncOkTimer = null;
+function setSyncDot(state) {
+  var dot = document.getElementById('sync-dot');
+  if (!dot) return;
+  dot.className = 'sync-dot sync-' + state;
+  dot.title = state === 'ok' ? 'Sincronizado' : state === 'busy' ? 'Guardando...' : 'Sin conexión';
+  if (state === 'ok') {
+    if (_syncOkTimer) clearTimeout(_syncOkTimer);
+    _syncOkTimer = setTimeout(function(){ dot.className = 'sync-dot sync-offline'; dot.title = 'Sin conexión'; }, 4000);
+  }
+}
+
 /* ── STATUS (inline, Nothing style) ── */
 var statusTimer = null;
-function showStatus(msg) {
+function showStatus(msg, withUndo) {
   var bar = document.getElementById('status-bar');
-  bar.textContent = msg; bar.classList.add('show');
+  var msgEl = document.getElementById('status-msg');
+  var undoBtn = document.getElementById('status-undo-btn');
+  if (msgEl) msgEl.textContent = msg; else bar.textContent = msg;
+  if (undoBtn) undoBtn.style.display = withUndo ? '' : 'none';
+  bar.classList.add('show');
   if (statusTimer) clearTimeout(statusTimer);
-  statusTimer = setTimeout(function(){ bar.classList.remove('show'); }, 2000);
+  statusTimer = setTimeout(function(){
+    bar.classList.remove('show');
+    // Si no se deshizo, commitear el borrado pendiente
+    if (_pendingDeleteId) { _commitDelete(_pendingDeleteId); _pendingDeleteId = null; }
+  }, withUndo ? 5000 : 2000);
+}
+
+/* ── UNDO DELETE ── */
+var _pendingDeleteId = null;
+var _pendingDeleteNote = null;
+var _pendingDeleteFromFolder = false;
+
+function softDelete(noteId, fromFolder) {
+  var note = notes.find(function(n){ return n.id === noteId; });
+  if (!note) return;
+  _pendingDeleteId = noteId;
+  _pendingDeleteNote = JSON.parse(JSON.stringify(note));
+  _pendingDeleteFromFolder = fromFolder;
+  notes = notes.filter(function(n){ return n.id !== noteId; });
+  // Marcar AHORA en deletedNoteIds para que onSnapshot no restaure la nota
+  // si llega un update de Firestore durante los 5 segundos de undo
+  deletedNoteIds.add(noteId);
+  localStorage.setItem('transcriber-deleted', JSON.stringify(Array.from(deletedNoteIds)));
+  saveLocal(); renderHome(); if (currentFolderId) renderFolderNotes();
+  showStatus('Nota eliminada', true);
+}
+
+function _commitDelete(noteId) {
+  // deletedNoteIds ya fue marcado en softDelete; acá solo sincronizamos con Firestore
+  save();
+  _pendingDeleteNote = null;
+}
+
+function undoDelete() {
+  if (!_pendingDeleteNote) return;
+  if (statusTimer) clearTimeout(statusTimer);
+  var note = _pendingDeleteNote;
+  // Sacar de deletedNoteIds para que la nota pueda volver a sincronizar
+  deletedNoteIds.delete(_pendingDeleteId);
+  localStorage.setItem('transcriber-deleted', JSON.stringify(Array.from(deletedNoteIds)));
+  _pendingDeleteId = null; _pendingDeleteNote = null;
+  notes.unshift(note);
+  notes.sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); });
+  saveLocal(); renderHome(); if (currentFolderId) renderFolderNotes();
+  showStatus('Nota restaurada');
 }
 
 
@@ -2723,8 +3013,19 @@ async function startRecording() {
     _recSeconds++;
     var m = Math.floor(_recSeconds / 60);
     var s = _recSeconds % 60;
-    document.getElementById('rec-timer').textContent =
-      String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+    var timerEl = document.getElementById('rec-timer');
+    var statusEl = document.getElementById('rec-status');
+    timerEl.textContent = String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+    // Advertencia a 10min
+    if (_recSeconds === 600) {
+      timerEl.style.color = 'var(--neon-orange)';
+      if (statusEl) { statusEl.textContent = 'Advertencia: 10 min'; statusEl.style.color = 'var(--neon-orange)'; }
+    }
+    // Stop automático a 15min
+    if (_recSeconds >= 900) {
+      if (statusEl) { statusEl.textContent = 'Límite 15 min — guardando...'; }
+      stopRecording();
+    }
   }, 1000);
 
   // Animate waveform
@@ -2757,6 +3058,8 @@ function stopRecording() {
   cancelAnimationFrame(_recAnimFrame);
   if (_recAudioCtx) _recAudioCtx.close();
   resetRecWaveform();
+  var timerEl = document.getElementById('rec-timer');
+  if (timerEl) timerEl.style.color = '';
   var inner = document.getElementById('rec-btn-inner');
   inner.style.borderRadius = '50%';
   inner.style.width = '28px'; inner.style.height = '28px';
@@ -2812,40 +3115,41 @@ function cancelRecorder() {
         return;
       }
       if (user) {
-        var { doc, getDoc, setDoc } = await import('https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js');
-        var snap = await getDoc(doc(db, 'users', user.uid));
+        var { doc, onSnapshot } = await import('https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js');
+        var userDocRef = doc(db, 'users', user.uid);
+        var _firstSync = true;
+        var _localNotesAtLogin = notes.slice();
+        var _localFoldersAtLogin = folders.slice();
 
-        // Datos locales actuales
-        var localNotes = notes.slice();
-        var localFolders = folders.slice();
+        // onSnapshot escucha en tiempo real — Firestore es la fuente de verdad
+        var _unsubscribe = onSnapshot(userDocRef, function(snap) {
+          var remoteNotes = snap.exists() ? (snap.data().notes || []) : [];
+          var remoteFolders = snap.exists() ? (snap.data().folders || []) : [];
 
-        if (!snap.exists()) {
-          // Primera vez con esta cuenta — subir lo que hay localmente
-          if (localNotes.length > 0 || localFolders.length > 0) {
-            await setDoc(doc(db, 'users', user.uid), { notes: localNotes, folders: localFolders, updatedAt: Date.now() });
-            showStatus('[NOTAS MIGRADAS]');
-          } else { showStatus('[SESIÓN INICIADA]'); }
-          showScreen('home'); renderHome();
-        } else {
-          // Merge inteligente: combinar Firestore + local, sin perder nada
-          var remoteData = snap.data();
-          var remoteNotes = remoteData.notes || [];
-          var remoteFolders = remoteData.folders || [];
-
-          // Merge notas: agrupar por id, ganar el de mayor createdAt
+          // Merge: SIEMPRE combinar remoto + local actual
+          // Así notas del bot, de otro dispositivo, o grabadas offline nunca se pierden
           var noteMap = {};
-          localNotes.forEach(function(n) { noteMap[n.id] = n; });
           remoteNotes.forEach(function(n) {
-            if (!noteMap[n.id] || (n.createdAt || 0) > (noteMap[n.id].createdAt || 0)) {
-              noteMap[n.id] = n;
-            }
+            if (!deletedNoteIds.has(n.id)) noteMap[n.id] = n;
           });
+          // Notas locales en memoria que aún no llegaron a Firestore (ej: recién grabadas)
+          notes.forEach(function(n) {
+            if (!noteMap[n.id] && !deletedNoteIds.has(n.id)) noteMap[n.id] = n;
+          });
+          // En el primer sync también agregamos las que estaban en localStorage antes de login
+          if (_firstSync) {
+            _localNotesAtLogin.forEach(function(n) {
+              if (!noteMap[n.id] && !deletedNoteIds.has(n.id)) noteMap[n.id] = n;
+            });
+          }
           var mergedNotes = Object.values(noteMap).sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); });
 
-          // Merge carpetas: unión por id, remote gana en conflicto de nombre
           var folderMap = {};
-          localFolders.forEach(function(f) { folderMap[f.id] = f; });
           remoteFolders.forEach(function(f) { folderMap[f.id] = f; });
+          folders.forEach(function(f) { if (!folderMap[f.id]) folderMap[f.id] = f; });
+          if (_firstSync) {
+            _localFoldersAtLogin.forEach(function(f) { if (!folderMap[f.id]) folderMap[f.id] = f; });
+          }
           var mergedFolders = Object.values(folderMap);
 
           notes = mergedNotes;
@@ -2853,13 +3157,14 @@ function cancelRecorder() {
           localStorage.setItem('transcriber-notes', JSON.stringify(notes));
           localStorage.setItem('transcriber-folders', JSON.stringify(folders));
 
-          // Subir merge a Firestore si difiere
-          var changed = mergedNotes.length !== remoteNotes.length || mergedFolders.length !== remoteFolders.length;
-          if (changed) {
-            await setDoc(doc(db, 'users', user.uid), { notes: mergedNotes, folders: mergedFolders, updatedAt: Date.now() });
+          if (_firstSync) {
+            _firstSync = false;
+            showScreen('home'); renderHome(); showStatus('[SINCRONIZADO]');
+          } else {
+            renderHome(); showStatus('[ACTUALIZADO]');
           }
-          showScreen('home'); renderHome(); showStatus('[SINCRONIZADO]');
-        }
+          setSyncDot('ok');
+        });
       }
     });
   } catch(e) { console.warn('Firebase init error:', e); }
