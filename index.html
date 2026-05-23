@@ -65,22 +65,20 @@ html, body {
   font-size: 16px;
   line-height: 1.5;
 }
-/* Ambient glow background — da profundidad al blur */
-body::before {
-  content: '';
-  position: fixed; inset: 0; z-index: 0; pointer-events: none;
-  background:
+/* Ambient glow background */
+body {
+  background-image:
     radial-gradient(ellipse 70% 50% at 10% 5%,  rgba(255,107,43,0.18) 0%, transparent 65%),
     radial-gradient(ellipse 60% 45% at 90% 85%, rgba(0,210,255,0.14) 0%, transparent 65%),
     radial-gradient(ellipse 50% 40% at 55% 55%, rgba(200,255,0,0.07) 0%, transparent 65%);
+  background-attachment: fixed;
 }
-.screen { position: relative; z-index: 1; background: transparent !important; }
 
 /* ── SCREEN TRANSITIONS ── */
 .screen {
   display: none; min-height: 100vh; flex-direction: column; background: transparent;
-  opacity: 0;
-  transform: translateX(16px);
+  opacity: 0; transform: translateX(16px);
+  position: relative;
 }
 .screen.active {
   display: flex;
