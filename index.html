@@ -84,6 +84,8 @@ body {
   display: flex;
   animation: screenIn 220ms cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
 }
+/* Screen inicial ya visible sin animación */
+#screen-home.active:not(.animated) { opacity: 1; transform: none; animation: none; }
 .screen.back {
   animation: screenBack 220ms cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
 }
@@ -1121,7 +1123,7 @@ body {
 </div>
 
 <!-- HOME -->
-<div id="screen-home" class="screen">
+<div id="screen-home" class="screen active">
   <div class="topbar">
     <span class="topbar-title">Transcribeme</span>
     <span id="sync-dot" class="sync-dot sync-offline" title="Sin conexión"></span>
@@ -1725,7 +1727,7 @@ function showScreen(name, isBack) {
     s.classList.remove('active', 'back');
   });
   var el = document.getElementById('screen-' + name);
-  el.classList.add('active');
+  el.classList.add('active', 'animated');
   if (isBack) el.classList.add('back');
 
   if (!isBack) {
@@ -3180,3 +3182,21 @@ checkKeys();
   document.addEventListener('touchend', function(e) {
     if (!swipeActive || swipeLocked !== 'h') {
       swipeActive = false; return;
+    }
+    var dx = e.changedTouches[0].clientX - swipeStartX;
+    var activeScreen = document.querySelector('.screen.active');
+    if (activeScreen) {
+      activeScreen.style.transform = '';
+      activeScreen.style.transition = '';
+    }
+    if (dx > 60) {
+      // Swipe derecha = ir atrás
+      var prev = _screenHistory[_screenHistory.length - 2];
+      if (prev) { showScreen(prev, true); }
+    }
+    swipeActive = false;
+  }, { passive: true });
+})();
+</script>
+</body>
+</html>
