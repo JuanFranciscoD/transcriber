@@ -1568,7 +1568,7 @@ body {
     <div class="opt-icon"><svg width="16" height="16"><use href="#ic-pencil"/></svg></div>
     <span class="sheet-option-label">Renombrar</span>
   </button>
-  <button class="sheet-option" onclick="closeAllSheets(); deleteFolderById(_folderMenuId)" style="color:var(--accent)">
+  <button class="sheet-option" onclick="closeAllSheets(); setTimeout(function(){ deleteFolderById(_folderMenuId); }, 50)" style="color:var(--accent)">
     <div class="opt-icon" style="border-color:var(--accent);color:var(--accent)"><svg width="16" height="16"><use href="#ic-trash"/></svg></div>
     <span class="sheet-option-label" style="color:var(--accent)">Eliminar carpeta</span>
   </button>
