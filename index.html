@@ -1820,8 +1820,8 @@ function renderDashboard() {
     .slice(0, 3);
 
   // ── USO GROQ (real desde Firestore + estimado hoy) ──
-  var WHISPER_LIMIT_MIN = 120;
-  var LLAMA_LIMIT_K = 200;
+  var WHISPER_LIMIT_MIN = 480;  // 28,800 seg/día según Groq free tier
+  var LLAMA_LIMIT_K = 100;      // 100K tokens/día llama-3.3-70b-versatile
 
   // Valores por defecto mientras carga
   var audioMinsTotal = 0, llamaTokensTotal = 0, llamaCallsTotal = 0;
