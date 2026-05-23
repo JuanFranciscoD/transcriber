@@ -2400,10 +2400,11 @@ function deleteFolderById(id) {
   var msg = count > 0
     ? '¿Eliminar "' + (folder ? folder.name : '') + '"? Las ' + count + ' nota' + (count!==1?'s':'') + ' quedarán en Recientes.'
     : '¿Eliminar "' + (folder ? folder.name : '') + '"?';
-  if (!confirm(msg)) return;
-  notes.forEach(function(n){ if (n.folderId === id) delete n.folderId; });
-  folders = folders.filter(function(f){ return f.id !== id; });
-  save(); renderHome(); showStatus('[CARPETA ELIMINADA]');
+  openConfirm(msg, function() {
+    notes.forEach(function(n){ if (n.folderId === id) delete n.folderId; });
+    folders = folders.filter(function(f){ return f.id !== id; });
+    save(); renderHome(); showStatus('[CARPETA ELIMINADA]');
+  });
 }
 function openNewFolder() {
   openModal('Nueva carpeta', '', 'Nombre...', function(name) {
@@ -2839,10 +2840,19 @@ function closeAllSheets() {
 function openModal(title, value, placeholder, callback) {
   document.getElementById('modal-title').textContent = title.toUpperCase();
   var input = document.getElementById('modal-input');
+  input.style.display = '';
   input.value = value||''; input.placeholder = placeholder||'';
   modalCallback = callback;
   document.getElementById('modal-backdrop').classList.add('open');
   setTimeout(function(){ input.focus(); input.select(); }, 100);
+}
+function openConfirm(msg, callback) {
+  document.getElementById('modal-title').textContent = msg;
+  var input = document.getElementById('modal-input');
+  input.style.display = 'none';
+  input.value = '';
+  modalCallback = function() { callback(); };
+  document.getElementById('modal-backdrop').classList.add('open');
 }
 function closeModal() { document.getElementById('modal-backdrop').classList.remove('open'); modalCallback = null; }
 function modalConfirm() { var val = document.getElementById('modal-input').value; var cb = modalCallback; closeModal(); if (cb) cb(val); }
