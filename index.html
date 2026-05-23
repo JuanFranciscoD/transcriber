@@ -1806,19 +1806,26 @@ function renderDashboard() {
       var usageRef = fb.doc(db2, 'users', currentUser.uid, 'meta', 'usage');
       fb.getDoc(usageRef).then(function(snap) {
         var d = snap.exists() ? snap.data() : {};
-        var wMins = Math.round((d.whisperMins || 0) * 10) / 10;
-        var lTokK = Math.round((d.llamaTokens || 0) / 100) / 10;
-        var calls = d.calls || 0;
-        var whisperPct2 = Math.min(wMins / WHISPER_LIMIT_MIN, 1);
-        var llamaPct2 = Math.min(lTokK / LLAMA_LIMIT_K, 1);
+        var today2 = new Date().toISOString().slice(0, 10);
+        // Hoy
+        var wMinsToday = Math.round((d['day_' + today2 + '_whisperMins'] || 0) * 10) / 10;
+        var lTokTodayK = Math.round((d['day_' + today2 + '_llamaTokens'] || 0) / 100) / 10;
+        var callsToday = d['day_' + today2 + '_calls'] || 0;
+        // Total acumulado
+        var wMinsTotal = Math.round((d.whisperMins || 0) * 10) / 10;
+        var lTokTotalK = Math.round((d.llamaTokens || 0) / 100) / 10;
+        var callsTotal = d.calls || 0;
+
+        var whisperPct2 = Math.min(wMinsToday / WHISPER_LIMIT_MIN, 1);
+        var llamaPct2 = Math.min(lTokTodayK / LLAMA_LIMIT_K, 1);
         var SEG2 = 20;
 
-        countUp(document.getElementById('dash-groq-audio'), wMins, 400);
-        document.getElementById('dash-groq-audio-limit').textContent = wMins + ' min total · ' + calls + ' transcripciones';
-        countUp(document.getElementById('dash-groq-tokens'), lTokK, 400);
-        document.getElementById('dash-groq-tokens-limit').textContent = lTokK + 'k tokens totales';
+        countUp(document.getElementById('dash-groq-audio'), wMinsToday, 400);
+        document.getElementById('dash-groq-audio-limit').textContent = wMinsToday + ' min hoy · ' + callsToday + ' transcripciones · ' + wMinsTotal + ' min total';
+        countUp(document.getElementById('dash-groq-tokens'), lTokTodayK, 400);
+        document.getElementById('dash-groq-tokens-limit').textContent = lTokTodayK + 'k tokens hoy · ' + lTokTotalK + 'k total';
 
-        // Barras (referencia = límite diario para visualizar magnitud)
+        // Barras = % del límite diario, basado en uso de HOY
         var wBar = document.getElementById('dash-whisper-bar');
         wBar.innerHTML = '';
         document.getElementById('dash-whisper-pct').textContent = Math.round(whisperPct2 * 100) + '% día';
@@ -2692,11 +2699,15 @@ async function processAudio(file, _unused) {
         var { getFirestore, doc, getDoc, setDoc, increment } = await import('https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js');
         var db2 = getFirestore();
         var usageRef = doc(db2, 'users', currentUser.uid, 'meta', 'usage');
+        var today = new Date().toISOString().slice(0, 10); // "2026-05-23"
         await setDoc(usageRef, {
           whisperMins: increment(whisperMinUsed),
           llamaTokens: increment(llamaTokensUsed),
           calls: increment(1),
-          lastUpdated: Date.now()
+          lastUpdated: Date.now(),
+          ['day_' + today + '_whisperMins']: increment(whisperMinUsed),
+          ['day_' + today + '_llamaTokens']: increment(llamaTokensUsed),
+          ['day_' + today + '_calls']: increment(1),
         }, { merge: true });
       }
     } catch(ue) { /* silent */ }
