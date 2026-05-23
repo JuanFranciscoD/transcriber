@@ -2851,10 +2851,27 @@ function openConfirm(msg, callback) {
   var input = document.getElementById('modal-input');
   input.style.display = 'none';
   input.value = '';
-  modalCallback = function() { callback(); };
+  var okBtn = document.querySelector('.modal-ok');
+  okBtn.textContent = 'Eliminar';
+  okBtn.style.background = 'var(--accent)';
+  okBtn.style.color = '#fff';
+  modalCallback = function() {
+    okBtn.textContent = 'Guardar';
+    okBtn.style.background = '';
+    okBtn.style.color = '';
+    callback();
+  };
   document.getElementById('modal-backdrop').classList.add('open');
 }
-function closeModal() { document.getElementById('modal-backdrop').classList.remove('open'); modalCallback = null; }
+function closeModal() {
+  document.getElementById('modal-backdrop').classList.remove('open');
+  modalCallback = null;
+  var okBtn = document.querySelector('.modal-ok');
+  okBtn.textContent = 'Guardar';
+  okBtn.style.background = '';
+  okBtn.style.color = '';
+  document.getElementById('modal-input').style.display = '';
+}
 function modalConfirm() { var val = document.getElementById('modal-input').value; var cb = modalCallback; closeModal(); if (cb) cb(val); }
 document.getElementById('modal-input').addEventListener('keydown', function(e){ if (e.key==='Enter') modalConfirm(); if (e.key==='Escape') closeModal(); });
 
