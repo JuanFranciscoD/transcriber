@@ -90,15 +90,15 @@ body::before {
   content: '';
   position: fixed; inset: 0; z-index: 0; pointer-events: none;
   background:
-    radial-gradient(ellipse 60% 40% at 15% 10%, rgba(255,107,43,0.07) 0%, transparent 70%),
-    radial-gradient(ellipse 50% 35% at 85% 80%, rgba(0,210,255,0.05) 0%, transparent 70%),
-    radial-gradient(ellipse 40% 30% at 50% 50%, rgba(200,255,0,0.03) 0%, transparent 70%);
+    radial-gradient(ellipse 70% 50% at 10% 5%,  rgba(255,107,43,0.18) 0%, transparent 65%),
+    radial-gradient(ellipse 60% 45% at 90% 85%, rgba(0,210,255,0.14) 0%, transparent 65%),
+    radial-gradient(ellipse 50% 40% at 55% 55%, rgba(200,255,0,0.07) 0%, transparent 65%);
 }
-.screen { position: relative; z-index: 1; }
+.screen { position: relative; z-index: 1; background: transparent !important; }
 
 /* ── SCREEN TRANSITIONS ── */
 .screen {
-  display: none; min-height: 100vh; flex-direction: column; background: var(--black);
+  display: none; min-height: 100vh; flex-direction: column; background: transparent;
   opacity: 0;
   transform: translateX(16px);
 }
@@ -459,7 +459,7 @@ body::before {
   padding: 14px 0;
   border-bottom: 1px solid var(--border);
   cursor: pointer;
-  background: var(--black);
+  background: transparent;
   transition: transform 0.2s ease-out;
   touch-action: pan-y;
   width: 100%;        /* stay full-width inside flex wrapper */
@@ -757,8 +757,10 @@ body::before {
 
 /* ── BOTTOM BAR ── */
 .bottombar {
-  background: var(--black);
-  border-top: 1px solid var(--border);
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border-top: 1px solid rgba(255,255,255,0.06);
   padding: 10px 16px 32px;
   display: flex; gap: 0;
 }
