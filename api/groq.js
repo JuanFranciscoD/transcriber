@@ -41,10 +41,8 @@ export default async function handler(req) {
   const upstreamHeaders = {
     'Authorization': `Bearer ${groqKey}`,
   };
-  // Para JSON pasamos content-type; para multipart dejamos que fetch lo genere con boundary
-  if (!isMultipart) {
-    upstreamHeaders['Content-Type'] = 'application/json';
-  }
+  // Siempre pasar el Content-Type original — para multipart incluye el boundary obligatorio
+  upstreamHeaders['Content-Type'] = contentType;
 
   const body = await req.arrayBuffer();
 
