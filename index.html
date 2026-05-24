@@ -287,6 +287,25 @@ body {
 }
 
 /* ── FOLDER CARD ── */
+/* ── MB PROP SEARCH ── */
+.mb-search-wrap { position: relative; margin-bottom: 14px; }
+.mb-search-input { width:100%; background:transparent; border:none; border-bottom:1px solid var(--border-visible); padding:8px 0; font-family:'Space Mono',monospace; font-size:12px; color:var(--text-display); outline:none; }
+.mb-search-input::placeholder { color:var(--text-disabled); }
+.mb-search-results { background:var(--surface-raised); border:1px solid var(--border-visible); border-radius:10px; margin-top:6px; overflow:hidden; display:none; }
+.mb-search-results.open { display:block; }
+.mb-result-item { padding:10px 12px; cursor:pointer; border-bottom:1px solid var(--border); transition:background 120ms; }
+.mb-result-item:last-child { border-bottom:none; }
+.mb-result-item:active { background:rgba(0,210,255,0.06); }
+.mb-result-dir { font-size:12px; color:var(--text-display); margin-bottom:2px; }
+.mb-result-meta { font-size:10px; color:var(--text-secondary); font-family:'Space Mono',monospace; }
+.mb-result-empty { padding:12px; font-size:12px; color:var(--text-disabled); text-align:center; }
+.mb-prop-card { border-radius:10px; border:1px solid rgba(0,210,255,0.25); background:rgba(0,210,255,0.05); padding:12px; margin-bottom:12px; }
+.mb-prop-card-top { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+.mb-prop-dir { font-size:13px; font-weight:500; color:var(--text-display); margin-bottom:3px; }
+.mb-prop-meta { font-size:10px; color:var(--text-secondary); font-family:'Space Mono',monospace; line-height:1.6; }
+.mb-prop-link { display:inline-flex; align-items:center; gap:5px; margin-top:8px; font-family:'Space Mono',monospace; font-size:9px; letter-spacing:0.06em; text-transform:uppercase; color:var(--neon-blue); text-decoration:none; background:rgba(0,210,255,0.08); border:1px solid rgba(0,210,255,0.2); border-radius:6px; padding:4px 10px; }
+.mb-prop-remove { background:none; border:none; color:var(--text-disabled); cursor:pointer; padding:2px; font-size:18px; line-height:1; flex-shrink:0; }
+
 /* ── OPERACIONES ── */
 .op-card {
   border-radius: 12px; overflow: hidden; margin-bottom: 10px;
@@ -1759,6 +1778,14 @@ body {
     <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">Partes</div>
     <input type="text" id="nueva-op-partes" placeholder="Ej: García (vendedor) · Romero (comprador)" style="width:100%;background:transparent;border:none;border-bottom:1px solid var(--border-visible);padding:8px 0;font-family:'Space Mono',monospace;font-size:12px;color:var(--text-display);outline:none;" />
   </div>
+  <div style="margin-bottom:14px;">
+    <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">Propiedad <span style="color:var(--text-disabled)">(MB Propy)</span></div>
+    <div id="nueva-op-prop-selected" style="display:none"></div>
+    <div class="mb-search-wrap" id="nueva-op-prop-search-wrap">
+      <input class="mb-search-input" id="nueva-op-prop-input" type="search" placeholder="Buscar por dirección o barrio..." oninput="onMBSearchInput(this.value)" autocomplete="off" />
+      <div class="mb-search-results" id="nueva-op-prop-results"></div>
+    </div>
+  </div>
   <div style="margin-bottom:16px;">
     <div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;">Etapa inicial</div>
     <div class="op-stages-grid" id="nueva-op-stages">
@@ -2373,6 +2400,26 @@ function escHtml(s) {
 }
 
 var GROQ_KEY = null; // key moved to server-side proxy /api/groq
+
+/* ── MB PROPY — Supabase ── */
+var MB_URL  = 'https://hyxsdeeoyecdslrtqrmo.supabase.co';
+var MB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh5eHNkZWVveWVjZHNscnRxcm1vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0ODczNzYsImV4cCI6MjA5MTA2MzM3Nn0.YT76TJzSbxgjkNAdpIsRd5AGW9bC6PaTkyEFwOK7OTo';
+function getMBFichaUrl(id) {
+  try { return 'https://www.mirandabosch.com/ficha/' + btoa(JSON.stringify({ p: String(id), b: '33504' })); }
+  catch(e) { return ''; }
+}
+var _mbSearchTimer = null;
+function searchMBProps(query, callback) {
+  if (!query || query.length < 3) { callback([]); return; }
+  var q = encodeURIComponent(query);
+  var url = MB_URL + '/rest/v1/propiedades?select=id,direccion,barrio,tipo,modo,precio,moneda,dormitorios,sup_cub,activa' +
+    '&or=(direccion.ilike.*' + q + '*,barrio.ilike.*' + q + '*)' +
+    '&activa=eq.true&limit=8';
+  fetch(url, { headers: { 'apikey': MB_KEY, 'Authorization': 'Bearer ' + MB_KEY } })
+    .then(function(r){ return r.json(); })
+    .then(function(data){ callback(Array.isArray(data) ? data : []); })
+    .catch(function(){ callback([]); });
+}
 function checkKeys() {}
 
 /* ── FOLDER COLORS ── */
@@ -2486,6 +2533,12 @@ function renderOpDetail() {
     '</div>' +
   '</div>';
 
+  // Propiedad MB
+  if (op.prop) {
+    html += '<div class="section-header"><span class="section-label">Propiedad</span></div>';
+    html += mbPropCardHtml(op.prop);
+  }
+
   // Timeline
   html += '<div class="section-header"><span class="section-label">Línea de tiempo</span></div>';
   html += '<div class="op-timeline"><div class="op-tl-line"></div>';
@@ -2582,11 +2635,97 @@ function renderOpDetail() {
 }
 
 /* ── NUEVA OPERACION ── */
+/* ── MB PROP SEARCH UI ── */
+var _nuevaOpProp = null; // propiedad seleccionada para la nueva op
+
+function onMBSearchInput(val) {
+  clearTimeout(_mbSearchTimer);
+  var results = document.getElementById('nueva-op-prop-results');
+  if (!val || val.length < 3) { results.classList.remove('open'); return; }
+  results.innerHTML = '<div class="mb-result-empty">Buscando...</div>';
+  results.classList.add('open');
+  _mbSearchTimer = setTimeout(function() {
+    searchMBProps(val, function(props) {
+      if (props.length === 0) {
+        results.innerHTML = '<div class="mb-result-empty">Sin resultados</div>';
+        return;
+      }
+      results.innerHTML = props.map(function(p) {
+        var precio = p.precio ? (p.moneda === 'USD' ? 'USD ' : '$') + Number(p.precio).toLocaleString('es-AR') : '';
+        var meta = [p.barrio, p.tipo, p.dormitorios ? p.dormitorios + ' dorm' : '', precio].filter(Boolean).join(' · ');
+        return '<div class="mb-result-item" onclick="selectMBProp(' + JSON.stringify(p).replace(/"/g, '&quot;') + ')">' +
+          '<div class="mb-result-dir">' + escHtml(p.direccion) + '</div>' +
+          '<div class="mb-result-meta">' + escHtml(meta) + '</div>' +
+        '</div>';
+      }).join('');
+    });
+  }, 350);
+}
+
+function selectMBProp(p) {
+  _nuevaOpProp = p;
+  document.getElementById('nueva-op-prop-results').classList.remove('open');
+  document.getElementById('nueva-op-prop-input').value = '';
+  document.getElementById('nueva-op-prop-search-wrap').style.display = 'none';
+  var precio = p.precio ? (p.moneda === 'USD' ? 'USD ' : '$') + Number(p.precio).toLocaleString('es-AR') : '';
+  var meta = [p.barrio, p.tipo, p.dormitorios ? p.dormitorios + ' dorm' : '', p.sup_cub ? p.sup_cub + 'm²' : '', precio].filter(Boolean).join(' · ');
+  var sel = document.getElementById('nueva-op-prop-selected');
+  sel.style.display = 'block';
+  sel.innerHTML = '<div class="mb-prop-card" style="margin-bottom:8px;">' +
+    '<div class="mb-prop-card-top">' +
+      '<div>' +
+        '<div class="mb-prop-dir">' + escHtml(p.direccion) + '</div>' +
+        '<div class="mb-prop-meta">' + escHtml(meta) + '</div>' +
+      '</div>' +
+      '<button class="mb-prop-remove" onclick="clearMBProp()" title="Quitar">×</button>' +
+    '</div>' +
+  '</div>';
+}
+
+function clearMBProp() {
+  _nuevaOpProp = null;
+  document.getElementById('nueva-op-prop-selected').style.display = 'none';
+  document.getElementById('nueva-op-prop-selected').innerHTML = '';
+  document.getElementById('nueva-op-prop-search-wrap').style.display = '';
+}
+
+function mbPropCardHtml(prop) {
+  if (!prop) return '';
+  var precio = prop.precio ? (prop.moneda === 'USD' ? 'USD ' : '$') + Number(prop.precio).toLocaleString('es-AR') : '';
+  var meta = [
+    prop.modo ? prop.modo.toUpperCase() : '',
+    prop.tipo || '',
+    prop.dormitorios ? prop.dormitorios + ' dorm' : '',
+    prop.sup_cub ? prop.sup_cub + ' m²' : '',
+    precio
+  ].filter(Boolean).join(' · ');
+  var fichaUrl = getMBFichaUrl(prop.id);
+  return '<div class="mb-prop-card">' +
+    '<div class="mb-prop-card-top">' +
+      '<div style="flex:1;min-width:0;">' +
+        '<div class="mb-prop-dir">' + escHtml(prop.direccion) + '</div>' +
+        '<div class="mb-prop-meta">' + escHtml(prop.barrio || '') + '</div>' +
+        '<div class="mb-prop-meta">' + escHtml(meta) + '</div>' +
+      '</div>' +
+    '</div>' +
+    (fichaUrl ? '<a class="mb-prop-link" href="' + fichaUrl + '" target="_blank" rel="noopener">' +
+      '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>' +
+      'Ver en MB Propy' +
+    '</a>' : '') +
+  '</div>';
+}
+
 var _newOpStage = 'contacto';
 function openNuevaOperacion() {
   _newOpStage = 'contacto';
+  _nuevaOpProp = null;
   document.getElementById('nueva-op-titulo').value = '';
   document.getElementById('nueva-op-partes').value = '';
+  document.getElementById('nueva-op-prop-input').value = '';
+  document.getElementById('nueva-op-prop-results').classList.remove('open');
+  document.getElementById('nueva-op-prop-selected').style.display = 'none';
+  document.getElementById('nueva-op-prop-selected').innerHTML = '';
+  document.getElementById('nueva-op-prop-search-wrap').style.display = '';
   document.querySelectorAll('.op-stage-opt').forEach(function(el) {
     el.classList.toggle('selected', el.dataset.stage === 'contacto');
   });
@@ -2608,6 +2747,7 @@ function confirmarNuevaOp() {
     partes: document.getElementById('nueva-op-partes').value.trim(),
     stage: _newOpStage,
     createdAt: Date.now(),
+    prop: _nuevaOpProp || null,
   };
   operaciones.unshift(op);
   saveOps();
