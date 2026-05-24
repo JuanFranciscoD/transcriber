@@ -63,16 +63,17 @@ async function registerCommands(token) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       commands: [
-        { command: 'ops',     description: '📋 Ver todas las operaciones activas' },
-        { command: 'hoy',     description: '☀️ Brief del día: ops, visitas y notas' },
-        { command: 'nuevas',  description: '🆕 Propiedades nuevas en MB Propy (7 días)' },
-        { command: 'bajas',   description: '📉 Propiedades con precio actualizado' },
-        { command: 'buscar',  description: '🔍 Buscar propiedades paso a paso' },
+        { command: 'ops',           description: '📋 Ver todas las operaciones activas' },
+        { command: 'hoy',           description: '☀️ Brief del día: ops, visitas y notas' },
+        { command: 'nuevas',        description: '🆕 Propiedades nuevas en MB Propy (7 días)' },
+        { command: 'bajas',         description: '📉 Propiedades con precio actualizado' },
+        { command: 'buscar',        description: '🔍 Buscar propiedades paso a paso' },
         { command: 'crearop',       description: '➕ Crear nueva operación desde el bot' },
-        { command: 'agendarvisita',  description: '🗓 Agendar visita a operación existente' },
-        { command: 'buscacliente',   description: '👤 Buscar cliente en MB Propy y ver su actividad' },
-        { command: 'nota',    description: '📝 Forzar guardar texto como nota' },
-        { command: 'ayuda',   description: '❓ Ver todos los comandos disponibles' },
+        { command: 'agendarvisita', description: '🗓 Agendar visita a operación existente' },
+        { command: 'buscacliente',  description: '👤 Buscar cliente en MB Propy y ver actividad' },
+        { command: 'nota',          description: '📝 Guardar texto como nota directamente' },
+        { command: 'cancelar',      description: '❌ Cancelar flujo activo y volver al inicio' },
+        { command: 'ayuda',         description: '❓ Ver todos los comandos disponibles' },
       ],
     }),
   });
@@ -107,6 +108,27 @@ export default async function handler(req, res) {
       const mbH = { 'apikey': MB_KEY, 'Authorization': `Bearer ${MB_KEY}` };
       const cmd = textMsg.split(' ')[0].toLowerCase().replace('/','').split('@')[0];
 
+      // ── /cancelar — limpiar TODOS los estados desde cualquier punto ──
+      if (cmd === 'cancelar' || cmd === 'cancel') {
+        await userRef.set({
+          botBuscarState: null,
+          botCrearOpState: null,
+          botAgendarState: null,
+          botBuscaClienteState: null,
+        }, { merge: true });
+        await tgSend(chatId, '✅ Listo, estado reiniciado. Podés escribir normalmente o usar un comando.\n\nUsá `/ayuda` para ver los disponibles.', 'Markdown');
+        return res.status(200).json({ ok: true });
+      }
+
+      // ── Al iniciar cualquier comando, limpiar estados pendientes ──
+      // (evita que un flujo anterior quede bloqueando mensajes de texto)
+      await userRef.set({
+        botBuscarState: null,
+        botCrearOpState: null,
+        botAgendarState: null,
+        botBuscaClienteState: null,
+      }, { merge: true });
+
       // Registrar comandos la primera vez que se usa /ayuda o /start
       if (cmd === 'start' || cmd === 'ayuda') {
         await registerCommands(TG_TOKEN);
@@ -118,13 +140,18 @@ export default async function handler(req, res) {
           '🤖 *Asistente Broker — Comandos*\n\n' +
           '*Operaciones*\n' +
           '`/ops` — todas las ops activas\n' +
-          '`/hoy` — brief del día\n\n' +
+          '`/hoy` — brief del día\n' +
+          '`/crearop` — crear nueva operación\n' +
+          '`/agendarvisita` — agendar visita a op existente\n\n' +
           '*MB Propy*\n' +
           '`/nuevas` — propiedades de los últimos 7 días\n' +
           '`/bajas` — props con precio actualizado\n' +
-          '`/buscar` — búsqueda guiada paso a paso\n\n' +
+          '`/buscar` — búsqueda guiada paso a paso\n' +
+          '`/buscacliente` — buscar cliente en MB Propy\n\n' +
           '*Notas*\n' +
           '`/nota [texto]` — guardar como nota directamente\n\n' +
+          '*Utilidades*\n' +
+          '`/cancelar` — cancelar flujo activo y volver al inicio\n\n' +
           '*Lenguaje natural*\n' +
           '"qué pasó con Sofia Sandstede"\n' +
           '"busca 3 dorm en Palermo hasta 400k"\n' +
@@ -340,9 +367,9 @@ export default async function handler(req, res) {
       const bcState = snapBC.exists ? snapBC.data().botBuscaClienteState : null;
 
       if (bcState && bcState.step) {
-        if (/^\/cancelar|^\/cancel/i.test(textMsg)) {
+        if (/^\/cancelar|^\/cancel|^cancelar$/i.test(textMsg.trim())) {
           await userRefBC.set({ botBuscaClienteState: null }, { merge: true });
-          await tgSend(chatId, '❌ Cancelado.');
+          await tgSend(chatId, '❌ Cancelado. Podés escribir normalmente o usar un comando.');
           return res.status(200).json({ ok: true });
         }
 
@@ -483,9 +510,9 @@ export default async function handler(req, res) {
         const step = agendarState.step;
         const av = agendarState;
 
-        if (/^\/cancelar|^\/cancel/i.test(textMsg)) {
+        if (/^\/cancelar|^\/cancel|^cancelar$/i.test(textMsg.trim())) {
           await userRefAV.set({ botAgendarState: null }, { merge: true });
-          await tgSend(chatId, '❌ Cancelado.');
+          await tgSend(chatId, '❌ Cancelado. Podés escribir normalmente o usar un comando.');
           return res.status(200).json({ ok: true });
         }
 
@@ -626,9 +653,9 @@ export default async function handler(req, res) {
         const mbH3 = { 'apikey': MB_KEY3, 'Authorization': `Bearer ${MB_KEY3}` };
 
         // Cancelar en cualquier paso
-        if (/^\/cancelar|^\/cancel/i.test(textMsg)) {
+        if (/^\/cancelar|^\/cancel|^cancelar$/i.test(textMsg.trim())) {
           await userRef3.set({ botCrearOpState: null }, { merge: true });
-          await tgSend(chatId, '❌ Creación de operación cancelada.');
+          await tgSend(chatId, '❌ Cancelado. Podés escribir normalmente o usar un comando.');
           return res.status(200).json({ ok: true });
         }
 
@@ -905,6 +932,12 @@ export default async function handler(req, res) {
       const buscarState = snap0.exists ? snap0.data().botBuscarState : null;
 
       if (buscarState && buscarState.step) {
+        if (/^\/cancelar|^\/cancel|^cancelar$/i.test(textMsg.trim())) {
+          await userRef2.set({ botBuscarState: null }, { merge: true });
+          await tgSend(chatId, '❌ Cancelado. Podés escribir normalmente o usar un comando.');
+          return res.status(200).json({ ok: true });
+        }
+
         const step = buscarState.step;
         const params = buscarState.params || {};
         const MB_URL2 = 'https://hyxsdeeoyecdslrtqrmo.supabase.co';
