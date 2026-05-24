@@ -3408,9 +3408,10 @@ function propActionAvanzar(propId, targetStage) {
 function propActionDescartar(propId) {
   var op = operaciones.find(function(o){ return o.id === currentOpId; });
   if (!op) return;
+
+  // 1. Sacar de la operación local
   var isPrincipal = op.prop && String(op.prop.id) === String(propId);
   if (isPrincipal) {
-    // Promover la primera adicional como principal, si hay
     op.prop = (op.props && op.props.length) ? op.props.shift() : null;
   } else {
     if (op.props) op.props = op.props.filter(function(p){ return String(p.id) !== String(propId); });
@@ -3418,7 +3419,36 @@ function propActionDescartar(propId) {
   saveOps();
   closeAllSheets();
   renderOpDetail();
-  showStatus('[PROPIEDAD DESCARTADA]');
+  showStatus('[DESCARTADA — QUITANDO DE MB PROPY...]');
+
+  // 2. Eliminar de favoritos en MB Propy si hay cliente asociado
+  if (!op.lead) return;
+  var clienteNombre = op.lead.nombre || op.lead.slug || '';
+  if (!clienteNombre) return;
+
+  // DELETE favoritos donde propiedad_id = propId AND cliente = nombre AND origen = broker
+  var deleteUrl = MB_URL + '/rest/v1/favoritos?propiedad_id=eq.' + encodeURIComponent(propId) +
+    '&cliente=eq.' + encodeURIComponent(clienteNombre) +
+    '&origen=eq.broker';
+
+  fetch(deleteUrl, {
+    method: 'DELETE',
+    headers: {
+      'apikey': MB_KEY,
+      'Authorization': 'Bearer ' + MB_KEY,
+      'Prefer': 'return=minimal'
+    }
+  })
+  .then(function(r) {
+    if (r.ok) {
+      showStatus('[DESCARTADA Y QUITADA DE MB PROPY ✓]');
+    } else {
+      showStatus('[DESCARTADA LOCALMENTE · ERROR EN MB PROPY]');
+    }
+  })
+  .catch(function() {
+    showStatus('[DESCARTADA LOCALMENTE · SIN CONEXIÓN]');
+  });
 }
 
 /* ── MULTI-PROPS ── */
