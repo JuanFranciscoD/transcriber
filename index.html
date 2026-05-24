@@ -276,26 +276,34 @@ body {
   color: var(--text-disabled);
 }
 
-/* ── FOLDER ITEM ── */
-.folder-item {
+/* ── FOLDER CARD ── */
+.folder-card {
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 8px;
+  border: 1px solid var(--border-visible);
+  background: var(--surface);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 200ms ease-out, transform 200ms ease-out;
+}
+.folder-card.visible { opacity: 1; transform: translateY(0); }
+.folder-card-head {
   display: flex; align-items: center; gap: 12px;
-  padding: 14px 0;
-  border-bottom: 1px solid var(--border);
+  padding: 12px 14px;
   cursor: pointer;
   transition: opacity 150ms;
 }
-.folder-item:last-of-type { border-bottom: none; }
-.folder-item:active { opacity: 0.6; }
+.folder-card-head:active { opacity: 0.7; }
 .folder-icon-wrap {
   width: 36px; height: 36px;
-  border: 1px solid var(--neon-blue);
   border-radius: 10px;
   display: flex; align-items: center; justify-content: center;
-  color: var(--neon-blue); flex-shrink: 0;
-  background: var(--neon-blue-bg);
+  flex-shrink: 0;
+  /* color + bg set inline per card */
 }
 .folder-info { flex: 1; min-width: 0; }
-.folder-info h3 { font-size: 14px; font-weight: 400; color: var(--text-primary); }
+.folder-info h3 { font-size: 14px; font-weight: 500; color: var(--text-display); }
 .folder-info p {
   font-family: 'Space Mono', monospace;
   font-size: 11px; letter-spacing: 0.04em;
@@ -303,11 +311,10 @@ body {
 }
 .folder-chevron {
   color: var(--text-disabled);
-  transition: transform 200ms cubic-bezier(0.25,0.1,0.25,1);
+  transition: transform 240ms cubic-bezier(0.22,1,0.36,1);
   flex-shrink: 0;
 }
-.folder-item.expanded .folder-chevron { transform: rotate(90deg); }
-.folder-item.expanded { border-bottom: none; }
+.folder-card.expanded .folder-chevron { transform: rotate(180deg); }
 .folder-menu-btn {
   width: 32px; height: 32px;
   display: flex; align-items: center; justify-content: center;
@@ -316,16 +323,94 @@ body {
   border-radius: 4px;
   transition: color 150ms, background 150ms;
 }
-.folder-menu-btn:active { color: var(--text-display); background: var(--surface-raised); }
+.folder-menu-btn:active { color: var(--text-display); background: rgba(255,255,255,0.08); }
 
-/* Notas dentro de carpeta expandida */
+/* Notas dentro de carpeta — panel-reveal */
 .folder-notes-inline {
   overflow: hidden;
   max-height: 0;
-  transition: max-height 280ms cubic-bezier(0.25,0.1,0.25,1);
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: max-height 300ms cubic-bezier(0.22,1,0.36,1),
+              opacity 260ms cubic-bezier(0.22,1,0.36,1),
+              transform 260ms cubic-bezier(0.22,1,0.36,1);
 }
-.folder-notes-inline.open { max-height: 2000px; }
-.folder-notes-inline .note-item-wrap:last-child .note-item { border-bottom: 1px solid var(--border); }
+.folder-notes-inline.open {
+  max-height: 2000px;
+  opacity: 1;
+  transform: translateY(0);
+  border-top: 1px solid var(--border);
+}
+.folder-notes-inline .note-item-wrap:last-child .note-item { border-bottom: none; }
+
+/* ── RECENT RAIL ── */
+.recent-rail {
+  display: flex; gap: 10px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding: 4px 0 12px;
+}
+.recent-rail::-webkit-scrollbar { display: none; }
+.recent-card {
+  flex-shrink: 0;
+  width: 140px;
+  border-radius: 12px;
+  padding: 12px;
+  border: 1px solid var(--border-visible);
+  background: var(--surface);
+  scroll-snap-align: start;
+  cursor: pointer;
+  transition: opacity 150ms;
+  opacity: 0;
+  transform: translateX(10px);
+}
+.recent-card.visible {
+  animation: recentCardIn 280ms cubic-bezier(0.22,1,0.36,1) forwards;
+}
+@keyframes recentCardIn {
+  to { opacity: 1; transform: translateX(0); }
+}
+.recent-card:active { opacity: 0.6; }
+.recent-card-icon {
+  width: 28px; height: 28px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+.recent-card-title {
+  font-size: 12px; font-weight: 500;
+  color: var(--text-display);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+.recent-card-meta {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px; color: var(--text-disabled);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ── NOTE LIST — acento izquierdo por fuente ── */
+.note-item-wrap[data-source="telegram"] .note-item,
+.note-item-wrap[data-source="telegram-video"] .note-item { border-left: 2px solid var(--neon-blue); padding-left: 10px; }
+.note-item-wrap[data-source="mic"] .note-item { border-left: 2px solid var(--accent); padding-left: 10px; }
+.note-item-wrap[data-source="upload"] .note-item,
+.note-item-wrap[data-source="file"] .note-item { border-left: 2px solid var(--neon-green); padding-left: 10px; }
+
+/* icon color by source */
+.note-item-wrap[data-source="telegram"] .note-thumb,
+.note-item-wrap[data-source="telegram-video"] .note-thumb {
+  border-color: var(--neon-blue); color: var(--neon-blue); background: var(--neon-blue-bg);
+}
+.note-item-wrap[data-source="mic"] .note-thumb {
+  border-color: var(--accent); color: var(--accent); background: rgba(215,25,33,0.07);
+}
+.note-item-wrap[data-source="upload"] .note-thumb,
+.note-item-wrap[data-source="file"] .note-thumb {
+  border-color: var(--neon-green); color: var(--neon-green); background: var(--neon-green-bg);
+}
 
 /* ── NOTE INLINE DETAIL ── */
 /* ── NOTE BOTTOM SHEET ── */
@@ -1981,11 +2066,41 @@ function escHtml(s) {
 var GROQ_KEY = null; // key moved to server-side proxy /api/groq
 function checkKeys() {}
 
+/* ── FOLDER COLORS ── */
+var FOLDER_COLORS = [
+  { bg: 'rgba(0,210,255,0.10)',  color: 'var(--neon-blue)',   border: 'rgba(0,210,255,0.25)' },
+  { bg: 'rgba(255,107,43,0.10)', color: 'var(--neon-orange)', border: 'rgba(255,107,43,0.25)' },
+  { bg: 'rgba(200,255,0,0.10)',  color: 'var(--neon-green)',  border: 'rgba(200,255,0,0.25)' },
+  { bg: 'rgba(215,25,33,0.10)',  color: 'var(--accent)',      border: 'rgba(215,25,33,0.25)' },
+];
+function folderColor(idx) { return FOLDER_COLORS[idx % FOLDER_COLORS.length]; }
+
+function recentCardHtml(n) {
+  var src = n.source || 'upload';
+  var iconHref, iconBg, iconColor;
+  if (src === 'mic') {
+    iconHref = '#ic-mic'; iconBg = 'rgba(215,25,33,0.10)'; iconColor = 'var(--accent)';
+  } else if (src === 'telegram' || src === 'telegram-video') {
+    iconHref = '#ic-share'; iconBg = 'rgba(0,210,255,0.10)'; iconColor = 'var(--neon-blue)';
+  } else {
+    iconHref = '#ic-file-text'; iconBg = 'rgba(200,255,0,0.10)'; iconColor = 'var(--neon-green)';
+  }
+  var dur = n.duration ? '<span style="font-family:\'Space Mono\',monospace;font-size:9px;color:' + iconColor + ';">' + escHtml(n.duration) + '</span>' : '';
+  return '<div class="recent-card" onclick="openNoteSheet(\'' + n.id + '\')">' +
+    '<div class="recent-card-icon" style="background:' + iconBg + ';color:' + iconColor + ';">' +
+      '<svg width="14" height="14"><use href="' + iconHref + '"/></svg>' +
+    '</div>' +
+    '<div class="recent-card-title">' + escHtml(n.title) + '</div>' +
+    '<div class="recent-card-meta">' + escHtml(n.date || '') + (dur ? ' · ' : '') + (dur||'') + '</div>' +
+  '</div>';
+}
+
 /* ── RENDER HOME ── */
 function renderHome() {
   var c = document.getElementById('home-content');
   var query = (document.getElementById('search-input') ? document.getElementById('search-input').value : '').toLowerCase().trim();
   var html = '';
+
   if (query) {
     var results = notes.filter(function(n) {
       if (n.title.toLowerCase().includes(query)) return true;
@@ -2004,42 +2119,85 @@ function renderHome() {
     } else {
       html = '<div class="empty-state"><div class="empty-icon"><svg width="20" height="20"><use href="#ic-search"/></svg></div><p>Sin resultados</p></div>';
     }
-  } else {
-    if (folders.length > 0) {
-      html += '<div class="section-header"><span class="section-label">Carpetas</span></div>';
-      folders.forEach(function(f) {
-        var folderNotes = notes.filter(function(n){ return n.folderId === f.id; });
-        var count = folderNotes.length;
-        var isExpanded = _expandedFolders[f.id] ? 'expanded' : '';
-        var isOpen = _expandedFolders[f.id] ? 'open' : '';
-        html += '<div class="folder-item ' + isExpanded + '" onclick="toggleFolder(\'' + f.id + '\')" data-folder-id="' + f.id + '">' +
-          '<div class="folder-icon-wrap"><svg width="16" height="16"><use href="#ic-folder"/></svg></div>' +
-          '<div class="folder-info"><h3>' + escHtml(f.name) + '</h3><p>' + count + ' nota' + (count!==1?'s':'') + '</p></div>' +
+    c.innerHTML = html;
+    attachSwipeHandlers();
+    c.querySelectorAll('.note-item-wrap').forEach(function(el, i) {
+      setTimeout(function() { el.classList.add('visible'); }, i * 40);
+    });
+    return;
+  }
+
+  /* ── carpetas como cards coloreadas ── */
+  if (folders.length > 0) {
+    html += '<div class="section-header"><span class="section-label">Carpetas</span></div>';
+    folders.forEach(function(f, idx) {
+      var clr = folderColor(idx);
+      var folderNotes = notes.filter(function(n){ return n.folderId === f.id; });
+      var count = folderNotes.length;
+      var isExpanded = _expandedFolders[f.id] ? 'expanded' : '';
+      var isOpen = _expandedFolders[f.id] ? 'open' : '';
+      html += '<div class="folder-card ' + isExpanded + '" data-folder-id="' + f.id + '">' +
+        '<div class="folder-card-head" style="background:' + clr.bg + '" onclick="toggleFolder(\'' + f.id + '\')">' +
+          '<div class="folder-icon-wrap" style="background:' + clr.bg + ';color:' + clr.color + ';border:1px solid ' + clr.border + '">' +
+            '<svg width="16" height="16"><use href="#ic-folder"/></svg>' +
+          '</div>' +
+          '<div class="folder-info">' +
+            '<h3>' + escHtml(f.name) + '</h3>' +
+            '<p>' + count + ' nota' + (count!==1?'s':'') + '</p>' +
+          '</div>' +
           '<button class="folder-menu-btn" onclick="event.stopPropagation(); openFolderMenu(\'' + f.id + '\')" title="Opciones">' +
             '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>' +
           '</button>' +
-          '<span class="folder-chevron"><svg width="14" height="14"><use href="#ic-chevron-right"/></svg></span>' +
-          '</div>' +
-          '<div class="folder-notes-inline ' + isOpen + '" data-folder-notes="' + f.id + '">' +
-          (folderNotes.length > 0 ? folderNotes.map(function(n){ return noteItemHtml(n, true); }).join('') :
-            '<div style="padding:12px 0 12px 48px;font-size:13px;color:var(--text-disabled);">Sin notas</div>') +
-          '</div>';
-      });
-    }
-    var unfoldered = notes.filter(function(n){ return !n.folderId; });
-    if (unfoldered.length > 0) {
-      html += '<div class="section-header" style="margin-top:' + (folders.length>0?'24px':'0') + '"><span class="section-label">Recientes</span></div>';
-      html += unfoldered.map(noteItemHtml).join('');
-    }
-    if (folders.length === 0 && unfoldered.length === 0) {
-      html = '<div class="empty-state"><div class="empty-icon"><svg width="20" height="20"><use href="#ic-inbox"/></svg></div><p>Tus notas aparecerán acá</p></div>';
-    }
+          '<span class="folder-chevron" style="color:' + clr.color + '">' +
+            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>' +
+          '</span>' +
+        '</div>' +
+        '<div class="folder-notes-inline ' + isOpen + '" data-folder-notes="' + f.id + '">' +
+          (folderNotes.length > 0
+            ? folderNotes.map(function(n){ return noteItemHtml(n, true); }).join('')
+            : '<div style="padding:14px;font-family:\'Space Mono\',monospace;font-size:11px;color:var(--text-disabled);">Sin notas aún</div>') +
+        '</div>' +
+      '</div>';
+    });
   }
+
+  /* ── recientes — carril horizontal (top 5 sin carpeta) ── */
+  var unfoldered = notes.filter(function(n){ return !n.folderId; });
+  var recentNotes = unfoldered.slice(0, 5);
+  var listNotes = unfoldered.slice(5);
+
+  if (recentNotes.length > 0) {
+    html += '<div class="section-header" style="margin-top:' + (folders.length>0?'20px':'0') + '"><span class="section-label">Recientes</span></div>';
+    html += '<div class="recent-rail" id="recent-rail">';
+    recentNotes.forEach(function(n) { html += recentCardHtml(n); });
+    html += '</div>';
+  }
+
+  /* ── todas — notas restantes sin carpeta ── */
+  if (listNotes.length > 0) {
+    html += '<div class="section-header" style="margin-top:4px"><span class="section-label">Todas</span></div>';
+    html += listNotes.map(noteItemHtml).join('');
+  }
+
+  if (folders.length === 0 && unfoldered.length === 0) {
+    html = '<div class="empty-state"><div class="empty-icon"><svg width="20" height="20"><use href="#ic-inbox"/></svg></div><p>Tus notas aparecerán acá</p></div>';
+  }
+
   c.innerHTML = html;
   attachSwipeHandlers();
-  // Stagger items in
-  var items = c.querySelectorAll('.note-item-wrap, .folder-item');
-  items.forEach(function(el, i) {
+
+  /* stagger folder cards */
+  c.querySelectorAll('.folder-card').forEach(function(el, i) {
+    setTimeout(function() { el.classList.add('visible'); }, i * 60);
+  });
+
+  /* stagger recent rail cards */
+  c.querySelectorAll('.recent-card').forEach(function(el, i) {
+    setTimeout(function() { el.classList.add('visible'); }, i * 55);
+  });
+
+  /* stagger list notes */
+  c.querySelectorAll('.note-item-wrap').forEach(function(el, i) {
     setTimeout(function() { el.classList.add('visible'); }, i * 40);
   });
 }
@@ -2057,26 +2215,22 @@ function durBadgeClass(n) {
 }
 function noteItemHtml(n, fromInlineFolder) {
   var dur = n.duration ? '<span class="dur-badge ' + durBadgeClass(n) + '">' + escHtml(n.duration) + '</span>' : '';
-  // Source badge + thumb icon
-  var src = n.source || 'rec';
-  var thumbIcon, sourceBadge;
-  if (src === 'telegram') {
-    thumbIcon = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2.5L2 10l7 2.5L21.5 2.5z"/><path d="M9 12.5L21.5 2.5l-5 16-7.5-6z"/><path d="M9 12.5v6l3.5-3"/></svg>';
-    sourceBadge = '<span class="source-badge tg">TG</span>';
-  } else if (src === 'upload' || src === 'file') {
-    thumbIcon = '<svg width="15" height="15"><use href="#ic-file-text"/></svg>';
-    sourceBadge = '<span class="source-badge up">FILE</span>';
-  } else {
+  var src = n.source || 'upload';
+  var thumbIcon;
+  if (src === 'mic') {
     thumbIcon = '<svg width="15" height="15"><use href="#ic-mic"/></svg>';
-    sourceBadge = '';
+  } else if (src === 'telegram' || src === 'telegram-video') {
+    thumbIcon = '<svg width="15" height="15"><use href="#ic-share"/></svg>';
+  } else {
+    thumbIcon = '<svg width="15" height="15"><use href="#ic-file-text"/></svg>';
   }
-  return '<div class="note-item-wrap" data-id="' + n.id + '">' +
+  return '<div class="note-item-wrap" data-id="' + n.id + '" data-source="' + src + '">' +
     '<div class="delete-reveal"><svg width="14" height="14"><use href="#ic-trash"/></svg>DELETE</div>' +
     '<div class="note-item" onclick="openNoteSheet(\'' + n.id + '\')">' +
       '<div class="note-thumb">' + thumbIcon + '</div>' +
       '<div class="note-info">' +
         '<h3>' + escHtml(n.title) + '</h3>' +
-        '<div class="note-meta"><span>' + escHtml(n.date) + '</span>' + sourceBadge + dur + '</div>' +
+        '<div class="note-meta"><span>' + escHtml(n.date) + '</span>' + dur + '</div>' +
       '</div>' +
       '<span class="note-chevron"><svg width="14" height="14"><use href="#ic-chevron-right"/></svg></span>' +
     '</div>' +
@@ -2345,14 +2499,18 @@ function openMoveSheetFor(id) {
 /* ── CARPETAS ── */
 function toggleFolder(id) {
   _expandedFolders[id] = !_expandedFolders[id];
-  var folderEl = document.querySelector('.folder-item[data-folder-id="' + id + '"]');
+  var folderEl = document.querySelector('.folder-card[data-folder-id="' + id + '"]');
   var notesEl = document.querySelector('.folder-notes-inline[data-folder-notes="' + id + '"]');
   if (!folderEl || !notesEl) return;
   if (_expandedFolders[id]) {
     folderEl.classList.add('expanded');
     notesEl.classList.add('open');
-    // attach swipe on newly visible items
     attachSwipeHandlers();
+    /* stagger notas recién reveladas */
+    notesEl.querySelectorAll('.note-item-wrap').forEach(function(el, i) {
+      el.style.opacity = '0';
+      setTimeout(function() { el.style.opacity = ''; el.classList.add('visible'); }, i * 40);
+    });
   } else {
     folderEl.classList.remove('expanded');
     notesEl.classList.remove('open');
