@@ -2946,10 +2946,9 @@ function selectMBProp(p) {
   document.getElementById('nueva-op-prop-input').value = '';
   document.getElementById('nueva-op-prop-search-wrap').style.display = 'none';
   // Autocompletar broker si el campo está vacío
-  if (p.broker) {
-    var brokerInput = document.getElementById('nueva-op-broker');
-    if (brokerInput && !brokerInput.value.trim()) brokerInput.value = p.broker;
-  }
+  // No autocompletar broker con el de la prop — son datos distintos:
+  // p.broker = broker de MB Propy que lista la propiedad
+  // op.broker = broker responsable interno de esta operación
   var precio = p.precio ? (p.moneda === 'USD' ? 'USD ' : '$') + Number(p.precio).toLocaleString('es-AR') : '';
   var meta = [p.barrio, p.tipo, p.dormitorios ? p.dormitorios + ' dorm' : '', p.sup_cub ? p.sup_cub + 'm²' : '', precio].filter(Boolean).join(' · ');
   var sel = document.getElementById('nueva-op-prop-selected');
