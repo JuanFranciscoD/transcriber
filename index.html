@@ -1764,6 +1764,15 @@ body {
     </button>
   </div>
   <div class="content" id="op-detail-content"></div>
+  <!-- FAB para grabar directo en esta operación -->
+  <button class="fab-mic" id="fab-op-rec" onclick="startRecorderForOp()" title="Grabar para esta operación" style="position:fixed;bottom:24px;right:20px;display:none;">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="9" y="2" width="6" height="12" rx="3"/>
+      <path d="M5 10a7 7 0 0 0 14 0"/>
+      <line x1="12" y1="19" x2="12" y2="22"/>
+      <line x1="9" y1="22" x2="15" y2="22"/>
+    </svg>
+  </button>
 </div>
 
 <!-- SHEET: Nueva Operación -->
@@ -2156,6 +2165,10 @@ function showScreen(name, isBack) {
   // FAB visible solo en home y folder
   var fab = document.getElementById('fab-mic');
   if (fab) fab.style.display = (name === 'home' || name === 'folder') ? '' : 'none';
+
+  // FAB de operación visible solo en pantalla de detalle de operación
+  var fabOp = document.getElementById('fab-op-rec');
+  if (fabOp) fabOp.style.display = (name === 'operacion') ? '' : 'none';
 }
 
 function goBack() {
@@ -2827,34 +2840,17 @@ function attachNoteToOp(noteId) {
   if (!op || !note) return;
   note.opId = op.id;
   note.opStage = op.stage;
-  saveLocal();
+  save(); // Firebase + localStorage
   closeAllSheets();
   renderOpDetail();
   showStatus('[NOTA ADJUNTADA]');
 }
 
-/* ── ADJUNTAR AL GUARDAR (desde note sheet) ── */
-function openAttachNoteFromSheet(noteId) {
-  closeNoteSheet();
-  setTimeout(function(){ openAttachNote(operaciones[0] ? operaciones[0].id : null); _attachingOpId = null; }, 200);
-  // Versión simplificada: abrir sheet de elegir operación para esta nota
-  _attachNoteId = noteId;
-  var list = document.getElementById('attach-op-list');
-  if (operaciones.length === 0) {
-    list.innerHTML = '<div style="padding:12px 0;font-size:13px;color:var(--text-secondary);">Primero creá una operación.</div>';
-  } else {
-    list.innerHTML = operaciones.map(function(op) {
-      return '<button class="sheet-option" onclick="attachNoteToOpById(\'' + op.id + '\')">' +
-        '<div class="opt-icon"><svg width="16" height="16"><use href="#ic-briefcase"/></svg></div>' +
-        '<span class="sheet-option-label">' + escHtml(op.titulo) + '</span>' +
-      '</button>';
-    }).join('');
-  }
-  document.getElementById('attach-op-sheet').classList.add('open');
-  document.getElementById('overlay').classList.add('open');
-}
+/* ── ADJUNTAR DESDE NOTE SHEET (home) ── */
 var _attachNoteId = null;
 function openAttachFromNoteSheet() {
+  // Llamado desde el botón "Operación" del note detail sheet
+  // _attachNoteId ya fue seteado antes de cerrar el sheet
   var list = document.getElementById('attach-op-list');
   if (operaciones.length === 0) {
     list.innerHTML = '<div style="padding:12px 0;font-size:13px;color:var(--text-secondary);">Primero creá una operación desde el ícono de maletín en la topbar.</div>';
@@ -2879,8 +2875,9 @@ function attachNoteToOpById(opId) {
   if (!op || !note) return;
   note.opId = op.id;
   note.opStage = op.stage;
-  saveLocal();
+  save(); // Firebase + localStorage
   closeAllSheets();
+  renderHome(); // refrescar home
   showStatus('[NOTA ADJUNTADA A ' + op.titulo.toUpperCase().slice(0,20) + ']');
 }
 
@@ -3784,6 +3781,17 @@ async function processAudio(file, _unused) {
       noteFolderId = misNotas.id;
     }
 
+    var _noteOpId = null;
+    var _noteOpStage = null;
+    if (_recordForOpId) {
+      var _recOp = operaciones.find(function(o){ return o.id === _recordForOpId; });
+      if (_recOp) {
+        _noteOpId = _recOp.id;
+        _noteOpStage = _recOp.stage;
+      }
+      _recordForOpId = null;
+    }
+
     var nota = {
       id: Date.now().toString(),
       title: resumenObj.titulo || file.name,
@@ -3791,15 +3799,25 @@ async function processAudio(file, _unused) {
       createdAt: Date.now(),
       duration: duration, durationSecs: durationSecs, resumen: resumenObj, transcripcion: transcripcion,
       folderId: noteFolderId || undefined,
-      source: noteFolderId ? 'rec' : 'upload'
+      source: noteFolderId ? 'rec' : 'upload',
+      opId: _noteOpId || undefined,
+      opStage: _noteOpStage || undefined
     };
     notes.unshift(nota); saveLocal(); addNoteFirebase(nota); renderHome();
-    currentNoteId = nota.id; detailFromFolder = false;
-    document.getElementById('detail-title').textContent = nota.title;
-    renderResumen(nota.resumen);
-    document.getElementById('tab-content-transcripcion').innerHTML = '<p class="transcript-text">' + escHtml(nota.transcripcion) + '</p>';
-    initAudioPlayer(null);
-    switchTab('resumen'); showScreen('detail');
+    if (_noteOpId) {
+      // came from op FAB — go back to operación screen
+      currentOpId = _noteOpId;
+      renderOpDetail();
+      showScreen('operacion');
+      showStatus('[NOTA GUARDADA EN OPERACIÓN]');
+    } else {
+      currentNoteId = nota.id; detailFromFolder = false;
+      document.getElementById('detail-title').textContent = nota.title;
+      renderResumen(nota.resumen);
+      document.getElementById('tab-content-transcripcion').innerHTML = '<p class="transcript-text">' + escHtml(nota.transcripcion) + '</p>';
+      initAudioPlayer(null);
+      switchTab('resumen'); showScreen('detail');
+    }
   } catch(e) { document.getElementById('error-msg').textContent = e.message; showScreen('error'); }
 }
 function setProgress(pct, title, sub) {
@@ -3962,6 +3980,7 @@ function undoDelete() {
 /* ── RECORDER ── */
 var _mediaRecorder = null;
 var _recordedFromApp = false;
+var _recordForOpId = null;
 var _recChunks = [];
 var _recStream = null;
 var _recTimerInterval = null;
@@ -3969,6 +3988,11 @@ var _recSeconds = 0;
 var _recAnalyser = null;
 var _recAnimFrame = null;
 var _recAudioCtx = null;
+
+function startRecorderForOp() {
+  _recordForOpId = currentOpId;
+  startRecorderScreen();
+}
 
 function startRecorderScreen() {
   showScreen('recorder');
