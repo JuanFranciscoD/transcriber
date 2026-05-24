@@ -68,6 +68,7 @@ async function registerCommands(token) {
         { command: 'nuevas',  description: '🆕 Propiedades nuevas en MB Propy (7 días)' },
         { command: 'bajas',   description: '📉 Propiedades con precio actualizado' },
         { command: 'buscar',  description: '🔍 Buscar propiedades paso a paso' },
+        { command: 'crearop', description: '➕ Crear nueva operación desde el bot' },
         { command: 'nota',    description: '📝 Forzar guardar texto como nota' },
         { command: 'ayuda',   description: '❓ Ver todos los comandos disponibles' },
       ],
@@ -267,6 +268,16 @@ export default async function handler(req, res) {
         return res.status(200).json({ ok: true });
       }
 
+      // /crearop — flujo guiado para crear operación
+      if (cmd === 'crearop') {
+        await userRef.set({ botCrearOpState: { step: 'titulo', data: {} } }, { merge: true });
+        await tgSend(chatId,
+          '➕ *Nueva operación*\n\n¿Cómo se llama la operación?\n\n_Ej: "Rolandi — Recoleta" o "Familia Pérez"_',
+          'Markdown'
+        );
+        return res.status(200).json({ ok: true });
+      }
+
       // /buscar — flujo guiado con estado en Firestore
       if (cmd === 'buscar') {
         await userRef.set({ botBuscarState: { step: 'barrio', params: {} } }, { merge: true });
@@ -282,6 +293,157 @@ export default async function handler(req, res) {
       // Comando desconocido
       await tgSend(chatId, '❓ Comando no reconocido. Usá `/ayuda` para ver los disponibles.', 'Markdown');
       return res.status(200).json({ ok: true });
+    }
+
+    // ── Flujo guiado /crearop (estado activo) ──
+    {
+      const db3 = getDb();
+      const userRef3 = db3.collection('users').doc(FIREBASE_UID);
+      const snap3 = await userRef3.get();
+      const crearOpState = snap3.exists ? snap3.data().botCrearOpState : null;
+
+      if (crearOpState && crearOpState.step) {
+        const step = crearOpState.step;
+        const data = crearOpState.data || {};
+        const MB_URL3 = 'https://hyxsdeeoyecdslrtqrmo.supabase.co';
+        const MB_KEY3 = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh5eHNkZWVveWVjZHNscnRxcm1vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0ODczNzYsImV4cCI6MjA5MTA2MzM3Nn0.YT76TJzSbxgjkNAdpIsRd5AGW9bC6PaTkyEFwOK7OTo';
+        const mbH3 = { 'apikey': MB_KEY3, 'Authorization': `Bearer ${MB_KEY3}` };
+
+        // Cancelar en cualquier paso
+        if (/^\/cancelar|^\/cancel/i.test(textMsg)) {
+          await userRef3.set({ botCrearOpState: null }, { merge: true });
+          await tgSend(chatId, '❌ Creación de operación cancelada.');
+          return res.status(200).json({ ok: true });
+        }
+
+        // Paso 1: título
+        if (step === 'titulo') {
+          data.titulo = textMsg.trim();
+          await userRef3.set({ botCrearOpState: { step: 'cliente', data } }, { merge: true });
+          await tgSend(chatId,
+            `✅ Título: *${data.titulo}*\n\n¿Nombre del cliente?\n\n_Ej: "Sofia Sandstede" — o "saltar" si no tenés todavía_`,
+            'Markdown'
+          );
+          return res.status(200).json({ ok: true });
+        }
+
+        // Paso 2: cliente
+        if (step === 'cliente') {
+          if (!/saltar|skip|no|ninguno/i.test(textMsg)) {
+            data.clienteNombre = textMsg.trim();
+          }
+          await userRef3.set({ botCrearOpState: { step: 'propiedad', data } }, { merge: true });
+          await tgSend(chatId,
+            (data.clienteNombre ? `✅ Cliente: *${data.clienteNombre}*\n\n` : '⏭ Sin cliente por ahora.\n\n') +
+            '¿Dirección o nombre de la propiedad?\n\n_Ej: "Arroyo 1160" o "saltar"_',
+            'Markdown'
+          );
+          return res.status(200).json({ ok: true });
+        }
+
+        // Paso 3: propiedad (busca en MB Propy si escribe algo)
+        if (step === 'propiedad') {
+          if (!/saltar|skip|no|ninguno/i.test(textMsg)) {
+            // Buscar en MB Propy por dirección
+            const busqProp = encodeURIComponent(textMsg.trim());
+            const propUrl3 = `${MB_URL3}/rest/v1/propiedades?select=id,direccion,barrio,tipo,modo,precio,moneda,dormitorios,broker&activa=eq.true&direccion=ilike.*${busqProp}*&limit=4`;
+            const propResp3 = await fetch(propUrl3, { headers: mbH3 });
+            const propResults = await propResp3.json();
+
+            if (Array.isArray(propResults) && propResults.length > 0) {
+              // Guardar resultados en state para que elija
+              data.propOptions = propResults;
+              await userRef3.set({ botCrearOpState: { step: 'elegir_prop', data } }, { merge: true });
+              let txt = `🏢 Encontré ${propResults.length} propiedad/es:\n\n`;
+              propResults.forEach((p, i) => {
+                const precio = p.precio ? `${p.moneda === 'USD' ? 'USD ' : '$'}${Number(p.precio).toLocaleString('es-AR')}` : '';
+                txt += `*${i+1}.* ${p.direccion} (${p.barrio}) | ${p.dormitorios != null ? p.dormitorios+' dorm | ' : ''}${precio}\n`;
+              });
+              txt += '\n_Respondé con el número (1, 2...) o "saltar"_';
+              await tgSend(chatId, txt, 'Markdown');
+              return res.status(200).json({ ok: true });
+            } else {
+              // No encontró, guardar texto libre como nombre de prop
+              data.propTexto = textMsg.trim();
+            }
+          }
+          await userRef3.set({ botCrearOpState: { step: 'etapa', data } }, { merge: true });
+          await tgSend(chatId,
+            (data.prop ? `✅ Propiedad: *${data.prop.direccion}*\n\n` : data.propTexto ? `✅ Propiedad: *${data.propTexto}*\n\n` : '⏭ Sin propiedad por ahora.\n\n') +
+            '¿Etapa de la operación?\n\n`contacto` · `visita` · `negociacion` · `reserva`',
+            'Markdown'
+          );
+          return res.status(200).json({ ok: true });
+        }
+
+        // Paso 3b: elegir prop de la lista
+        if (step === 'elegir_prop') {
+          const numEl = parseInt(textMsg.trim());
+          if (!isNaN(numEl) && data.propOptions && data.propOptions[numEl-1]) {
+            data.prop = data.propOptions[numEl-1];
+          } else if (!/saltar|skip/i.test(textMsg)) {
+            data.propTexto = textMsg.trim();
+          }
+          delete data.propOptions;
+          await userRef3.set({ botCrearOpState: { step: 'etapa', data } }, { merge: true });
+          await tgSend(chatId,
+            (data.prop ? `✅ Propiedad: *${data.prop.direccion}*\n\n` : data.propTexto ? `✅ Propiedad: *${data.propTexto}*\n\n` : '⏭ Sin propiedad.\n\n') +
+            '¿Etapa de la operación?\n\n`contacto` · `visita` · `negociacion` · `reserva`',
+            'Markdown'
+          );
+          return res.status(200).json({ ok: true });
+        }
+
+        // Paso 4: etapa → guardar operación
+        if (step === 'etapa') {
+          const etapaMap = { contacto:'contacto', visita:'visita', negoci:'negociacion', reserva:'reserva', escritura:'escritura' };
+          let etapa = 'contacto';
+          for (const [k, v] of Object.entries(etapaMap)) {
+            if (textMsg.toLowerCase().includes(k)) { etapa = v; break; }
+          }
+          data.etapa = etapa;
+
+          // Construir objeto operación compatible con la PWA
+          const now = Date.now();
+          const opId = String(now);
+          const nuevaOp = {
+            id: opId,
+            titulo: data.titulo,
+            stage: data.etapa,
+            createdAt: now,
+            updatedAt: now,
+            source: 'telegram',
+            lead: data.clienteNombre ? { nombre: data.clienteNombre, slug: data.clienteNombre.toLowerCase().replace(/\s+/g,'-') } : null,
+            prop: data.prop || (data.propTexto ? { direccion: data.propTexto, id: null } : null),
+            props: [],
+            visitas: [],
+            timeline: [{
+              id: String(now),
+              type: 'stage',
+              stage: data.etapa,
+              label: 'Operación creada desde bot',
+              date: new Date().toLocaleDateString('es-AR', { day:'numeric', month:'short' }),
+              createdAt: now,
+            }],
+          };
+
+          // Guardar en Firestore
+          await userRef3.set({ botCrearOpState: null }, { merge: true });
+          const snap4 = await userRef3.get();
+          const existingOps = snap4.exists ? (snap4.data().operaciones || []) : [];
+          await userRef3.set({ operaciones: [nuevaOp, ...existingOps], updatedAt: now }, { merge: true });
+
+          let confirm = `✅ *Operación creada*\n\n`;
+          confirm += `📋 *${data.titulo}*\n`;
+          if (data.clienteNombre) confirm += `👤 ${data.clienteNombre}\n`;
+          if (data.prop) confirm += `🏢 ${data.prop.direccion} (${data.prop.barrio || ''})\n`;
+          else if (data.propTexto) confirm += `🏢 ${data.propTexto}\n`;
+          confirm += `📍 Etapa: ${data.etapa}\n\n`;
+          confirm += `_Ya aparece en Transcribeme_`;
+          await tgSend(chatId, confirm, 'Markdown');
+          return res.status(200).json({ ok: true });
+        }
+      }
     }
 
     // ── Flujo guiado /buscar (estado activo) ──
