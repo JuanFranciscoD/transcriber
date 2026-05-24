@@ -2451,40 +2451,58 @@ function searchMBProps(query, callback) {
 }
 function checkKeys() {}
 
-/* ── MB LEADS — Clientes ── */
+/* ── MB CLIENTES — via /api/clientes con PIN ── */
+var _mbClientesCache = null; // cache de la lista completa
+var _mbClientesCacheTs = 0;
 var _mbLeadSearchTimer = null;
 var _nuevaOpLead = null;
-function searchMBLeads(query, callback) {
-  if (!query || query.length < 2) { callback([]); return; }
-  var q = encodeURIComponent(query);
-  var url = MB_URL + '/rest/v1/leads?select=id,nombre,email,telefono,status,broker,tags,budget_min,budget_max,barrios' +
-    '&nombre=ilike.*' + q + '*&limit=8';
-  fetch(url, { headers: { 'apikey': MB_KEY, 'Authorization': 'Bearer ' + MB_KEY } })
+
+function loadMBClientes(callback) {
+  // Cache 5 minutos
+  if (_mbClientesCache && (Date.now() - _mbClientesCacheTs) < 300000) {
+    callback(_mbClientesCache); return;
+  }
+  fetch('https://mbseleccion.vercel.app/api/clientes', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'listar', pin: '931142' })
+  })
     .then(function(r){ return r.json(); })
-    .then(function(data){ callback(Array.isArray(data) ? data : []); })
+    .then(function(d){
+      var list = (d.ok && Array.isArray(d.data)) ? d.data : [];
+      _mbClientesCache = list;
+      _mbClientesCacheTs = Date.now();
+      callback(list);
+    })
     .catch(function(){ callback([]); });
 }
+
 function onMBLeadSearchInput(val) {
   clearTimeout(_mbLeadSearchTimer);
   var results = document.getElementById('nueva-op-lead-results');
-  if (!val || val.length < 2) { results.classList.remove('open'); results.innerHTML = ''; return; }
+  if (!val || val.length < 1) { results.classList.remove('open'); results.innerHTML = ''; return; }
   results.innerHTML = '<div class="mb-result-empty">Buscando...</div>';
   results.classList.add('open');
   _mbLeadSearchTimer = setTimeout(function() {
-    searchMBLeads(val, function(leads) {
-      if (!leads.length) {
+    loadMBClientes(function(clientes) {
+      var q = val.toLowerCase();
+      var filtered = clientes.filter(function(c) {
+        return (c.nombre || c.slug || '').toLowerCase().indexOf(q) !== -1;
+      }).slice(0, 8);
+      if (!filtered.length) {
         results.innerHTML = '<div class="mb-result-empty">Sin resultados</div>';
         return;
       }
-      results.innerHTML = leads.map(function(l) {
-        var meta = [l.status, l.broker].filter(Boolean).join(' · ');
-        return '<div class="mb-result-item" onclick="selectMBLead(' + JSON.stringify(l).replace(/"/g, '&quot;') + ')">' +
-          '<div class="mb-result-dir">' + escHtml(l.nombre || l.id) + '</div>' +
-          '<div class="mb-result-meta">' + escHtml(meta) + '</div>' +
+      results.innerHTML = filtered.map(function(c) {
+        var dias = c.last_seen ? Math.floor((Date.now() - new Date(c.last_seen)) / 86400000) : null;
+        var meta = dias !== null ? 'Activo hace ' + dias + 'd' : '';
+        return '<div class="mb-result-item" onclick="selectMBLead(' + JSON.stringify(c).replace(/"/g, '&quot;') + ')">' +
+          '<div class="mb-result-dir">' + escHtml(c.nombre || c.slug) + '</div>' +
+          (meta ? '<div class="mb-result-meta">' + escHtml(meta) + '</div>' : '') +
         '</div>';
       }).join('');
     });
-  }, 320);
+  }, 200);
 }
 function selectMBLead(l) {
   _nuevaOpLead = l;
@@ -2502,20 +2520,18 @@ function clearMBLead() {
   document.getElementById('nueva-op-lead-search-wrap').style.display = '';
 }
 function mbLeadCardHtml(l, withRemove) {
-  var tags = Array.isArray(l.tags) && l.tags.length
-    ? '<div style="margin-top:6px;">' + l.tags.map(function(t){ return '<span class="mb-lead-tag">' + escHtml(t) + '</span>'; }).join('') + '</div>'
-    : '';
-  var budgetLine = (l.budget_min || l.budget_max)
-    ? 'Presupuesto: ' + (l.budget_min ? '$'+l.budget_min.toLocaleString('es-AR') : '') + (l.budget_max ? ' – $'+l.budget_max.toLocaleString('es-AR') : '')
-    : '';
-  var barriosLine = l.barrios ? 'Barrios: ' + (Array.isArray(l.barrios) ? l.barrios.join(', ') : l.barrios) : '';
-  var meta = [l.status, l.broker, budgetLine, barriosLine].filter(Boolean).join('\n');
+  var dias = l.last_seen ? Math.floor((Date.now() - new Date(l.last_seen)) / 86400000) : null;
+  var meta = dias !== null ? 'Activo hace ' + dias + ' días en MB Propy' : '';
+  var portalUrl = 'https://mbseleccion.vercel.app/?cliente=' + encodeURIComponent(l.slug || l.nombre);
   return '<div class="mb-lead-card">' +
     '<div class="mb-lead-card-top">' +
       '<div style="flex:1;">' +
-        '<div class="mb-lead-name">' + escHtml(l.nombre || l.id) + '</div>' +
-        '<div class="mb-lead-meta" style="white-space:pre-line;">' + escHtml(meta) + '</div>' +
-        tags +
+        '<div class="mb-lead-name">' + escHtml(l.nombre || l.slug) + '</div>' +
+        (meta ? '<div class="mb-lead-meta">' + escHtml(meta) + '</div>' : '') +
+        '<a class="mb-prop-link" href="' + portalUrl + '" target="_blank" rel="noopener" style="border-color:rgba(255,107,43,0.2);color:var(--neon-orange);background:rgba(255,107,43,0.08);">' +
+          '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>' +
+          'Ver portal' +
+        '</a>' +
       '</div>' +
       (withRemove ? '<button class="mb-lead-remove" onclick="clearMBLead()" title="Quitar">×</button>' : '') +
     '</div>' +
