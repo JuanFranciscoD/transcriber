@@ -306,6 +306,23 @@ body {
 .mb-prop-link { display:inline-flex; align-items:center; gap:5px; margin-top:8px; font-family:'Space Mono',monospace; font-size:9px; letter-spacing:0.06em; text-transform:uppercase; color:var(--neon-blue); text-decoration:none; background:rgba(0,210,255,0.08); border:1px solid rgba(0,210,255,0.2); border-radius:6px; padding:4px 10px; }
 .mb-prop-remove { background:none; border:none; color:var(--text-disabled); cursor:pointer; padding:2px; font-size:18px; line-height:1; flex-shrink:0; }
 
+/* ── CALENDARIO / VISITAS ── */
+.cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:3px; margin-bottom:4px; }
+.cal-day-label { text-align:center; font-size:9px; color:var(--text-disabled); font-family:'Space Mono',monospace; padding:3px 0; }
+.cal-day { text-align:center; font-size:12px; font-family:'Space Mono',monospace; padding:7px 2px; border-radius:6px; cursor:pointer; color:var(--text-primary); transition:background 100ms; user-select:none; }
+.cal-day:hover { background:rgba(255,255,255,0.06); }
+.cal-day.selected { background:rgba(0,210,255,0.15); border:1px solid rgba(0,210,255,0.4); color:var(--neon-blue); }
+.cal-day.today { color:var(--neon-green); font-weight:700; }
+.cal-day.empty { cursor:default; }
+.cal-day.past { color:var(--text-disabled); cursor:default; }
+.cal-nav { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.cal-nav-btn { background:none; border:none; color:var(--text-secondary); cursor:pointer; padding:4px 8px; font-size:16px; line-height:1; border-radius:6px; }
+.cal-nav-btn:active { background:rgba(255,255,255,0.06); }
+.cal-month-label { font-size:11px; font-family:'Space Mono',monospace; color:var(--text-display); letter-spacing:.06em; text-transform:uppercase; }
+.visita-preview { background:rgba(0,210,255,0.05); border:1px solid rgba(0,210,255,0.2); border-radius:10px; padding:10px 12px; margin:12px 0; }
+.visita-preview-title { font-size:11px; color:var(--neon-blue); font-family:'Space Mono',monospace; letter-spacing:.06em; margin-bottom:4px; }
+.visita-preview-body { font-size:12px; color:var(--text-primary); line-height:1.5; }
+
 /* ── MB LEADS (clientes) ── */
 .mb-lead-card { border-radius:10px; border:1px solid rgba(255,107,43,0.25); background:rgba(255,107,43,0.05); padding:12px; margin-bottom:12px; }
 .mb-lead-card-top { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
@@ -1832,6 +1849,47 @@ body {
   <button class="btn-outline" onclick="closeAllSheets()">Cancelar</button>
 </div>
 
+<!-- SHEET: Agendar visita -->
+<div class="sheet" id="visita-sheet" style="max-height:90vh;overflow-y:auto;">
+  <div class="sheet-handle"></div>
+  <p class="sheet-label">Agendar visita</p>
+
+  <div class="cal-nav">
+    <button class="cal-nav-btn" onclick="calNavMonth(-1)">‹</button>
+    <span class="cal-month-label" id="cal-month-label"></span>
+    <button class="cal-nav-btn" onclick="calNavMonth(1)">›</button>
+  </div>
+
+  <div class="cal-grid" id="cal-day-labels">
+    <div class="cal-day-label">L</div><div class="cal-day-label">M</div>
+    <div class="cal-day-label">M</div><div class="cal-day-label">J</div>
+    <div class="cal-day-label">V</div><div class="cal-day-label">S</div>
+    <div class="cal-day-label">D</div>
+  </div>
+  <div class="cal-grid" id="cal-days-grid"></div>
+
+  <div style="margin-top:14px;">
+    <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">Hora</div>
+    <input type="time" id="visita-time" oninput="updateVisitaPreview()" style="width:100%;background:transparent;border:none;border-bottom:1px solid var(--border-visible);padding:8px 0;font-family:'Space Mono',monospace;font-size:14px;color:var(--text-display);outline:none;" />
+  </div>
+
+  <div style="margin-top:12px;">
+    <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">Nota (opcional)</div>
+    <input type="text" id="visita-nota" placeholder="Ej: Llevar documentación" style="width:100%;background:transparent;border:none;border-bottom:1px solid var(--border-visible);padding:8px 0;font-family:'Space Mono',monospace;font-size:12px;color:var(--text-display);outline:none;" />
+  </div>
+
+  <div class="visita-preview" id="visita-preview" style="display:none;">
+    <div class="visita-preview-title">EVENTO EN GOOGLE CALENDAR</div>
+    <div class="visita-preview-body" id="visita-preview-body"></div>
+  </div>
+
+  <button class="btn-outline primary" id="visita-confirm-btn" onclick="confirmarVisita()" style="margin-top:4px;margin-bottom:8px;" disabled>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    Crear evento
+  </button>
+  <button class="btn-outline" onclick="closeAllSheets()">Cancelar</button>
+</div>
+
 <!-- SHEET: Menú operación -->
 <div class="sheet" id="op-menu-sheet">
   <div class="sheet-handle"></div>
@@ -2675,6 +2733,30 @@ function renderOpDetail() {
     html += mbPropCardHtml(op.prop);
   }
 
+  // Botón agendar visita (solo si hay propiedad o cliente)
+  html += '<button class="btn-outline primary" onclick="openVisitaSheet()" style="margin-bottom:14px;">' +
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>' +
+    ' Agendar visita' +
+  '</button>';
+
+  // Visitas agendadas
+  if (op.visitas && op.visitas.length) {
+    html += '<div class="section-header"><span class="section-label">Visitas</span></div>';
+    op.visitas.slice().reverse().forEach(function(v) {
+      var d = new Date(v.datetime);
+      var dateStr = d.toLocaleDateString('es-AR', {weekday:'short', day:'numeric', month:'short'}).toUpperCase();
+      var timeStr = d.toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'});
+      html += '<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:rgba(0,210,255,0.04);border:1px solid rgba(0,210,255,0.15);border-radius:8px;margin-bottom:6px;">' +
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--neon-blue)" stroke-width="2" style="flex-shrink:0"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>' +
+        '<div style="flex:1;">' +
+          '<div style="font-size:12px;color:var(--text-display);">' + dateStr + ' · ' + timeStr + 'hs</div>' +
+          (v.nota ? '<div style="font-size:10px;color:var(--text-secondary);font-family:\'Space Mono\',monospace;margin-top:2px;">' + escHtml(v.nota) + '</div>' : '') +
+        '</div>' +
+        (v.gcalLink ? '<a href="' + v.gcalLink + '" target="_blank" style="font-size:9px;font-family:\'Space Mono\',monospace;color:var(--neon-blue);text-decoration:none;">VER ↗</a>' : '') +
+      '</div>';
+    });
+  }
+
   // Timeline
   html += '<div class="section-header"><span class="section-label">Línea de tiempo</span></div>';
   html += '<div class="op-timeline"><div class="op-tl-line"></div>';
@@ -3018,6 +3100,134 @@ function attachNoteToOpById(opId) {
   closeAllSheets();
   renderHome(); // refrescar home
   showStatus('[NOTA ADJUNTADA A ' + op.titulo.toUpperCase().slice(0,20) + ']');
+}
+
+/* ── CALENDARIO / VISITAS ── */
+var _calYear  = new Date().getFullYear();
+var _calMonth = new Date().getMonth(); // 0-based
+var _calSelDate = null; // "YYYY-MM-DD"
+
+var CAL_MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+function renderCalGrid() {
+  var label = document.getElementById('cal-month-label');
+  var grid  = document.getElementById('cal-days-grid');
+  if (!label || !grid) return;
+  label.textContent = CAL_MONTHS_ES[_calMonth] + ' ' + _calYear;
+
+  var today = new Date();
+  today.setHours(0,0,0,0);
+  var firstDay = new Date(_calYear, _calMonth, 1).getDay(); // 0=dom
+  // Lunes=0 offset
+  var offset = (firstDay === 0) ? 6 : firstDay - 1;
+  var daysInMonth = new Date(_calYear, _calMonth + 1, 0).getDate();
+
+  var html = '';
+  for (var i = 0; i < offset; i++) html += '<div class="cal-day empty"></div>';
+  for (var d = 1; d <= daysInMonth; d++) {
+    var dateStr = _calYear + '-' + String(_calMonth+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+    var cellDate = new Date(_calYear, _calMonth, d);
+    var isPast   = cellDate < today;
+    var isToday  = cellDate.getTime() === today.getTime();
+    var isSel    = dateStr === _calSelDate;
+    var cls = 'cal-day' + (isPast ? ' past' : '') + (isToday ? ' today' : '') + (isSel ? ' selected' : '');
+    var onclick = isPast ? '' : 'onclick="selectCalDay(\'' + dateStr + '\')"';
+    html += '<div class="' + cls + '" ' + onclick + '>' + d + '</div>';
+  }
+  grid.innerHTML = html;
+}
+
+function selectCalDay(dateStr) {
+  _calSelDate = dateStr;
+  renderCalGrid();
+  updateVisitaPreview();
+}
+
+function calNavMonth(dir) {
+  _calMonth += dir;
+  if (_calMonth > 11) { _calMonth = 0; _calYear++; }
+  if (_calMonth < 0)  { _calMonth = 11; _calYear--; }
+  renderCalGrid();
+}
+
+function openVisitaSheet() {
+  var op = operaciones.find(function(o){ return o.id === currentOpId; });
+  if (!op) return;
+  // Reset
+  _calSelDate = null;
+  _calYear  = new Date().getFullYear();
+  _calMonth = new Date().getMonth();
+  document.getElementById('visita-time').value = '';
+  document.getElementById('visita-nota').value = '';
+  document.getElementById('visita-preview').style.display = 'none';
+  document.getElementById('visita-confirm-btn').disabled = true;
+  renderCalGrid();
+  document.getElementById('visita-sheet').classList.add('open');
+  document.getElementById('overlay').classList.add('open');
+}
+
+function updateVisitaPreview() {
+  var op = operaciones.find(function(o){ return o.id === currentOpId; });
+  var time = document.getElementById('visita-time').value;
+  var btn  = document.getElementById('visita-confirm-btn');
+  var prev = document.getElementById('visita-preview');
+  if (!_calSelDate || !time) {
+    prev.style.display = 'none';
+    btn.disabled = true;
+    return;
+  }
+  var d = new Date(_calSelDate + 'T' + time);
+  var dateStr = d.toLocaleDateString('es-AR', {weekday:'long', day:'numeric', month:'long'});
+  var propStr  = op && op.prop  ? op.prop.direccion  : '';
+  var leadStr  = op && op.lead  ? (op.lead.nombre || op.lead.slug) : '';
+  var brokerStr = op && op.broker ? op.broker : '';
+  var title = 'Visita' + (propStr ? ' · ' + propStr : '') + (leadStr ? ' · ' + leadStr : '');
+  document.getElementById('visita-preview-body').innerHTML =
+    '<strong>' + escHtml(title) + '</strong><br>' +
+    escHtml(dateStr + ' · ' + time + 'hs') +
+    (brokerStr ? '<br><span style="color:var(--text-secondary)">' + escHtml(brokerStr) + '</span>' : '');
+  prev.style.display = 'block';
+  btn.disabled = false;
+}
+
+async function confirmarVisita() {
+  var op = operaciones.find(function(o){ return o.id === currentOpId; });
+  if (!op || !_calSelDate) return;
+  var time  = document.getElementById('visita-time').value;
+  var nota  = document.getElementById('visita-nota').value.trim();
+  if (!time) { document.getElementById('visita-time').focus(); return; }
+
+  var btn = document.getElementById('visita-confirm-btn');
+  btn.disabled = true;
+  btn.textContent = 'Creando evento...';
+
+  var propStr   = op.prop  ? op.prop.direccion  : '';
+  var leadStr   = op.lead  ? (op.lead.nombre || op.lead.slug) : '';
+  var brokerStr = op.broker || '';
+  var title = 'Visita' + (propStr ? ' · ' + propStr : '') + (leadStr ? ' · ' + leadStr : '');
+  var desc  = [op.titulo, brokerStr, nota].filter(Boolean).join('\n');
+
+  try {
+    var res = await fetch('/api/gcal', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: title, date: _calSelDate, time: time, description: desc })
+    });
+    var data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Error al crear evento');
+
+    // Guardar visita en la operación
+    if (!op.visitas) op.visitas = [];
+    op.visitas.push({ datetime: _calSelDate + 'T' + time, nota: nota, gcalLink: data.htmlLink || '' });
+    saveOps();
+    closeAllSheets();
+    renderOpDetail();
+    showStatus('[VISITA AGENDADA ✓]');
+  } catch(e) {
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Crear evento';
+    showStatus('[ERROR: ' + e.message.toUpperCase().slice(0,30) + ']');
+  }
 }
 
 /* ── GENERAR RESUMEN ── */
