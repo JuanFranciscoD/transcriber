@@ -413,33 +413,38 @@ export default async function handler(req, res) {
         if (step === 'visita') {
           let visitaObj = null;
           if (!/saltar|skip|no|sin visita/i.test(textMsg)) {
-            // Parsear fecha/hora del texto libre con Groq
+            // Parsear fecha/hora con Groq — pedir ISO directo para evitar ambigüedad
             try {
-              const hoyISO = new Date().toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric' });
+              const ahora = new Date();
+              // Fecha actual en Buenos Aires para que Groq resuelva "sábado 30", "mañana", etc.
+              const hoyStr = ahora.toLocaleDateString('es-AR', { weekday:'long', day:'numeric', month:'long', year:'numeric', timeZone:'America/Argentina/Buenos_Aires' });
               const parseResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${GROQ_KEY}` },
                 body: JSON.stringify({
-                  model: 'llama-3.3-70b-versatile', max_tokens: 80,
-                  messages: [{ role: 'user', content: `Hoy es ${hoyISO}. Extraé fecha y hora de este texto y devolvé SOLO JSON: {"fecha":"DD/MM/YYYY","hora":"HH:MM"}. Si no hay hora poné null. Texto: "${textMsg}"` }],
+                  model: 'llama-3.3-70b-versatile', max_tokens: 100,
+                  messages: [{ role: 'user', content:
+                    `Hoy es ${hoyStr}. Resolvé la fecha relativa y devolvé SOLO JSON sin texto extra:\n` +
+                    `{"iso":"YYYY-MM-DDTHH:MM:00","fecha":"DD/MM/YYYY","hora":"HH:MM"}\n` +
+                    `Si no hay hora usá "10:00". Texto: "${textMsg}"`
+                  }],
                 }),
               });
               const pd = await parseResp.json();
               const raw = pd.choices?.[0]?.message?.content || '';
-              const jm = raw.match(/\{[\s\S]*\}/);
+              console.log('[BOT] Groq fecha raw:', raw);
+              const jm = raw.match(/\{[\s\S]*?\}/);
               if (jm) {
                 const parsed = JSON.parse(jm[0]);
-                if (parsed.fecha) {
-                  // Construir datetime ISO desde DD/MM/YYYY + HH:MM
-                  // "15/06/2026" + "10:30" → "2026-06-15T10:30:00"
-                  const [dd, mm, yyyy] = parsed.fecha.split('/');
-                  const horaStr = parsed.hora && parsed.hora !== 'null' ? parsed.hora : '10:00';
-                  const datetimeISO = `${yyyy}-${mm}-${dd}T${horaStr}:00`;
+                console.log('[BOT] Groq fecha parsed:', JSON.stringify(parsed));
+                // Validar que el ISO es una fecha real
+                const dt = new Date(parsed.iso);
+                if (parsed.iso && !isNaN(dt.getTime())) {
                   visitaObj = {
                     id: String(Date.now()),
-                    fecha: parsed.fecha,
-                    hora: horaStr,
-                    datetime: datetimeISO,
+                    fecha: parsed.fecha || parsed.iso.slice(0,10).split('-').reverse().join('/'),
+                    hora: parsed.hora || parsed.iso.slice(11,16),
+                    datetime: parsed.iso,
                     propId: data.prop ? String(data.prop.id) : null,
                     broker: data.prop?.broker || '',
                     confirmada: false,
@@ -447,22 +452,70 @@ export default async function handler(req, res) {
                   };
                 }
               }
-            } catch { /* si Groq falla, guardar texto crudo */ }
+            } catch(e) { console.log('[BOT] Groq fecha error:', e.message); }
 
-            // Fallback: guardar fecha como hoy a las 10:00
+            // Fallback: intentar parsear manualmente "30/05", "30 a las 11", etc.
             if (!visitaObj) {
               const ahora = new Date();
-              const datetimeISO = ahora.toISOString();
+              // Intentar extraer día y hora del texto
+              const diaMatch = textMsg.match(/\b(\d{1,2})\b/);
+              const horaMatch = textMsg.match(/(\d{1,2})(?::(\d{2}))?\s*(?:hs|h|:|am|pm)?$/i) ||
+                                textMsg.match(/las?\s+(\d{1,2})(?::(\d{2}))?/i);
+              let dt = new Date(ahora);
+              if (diaMatch) {
+                dt.setDate(parseInt(diaMatch[1]));
+                if (dt < ahora) dt.setMonth(dt.getMonth() + 1); // mes siguiente si ya pasó
+              }
+              if (horaMatch) {
+                dt.setHours(parseInt(horaMatch[1]), parseInt(horaMatch[2] || '0'), 0, 0);
+              } else {
+                dt.setHours(10, 0, 0, 0);
+              }
+              const isoStr = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}T${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}:00`;
               visitaObj = {
                 id: String(Date.now()),
-                fecha: textMsg.trim(),
-                hora: '',
-                datetime: datetimeISO,
+                fecha: `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear()}`,
+                hora: `${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`,
+                datetime: isoStr,
                 propId: data.prop ? String(data.prop.id) : null,
                 broker: data.prop?.broker || '',
                 confirmada: false,
                 createdAt: Date.now(),
               };
+              console.log('[BOT] Fallback fecha manual:', isoStr);
+            }
+          }
+
+          // ── Crear evento en Google Calendar si hay visita ──
+          let gcalLink = null;
+          if (visitaObj) {
+            try {
+              const gcalBody = {
+                title: `Visita: ${data.titulo}${data.clienteNombre ? ' — ' + data.clienteNombre : ''}`,
+                date: visitaObj.datetime.slice(0, 10),   // "YYYY-MM-DD"
+                time: visitaObj.datetime.slice(11, 16),  // "HH:MM"
+                description: [
+                  data.clienteNombre ? `Cliente: ${data.clienteNombre}` : '',
+                  data.prop ? `Propiedad: ${data.prop.direccion}${data.prop.barrio ? ', ' + data.prop.barrio : ''}` : '',
+                  data.prop?.broker ? `Broker: ${data.prop.broker}` : '',
+                  `Creado desde Transcribeme bot`,
+                ].filter(Boolean).join('\n'),
+              };
+              const gcalResp = await fetch('https://transcribeme.vercel.app/api/gcal', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(gcalBody),
+              });
+              const gcalData = await gcalResp.json();
+              if (gcalData.ok && gcalData.htmlLink) {
+                gcalLink = gcalData.htmlLink;
+                visitaObj.gcalLink = gcalLink;
+                console.log('[BOT] GCal evento creado:', gcalLink);
+              } else {
+                console.log('[BOT] GCal error:', JSON.stringify(gcalData));
+              }
+            } catch(e) {
+              console.log('[BOT] GCal excepción:', e.message);
             }
           }
 
@@ -516,7 +569,10 @@ export default async function handler(req, res) {
           if (data.prop) confirm += `🏢 ${data.prop.direccion}${data.prop.barrio ? ' (' + data.prop.barrio + ')' : ''}\n`;
           else if (data.propTexto) confirm += `🏢 ${data.propTexto}\n`;
           confirm += `📍 Etapa: ${data.etapa}\n`;
-          if (visitaObj) confirm += `🗓 Visita: ${visitaObj.fecha}${visitaObj.hora ? ' ' + visitaObj.hora : ''}\n`;
+          if (visitaObj) {
+            confirm += `🗓 Visita: ${visitaObj.fecha}${visitaObj.hora ? ' ' + visitaObj.hora : ''}\n`;
+            if (gcalLink) confirm += `📅 [Ver en Google Calendar](${gcalLink})\n`;
+          }
           confirm += `\n_Ya aparece en Transcribeme_`;
           await tgSend(chatId, confirm, 'Markdown');
           return res.status(200).json({ ok: true });
