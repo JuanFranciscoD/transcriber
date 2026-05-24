@@ -4929,6 +4929,12 @@ function cancelRecorder() {
         var _unsubscribe = onSnapshot(userDocRef, function(snap) {
           var remoteNotes = snap.exists() ? (snap.data().notes || []) : [];
           var remoteFolders = snap.exists() ? (snap.data().folders || []) : [];
+          // Operaciones: Firestore siempre gana (fuente de verdad)
+          var remoteOps = snap.exists() ? (snap.data().operaciones || null) : null;
+          if (remoteOps !== null) {
+            operaciones = remoteOps;
+            localStorage.setItem('transcriber-ops', JSON.stringify(operaciones));
+          }
 
           // Merge: SIEMPRE combinar remoto + local actual
           // Así notas del bot, de otro dispositivo, o grabadas offline nunca se pierden
@@ -4963,9 +4969,9 @@ function cancelRecorder() {
 
           if (_firstSync) {
             _firstSync = false;
-            showScreen('home'); renderHome(); showStatus('[SINCRONIZADO]');
+            showScreen('home'); renderHome(); renderOperaciones(); showStatus('[SINCRONIZADO]');
           } else {
-            renderHome(); showStatus('[ACTUALIZADO]');
+            renderHome(); renderOperaciones(); showStatus('[ACTUALIZADO]');
           }
           setSyncDot('ok');
         });
