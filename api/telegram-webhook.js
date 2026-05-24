@@ -394,7 +394,7 @@ export default async function handler(req, res) {
           return res.status(200).json({ ok: true });
         }
 
-        // Paso 4: etapa → guardar operación
+        // Paso 4: etapa → preguntar visita
         if (step === 'etapa') {
           const etapaMap = { contacto:'contacto', visita:'visita', negoci:'negociacion', reserva:'reserva', escritura:'escritura' };
           let etapa = 'contacto';
@@ -402,12 +402,84 @@ export default async function handler(req, res) {
             if (textMsg.toLowerCase().includes(k)) { etapa = v; break; }
           }
           data.etapa = etapa;
+          await userRef3.set({ botCrearOpState: { step: 'visita', data } }, { merge: true });
+          await tgSend(chatId,
+            `✅ Etapa: *${etapa}*\n\n🏠 ¿Agendamos una visita?\n\nEscribí fecha y hora:\n_Ej: "15/06 10:30" o "lunes 15 a las 11" — o "saltar"_`,
+            'Markdown'
+          );
+          return res.status(200).json({ ok: true });
+        }
 
-          // Construir objeto operación compatible con la PWA
+        // Paso 5: visita → guardar operación
+        if (step === 'visita') {
+          let visitaObj = null;
+          if (!/saltar|skip|no|sin visita/i.test(textMsg)) {
+            // Parsear fecha/hora del texto libre con Groq
+            try {
+              const hoyISO = new Date().toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric' });
+              const parseResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${GROQ_KEY}` },
+                body: JSON.stringify({
+                  model: 'llama-3.3-70b-versatile', max_tokens: 80,
+                  messages: [{ role: 'user', content: `Hoy es ${hoyISO}. Extraé fecha y hora de este texto y devolvé SOLO JSON: {"fecha":"DD/MM/YYYY","hora":"HH:MM"}. Si no hay hora poné null. Texto: "${textMsg}"` }],
+                }),
+              });
+              const pd = await parseResp.json();
+              const raw = pd.choices?.[0]?.message?.content || '';
+              const jm = raw.match(/\{[\s\S]*\}/);
+              if (jm) {
+                const parsed = JSON.parse(jm[0]);
+                if (parsed.fecha) {
+                  visitaObj = {
+                    id: String(Date.now()),
+                    fecha: parsed.fecha,
+                    hora: parsed.hora || '',
+                    propId: data.prop ? String(data.prop.id) : null,
+                    broker: data.prop?.broker || '',
+                    confirmada: false,
+                    createdAt: Date.now(),
+                  };
+                }
+              }
+            } catch { /* si Groq falla, guardar texto crudo */ }
+
+            // Fallback: guardar texto como fecha
+            if (!visitaObj) {
+              visitaObj = {
+                id: String(Date.now()),
+                fecha: textMsg.trim(),
+                hora: '',
+                propId: data.prop ? String(data.prop.id) : null,
+                broker: data.prop?.broker || '',
+                confirmada: false,
+                createdAt: Date.now(),
+              };
+            }
+          }
+
+          // Construir operación completa
           const now = Date.now();
-          const opId = String(now);
+          const timelineItems = [{
+            id: String(now),
+            type: 'stage',
+            stage: data.etapa,
+            label: 'Operación creada desde bot',
+            date: new Date().toLocaleDateString('es-AR', { day:'numeric', month:'short' }),
+            createdAt: now,
+          }];
+          if (visitaObj) {
+            timelineItems.push({
+              id: visitaObj.id,
+              type: 'visita',
+              label: `Visita agendada — ${visitaObj.fecha}${visitaObj.hora ? ' ' + visitaObj.hora : ''}`,
+              date: new Date().toLocaleDateString('es-AR', { day:'numeric', month:'short' }),
+              createdAt: now,
+            });
+          }
+
           const nuevaOp = {
-            id: opId,
+            id: String(now),
             titulo: data.titulo,
             stage: data.etapa,
             createdAt: now,
@@ -416,15 +488,8 @@ export default async function handler(req, res) {
             lead: data.clienteNombre ? { nombre: data.clienteNombre, slug: data.clienteNombre.toLowerCase().replace(/\s+/g,'-') } : null,
             prop: data.prop || (data.propTexto ? { direccion: data.propTexto, id: null } : null),
             props: [],
-            visitas: [],
-            timeline: [{
-              id: String(now),
-              type: 'stage',
-              stage: data.etapa,
-              label: 'Operación creada desde bot',
-              date: new Date().toLocaleDateString('es-AR', { day:'numeric', month:'short' }),
-              createdAt: now,
-            }],
+            visitas: visitaObj ? [visitaObj] : [],
+            timeline: timelineItems,
           };
 
           // Guardar en Firestore
@@ -436,10 +501,11 @@ export default async function handler(req, res) {
           let confirm = `✅ *Operación creada*\n\n`;
           confirm += `📋 *${data.titulo}*\n`;
           if (data.clienteNombre) confirm += `👤 ${data.clienteNombre}\n`;
-          if (data.prop) confirm += `🏢 ${data.prop.direccion} (${data.prop.barrio || ''})\n`;
+          if (data.prop) confirm += `🏢 ${data.prop.direccion}${data.prop.barrio ? ' (' + data.prop.barrio + ')' : ''}\n`;
           else if (data.propTexto) confirm += `🏢 ${data.propTexto}\n`;
-          confirm += `📍 Etapa: ${data.etapa}\n\n`;
-          confirm += `_Ya aparece en Transcribeme_`;
+          confirm += `📍 Etapa: ${data.etapa}\n`;
+          if (visitaObj) confirm += `🗓 Visita: ${visitaObj.fecha}${visitaObj.hora ? ' ' + visitaObj.hora : ''}\n`;
+          confirm += `\n_Ya aparece en Transcribeme_`;
           await tgSend(chatId, confirm, 'Markdown');
           return res.status(200).json({ ok: true });
         }
