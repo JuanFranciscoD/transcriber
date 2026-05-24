@@ -68,7 +68,8 @@ async function registerCommands(token) {
         { command: 'nuevas',  description: '🆕 Propiedades nuevas en MB Propy (7 días)' },
         { command: 'bajas',   description: '📉 Propiedades con precio actualizado' },
         { command: 'buscar',  description: '🔍 Buscar propiedades paso a paso' },
-        { command: 'crearop', description: '➕ Crear nueva operación desde el bot' },
+        { command: 'crearop',       description: '➕ Crear nueva operación desde el bot' },
+        { command: 'agendarvisita', description: '🗓 Agendar visita a operación existente' },
         { command: 'nota',    description: '📝 Forzar guardar texto como nota' },
         { command: 'ayuda',   description: '❓ Ver todos los comandos disponibles' },
       ],
@@ -268,6 +269,28 @@ export default async function handler(req, res) {
         return res.status(200).json({ ok: true });
       }
 
+      // /agendarvisita — flujo guiado para agendar visita a op existente
+      if (cmd === 'agendarvisita') {
+        const snap = await userRef.get();
+        const operaciones = snap.exists ? (snap.data().operaciones || []) : [];
+        const opsActivas = operaciones.filter(o => o.stage !== 'archivada');
+        if (!opsActivas.length) {
+          await tgSend(chatId, '📋 No tenés operaciones activas. Usá `/crearop` para crear una.', 'Markdown');
+          return res.status(200).json({ ok: true });
+        }
+        // Listar ops para elegir
+        let txt = '🗓 *Agendar visita*\n\n¿A qué operación?\n\n';
+        opsActivas.slice(0, 8).forEach((op, i) => {
+          txt += `*${i+1}.* ${op.titulo}`;
+          if (op.lead) txt += ` — ${op.lead.nombre || op.lead.slug}`;
+          txt += '\n';
+        });
+        txt += '\n_Respondé con el número_';
+        await userRef.set({ botAgendarState: { step: 'elegir_op', ops: opsActivas.slice(0,8).map(o => ({ id: o.id, titulo: o.titulo, lead: o.lead, prop: o.prop, props: o.props || [] })) } }, { merge: true });
+        await tgSend(chatId, txt, 'Markdown');
+        return res.status(200).json({ ok: true });
+      }
+
       // /crearop — flujo guiado para crear operación
       if (cmd === 'crearop') {
         await userRef.set({ botCrearOpState: { step: 'titulo', data: {} } }, { merge: true });
@@ -293,6 +316,145 @@ export default async function handler(req, res) {
       // Comando desconocido
       await tgSend(chatId, '❓ Comando no reconocido. Usá `/ayuda` para ver los disponibles.', 'Markdown');
       return res.status(200).json({ ok: true });
+    }
+
+    // ── Flujo guiado /agendarvisita (estado activo) ──
+    {
+      const userRefAV = getDb().collection('users').doc(FIREBASE_UID);
+      const snapAV = await userRefAV.get();
+      const agendarState = snapAV.exists ? snapAV.data().botAgendarState : null;
+
+      if (agendarState && agendarState.step) {
+        const step = agendarState.step;
+        const av = agendarState;
+
+        if (/^\/cancelar|^\/cancel/i.test(textMsg)) {
+          await userRefAV.set({ botAgendarState: null }, { merge: true });
+          await tgSend(chatId, '❌ Cancelado.');
+          return res.status(200).json({ ok: true });
+        }
+
+        // Paso 1: elegir operación
+        if (step === 'elegir_op') {
+          const num = parseInt(textMsg.trim());
+          const ops = av.ops || [];
+          const opElegida = !isNaN(num) && ops[num-1] ? ops[num-1] : null;
+          if (!opElegida) {
+            await tgSend(chatId, '❓ Elegí un número de la lista.');
+            return res.status(200).json({ ok: true });
+          }
+          // Armar lista de propiedades de esa op
+          const todasProps = [];
+          if (opElegida.prop) todasProps.push(opElegida.prop);
+          (opElegida.props || []).forEach(p => todasProps.push(p));
+
+          if (todasProps.length === 0) {
+            // Sin propiedades → preguntar propiedad libre o buscar
+            await userRefAV.set({ botAgendarState: { step: 'prop_texto', opId: opElegida.id, opTitulo: opElegida.titulo } }, { merge: true });
+            await tgSend(chatId, `✅ *${opElegida.titulo}*\n\n¿Para qué propiedad?\n_Escribí dirección o "saltar"_`, 'Markdown');
+          } else if (todasProps.length === 1) {
+            // Una sola prop → ir directo a fecha
+            await userRefAV.set({ botAgendarState: { step: 'fecha', opId: opElegida.id, opTitulo: opElegida.titulo, prop: todasProps[0] } }, { merge: true });
+            await tgSend(chatId, `✅ *${opElegida.titulo}*\n🏢 ${todasProps[0].direccion}\n\n¿Qué fecha y hora?\n_Ej: "lunes 1 a las 10", "02/06 11:30"_`, 'Markdown');
+          } else {
+            // Múltiples props → elegir cuál
+            let txt = `✅ *${opElegida.titulo}*\n\n¿Para qué propiedad?\n\n`;
+            todasProps.forEach((p, i) => { txt += `*${i+1}.* ${p.direccion} (${p.barrio || ''})\n`; });
+            txt += `\n_Número o "saltar"_`;
+            await userRefAV.set({ botAgendarState: { step: 'elegir_prop_av', opId: opElegida.id, opTitulo: opElegida.titulo, props: todasProps } }, { merge: true });
+            await tgSend(chatId, txt, 'Markdown');
+          }
+          return res.status(200).json({ ok: true });
+        }
+
+        // Paso 2a: elegir prop de lista
+        if (step === 'elegir_prop_av') {
+          const num = parseInt(textMsg.trim());
+          const props = av.props || [];
+          const propElegida = !isNaN(num) && props[num-1] ? props[num-1] : null;
+          await userRefAV.set({ botAgendarState: { step: 'fecha', opId: av.opId, opTitulo: av.opTitulo, prop: propElegida } }, { merge: true });
+          await tgSend(chatId,
+            (propElegida ? `✅ ${propElegida.direccion}\n\n` : '') +
+            '¿Qué fecha y hora?\n_Ej: "lunes 1 a las 10", "02/06 11:30"_', 'Markdown');
+          return res.status(200).json({ ok: true });
+        }
+
+        // Paso 2b: prop texto libre
+        if (step === 'prop_texto') {
+          const propTexto = !/saltar|skip/i.test(textMsg) ? textMsg.trim() : null;
+          await userRefAV.set({ botAgendarState: { step: 'fecha', opId: av.opId, opTitulo: av.opTitulo, prop: propTexto ? { direccion: propTexto } : null } }, { merge: true });
+          await tgSend(chatId, '¿Qué fecha y hora?\n_Ej: "lunes 1 a las 10", "02/06 11:30"_', 'Markdown');
+          return res.status(200).json({ ok: true });
+        }
+
+        // Paso 3: fecha → guardar visita
+        if (step === 'fecha') {
+          // Parsear fecha con Groq
+          let visitaObj = null;
+          try {
+            const hoyStr = new Date().toLocaleDateString('es-AR', { weekday:'long', day:'numeric', month:'long', year:'numeric', timeZone:'America/Argentina/Buenos_Aires' });
+            const pr = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${GROQ_KEY}` },
+              body: JSON.stringify({ model: 'llama-3.3-70b-versatile', max_tokens: 100,
+                messages: [{ role: 'user', content: `Hoy es ${hoyStr}. Devolvé SOLO JSON: {"iso":"YYYY-MM-DDTHH:MM:00","fecha":"DD/MM/YYYY","hora":"HH:MM"}. Si no hay hora usá "10:00". Texto: "${textMsg}"` }] }),
+            });
+            const pd = await pr.json();
+            const jm = (pd.choices?.[0]?.message?.content || '').match(/\{[\s\S]*?\}/);
+            if (jm) {
+              const parsed = JSON.parse(jm[0]);
+              const dt = new Date(parsed.iso);
+              if (!isNaN(dt.getTime())) {
+                visitaObj = { id: String(Date.now()), fecha: parsed.fecha, hora: parsed.hora, datetime: parsed.iso, propId: av.prop?.id ? String(av.prop.id) : null, broker: av.prop?.broker || '', confirmada: false, createdAt: Date.now() };
+              }
+            }
+          } catch(e) { console.log('[BOT] agendarvisita fecha error:', e.message); }
+
+          // Fallback manual
+          if (!visitaObj) {
+            const ahora = new Date();
+            const diaM = textMsg.match(/\b(\d{1,2})\b/);
+            const horaM = textMsg.match(/las?\s+(\d{1,2})(?::(\d{2}))?/i) || textMsg.match(/(\d{1,2}):(\d{2})/);
+            let dt = new Date(ahora);
+            if (diaM) { dt.setDate(parseInt(diaM[1])); if (dt < ahora) dt.setMonth(dt.getMonth()+1); }
+            if (horaM) dt.setHours(parseInt(horaM[1]), parseInt(horaM[2]||'0'), 0, 0); else dt.setHours(10,0,0,0);
+            const iso = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}T${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}:00`;
+            visitaObj = { id: String(Date.now()), fecha: `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear()}`, hora: `${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`, datetime: iso, propId: av.prop?.id ? String(av.prop.id) : null, broker: av.prop?.broker || '', confirmada: false, createdAt: Date.now() };
+          }
+
+          // Crear evento GCal
+          let gcalLinkAV = null;
+          try {
+            const gcalR = await fetch('https://transcribeme.vercel.app/api/gcal', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ title: `Visita: ${av.opTitulo}`, date: visitaObj.datetime.slice(0,10), time: visitaObj.datetime.slice(11,16), description: av.prop?.direccion ? `Propiedad: ${av.prop.direccion}` : '' }),
+            });
+            const gd = await gcalR.json();
+            if (gd.ok) { gcalLinkAV = gd.htmlLink; visitaObj.gcalLink = gcalLinkAV; }
+          } catch(e) { console.log('[BOT] gcal agendarvisita error:', e.message); }
+
+          // Guardar en Firestore — leer ops frescas y agregar visita a la op correcta
+          const snapFresh = await userRefAV.get();
+          const allOps = snapFresh.exists ? (snapFresh.data().operaciones || []) : [];
+          const opIdx = allOps.findIndex(o => o.id === av.opId);
+          if (opIdx >= 0) {
+            if (!allOps[opIdx].visitas) allOps[opIdx].visitas = [];
+            allOps[opIdx].visitas.push(visitaObj);
+            // Timeline entry
+            if (!allOps[opIdx].timeline) allOps[opIdx].timeline = [];
+            allOps[opIdx].timeline.push({ id: visitaObj.id, type: 'visita', label: `Visita agendada — ${visitaObj.fecha} ${visitaObj.hora}`, date: new Date().toLocaleDateString('es-AR', { day:'numeric', month:'short' }), createdAt: Date.now() });
+          }
+          await userRefAV.set({ operaciones: allOps, updatedAt: Date.now(), lastBotUpdate: Date.now(), botAgendarState: null }, { merge: true });
+
+          let confirm = `✅ *Visita agendada*\n\n📋 ${av.opTitulo}\n`;
+          if (av.prop?.direccion) confirm += `🏢 ${av.prop.direccion}\n`;
+          confirm += `🗓 ${visitaObj.fecha} ${visitaObj.hora}\n`;
+          if (gcalLinkAV) confirm += `📅 [Ver en Google Calendar](${gcalLinkAV})\n`;
+          confirm += `\n_Guardado en Transcribeme_`;
+          await tgSend(chatId, confirm, 'Markdown');
+          return res.status(200).json({ ok: true });
+        }
+      }
     }
 
     // ── Flujo guiado /crearop (estado activo) ──
