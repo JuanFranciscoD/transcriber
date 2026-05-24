@@ -56,6 +56,25 @@ const FIREBASE_UID   = process.env.FIREBASE_USER_UID;        // tu uid de Fireba
 
 export const config = { api: { bodyParser: true }, maxDuration: 60 };
 
+// ── Registrar comandos del bot en Telegram ──
+async function registerCommands(token) {
+  await fetch(`https://api.telegram.org/bot${token}/setMyCommands`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      commands: [
+        { command: 'ops',     description: '📋 Ver todas las operaciones activas' },
+        { command: 'hoy',     description: '☀️ Brief del día: ops, visitas y notas' },
+        { command: 'nuevas',  description: '🆕 Propiedades nuevas en MB Propy (7 días)' },
+        { command: 'bajas',   description: '📉 Propiedades con precio actualizado' },
+        { command: 'buscar',  description: '🔍 Buscar propiedades paso a paso' },
+        { command: 'nota',    description: '📝 Forzar guardar texto como nota' },
+        { command: 'ayuda',   description: '❓ Ver todos los comandos disponibles' },
+      ],
+    }),
+  });
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(200).json({ ok: true });
 
@@ -76,23 +95,280 @@ export default async function handler(req, res) {
 
   // Manejar mensajes de texto
   if (!audio && textMsg) {
-    // Comandos
+    // ── Comandos ──
     if (textMsg.startsWith('/')) {
-      await tgSend(chatId,
-        '🤖 *Tu asistente broker*\n\n' +
-        '*Guardar info:*\n' +
-        '• 🎤 Audio de voz → transcribo y resumo\n' +
-        '• 🎥 Video → extraigo audio y resumo\n' +
-        '• 📝 Texto → lo guardo como nota\n\n' +
-        '*Consultar:*\n' +
-        '• "qué pasó con Laura Rolandi"\n' +
-        '• "cuántas operaciones tengo activas"\n' +
-        '• "dame el estado de [operación]"\n' +
-        '• "busca 3 ambientes en Palermo hasta 200k"\n\n' +
-        '_Todo se sincroniza con Transcribeme._',
-        'Markdown'
-      );
+      const db = getDb();
+      const userRef = db.collection('users').doc(FIREBASE_UID);
+      const MB_URL = 'https://hyxsdeeoyecdslrtqrmo.supabase.co';
+      const MB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh5eHNkZWVveWVjZHNscnRxcm1vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0ODczNzYsImV4cCI6MjA5MTA2MzM3Nn0.YT76TJzSbxgjkNAdpIsRd5AGW9bC6PaTkyEFwOK7OTo';
+      const mbH = { 'apikey': MB_KEY, 'Authorization': `Bearer ${MB_KEY}` };
+      const cmd = textMsg.split(' ')[0].toLowerCase().replace('/','').split('@')[0];
+
+      // Registrar comandos la primera vez que se usa /ayuda o /start
+      if (cmd === 'start' || cmd === 'ayuda') {
+        await registerCommands(TG_TOKEN);
+      }
+
+      // /ayuda
+      if (cmd === 'ayuda' || cmd === 'start' || cmd === 'help') {
+        await tgSend(chatId,
+          '🤖 *Asistente Broker — Comandos*\n\n' +
+          '*Operaciones*\n' +
+          '`/ops` — todas las ops activas\n' +
+          '`/hoy` — brief del día\n\n' +
+          '*MB Propy*\n' +
+          '`/nuevas` — propiedades de los últimos 7 días\n' +
+          '`/bajas` — props con precio actualizado\n' +
+          '`/buscar` — búsqueda guiada paso a paso\n\n' +
+          '*Notas*\n' +
+          '`/nota [texto]` — guardar como nota directamente\n\n' +
+          '*Lenguaje natural*\n' +
+          '"qué pasó con Sofia Sandstede"\n' +
+          '"busca 3 dorm en Palermo hasta 400k"\n' +
+          '"propiedades de Gloria Ayerza"\n' +
+          '"PHs en Recoleta de más de 80m²"\n\n' +
+          '_Todo se sincroniza con Transcribeme._',
+          'Markdown'
+        );
+        return res.status(200).json({ ok: true });
+      }
+
+      // /ops
+      if (cmd === 'ops') {
+        const snap = await userRef.get();
+        const operaciones = snap.exists ? (snap.data().operaciones || []) : [];
+        if (!operaciones.length) {
+          await tgSend(chatId, '📋 No tenés operaciones activas.');
+          return res.status(200).json({ ok: true });
+        }
+        const stageEmoji = { contacto:'📞', visita:'🏠', negociacion:'🤝', reserva:'📑', escritura:'✅', archivada:'📦' };
+        let txt = '📋 *Operaciones activas*\n\n';
+        operaciones.filter(o => o.stage !== 'archivada').forEach(op => {
+          const em = stageEmoji[op.stage] || '•';
+          txt += `${em} *${op.titulo || 'Sin título'}*\n`;
+          if (op.lead) txt += `  👤 ${op.lead.nombre || op.lead.slug}\n`;
+          if (op.prop) txt += `  🏢 ${op.prop.direccion}\n`;
+          txt += `  Etapa: ${op.stage}\n\n`;
+        });
+        await tgSend(chatId, txt.trim(), 'Markdown');
+        return res.status(200).json({ ok: true });
+      }
+
+      // /hoy
+      if (cmd === 'hoy') {
+        const snap = await userRef.get();
+        const data = snap.exists ? snap.data() : {};
+        const operaciones = data.operaciones || [];
+        const notes = data.notes || [];
+        const hoy = new Date().toLocaleDateString('es-AR', { weekday:'long', day:'numeric', month:'long' });
+        let txt = `☀️ *Brief del día — ${hoy}*\n\n`;
+
+        // Ops activas
+        const opsActivas = operaciones.filter(o => o.stage !== 'archivada');
+        txt += `📋 *${opsActivas.length} operaciones activas*\n`;
+        opsActivas.slice(0, 5).forEach(op => {
+          txt += `• ${op.titulo || 'Sin título'} (${op.stage})`;
+          if (op.lead) txt += ` — ${op.lead.nombre || op.lead.slug}`;
+          txt += '\n';
+        });
+
+        // Visitas próximas
+        const visitas = [];
+        operaciones.forEach(op => {
+          (op.visitas || []).forEach(v => {
+            if (v.fecha) visitas.push({ ...v, opTitulo: op.titulo });
+          });
+        });
+        if (visitas.length) {
+          txt += `\n🏠 *Visitas programadas*\n`;
+          visitas.slice(0, 5).forEach(v => {
+            txt += `• ${v.fecha}${v.hora ? ' ' + v.hora : ''} — ${v.opTitulo || ''}\n`;
+          });
+        }
+
+        // Últimas notas
+        const recientes = notes.slice(0, 3);
+        if (recientes.length) {
+          txt += `\n📝 *Notas recientes*\n`;
+          recientes.forEach(n => txt += `• ${n.title} (${n.date})\n`);
+        }
+
+        await tgSend(chatId, txt.trim(), 'Markdown');
+        return res.status(200).json({ ok: true });
+      }
+
+      // /nuevas
+      if (cmd === 'nuevas') {
+        const hace7dias = new Date(Date.now() - 7 * 86400000).toISOString().slice(0,10);
+        const url = `${MB_URL}/rest/v1/propiedades?select=id,direccion,barrio,tipo,modo,precio,moneda,dormitorios,sup_cub,broker&activa=eq.true&modo=neq.ghost&created_at=gte.${hace7dias}&order=created_at.desc&limit=8`;
+        const resp = await fetch(url, { headers: mbH });
+        const props = await resp.json();
+        if (!Array.isArray(props) || !props.length) {
+          await tgSend(chatId, '🆕 No hay propiedades nuevas en los últimos 7 días.');
+          return res.status(200).json({ ok: true });
+        }
+        let txt = '🆕 *Propiedades nuevas (7 días)*\n\n';
+        props.forEach(p => {
+          const precio = p.precio ? `${p.moneda === 'USD' ? 'USD ' : '$'}${Number(p.precio).toLocaleString('es-AR')}` : '';
+          const ficha = `https://www.mirandabosch.com/ficha/${Buffer.from(JSON.stringify({p:String(p.id),b:'33504'})).toString('base64')}`;
+          txt += `• *${p.tipo || 'Prop'}* ${p.direccion} (${p.barrio})\n  ${p.dormitorios != null ? p.dormitorios+' dorm | ' : ''}${p.sup_cub || '?'}m² | ${precio} | 🔑 ${p.broker || '?'}\n  🔗 ${ficha}\n\n`;
+        });
+        await tgSend(chatId, txt.trim(), 'Markdown');
+        return res.status(200).json({ ok: true });
+      }
+
+      // /bajas
+      if (cmd === 'bajas') {
+        const hace30dias = new Date(Date.now() - 30 * 86400000).toISOString().slice(0,10);
+        const url = `${MB_URL}/rest/v1/propiedades?select=id,direccion,barrio,tipo,modo,precio,moneda,dormitorios,sup_cub,broker,updated_at&activa=eq.true&modo=neq.ghost&updated_at=gte.${hace30dias}&order=updated_at.desc&limit=8`;
+        const resp = await fetch(url, { headers: mbH });
+        const props = await resp.json();
+        if (!Array.isArray(props) || !props.length) {
+          await tgSend(chatId, '📉 No hay propiedades modificadas en los últimos 30 días.');
+          return res.status(200).json({ ok: true });
+        }
+        let txt = '📉 *Propiedades actualizadas recientemente*\n_(posible baja de precio)_\n\n';
+        props.forEach(p => {
+          const precio = p.precio ? `${p.moneda === 'USD' ? 'USD ' : '$'}${Number(p.precio).toLocaleString('es-AR')}` : '';
+          const ficha = `https://www.mirandabosch.com/ficha/${Buffer.from(JSON.stringify({p:String(p.id),b:'33504'})).toString('base64')}`;
+          const mod = p.updated_at ? p.updated_at.slice(0,10) : '';
+          txt += `• *${p.tipo || 'Prop'}* ${p.direccion} (${p.barrio})\n  ${p.dormitorios != null ? p.dormitorios+' dorm | ' : ''}${precio} | mod: ${mod} | 🔑 ${p.broker || '?'}\n  🔗 ${ficha}\n\n`;
+        });
+        await tgSend(chatId, txt.trim(), 'Markdown');
+        return res.status(200).json({ ok: true });
+      }
+
+      // /nota [texto]
+      if (cmd === 'nota') {
+        const textoNota = textMsg.replace(/^\/nota\s*/i, '').trim();
+        if (!textoNota) {
+          await tgSend(chatId, '📝 Escribí el texto después del comando:\n`/nota Reunión con el cliente mañana a las 10`', 'Markdown');
+          return res.status(200).json({ ok: true });
+        }
+        // Guardar directamente como nota sin pasar por detección de consulta
+        const llamaResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${GROQ_KEY}` },
+          body: JSON.stringify({
+            model: 'llama-3.3-70b-versatile', max_tokens: 512,
+            messages: [{ role: 'user', content: 'Analizá este texto y generá un resumen estructurado en JSON.\n\nTexto:\n' + textoNota + '\n\nDevolvé SOLO un JSON válido con este formato exacto:\n{\n  "titulo": "título descriptivo corto (máx 5 palabras)",\n  "secciones": [\n    { "titulo": "Nombre de sección", "puntos": ["punto 1", "punto 2"] }\n  ]\n}' }],
+          }),
+        });
+        const ld = await llamaResp.json();
+        let resumenObj;
+        try { const jm = ld.choices[0].message.content.match(/\{[\s\S]*\}/); resumenObj = JSON.parse(jm ? jm[0] : '{}'); }
+        catch { resumenObj = { titulo: 'Nota', secciones: [{ titulo: 'Contenido', puntos: [textoNota] }] }; }
+        const now = Date.now();
+        const nota = { id: String(now), title: resumenObj.titulo || 'Nota', date: new Date().toLocaleDateString('es-AR', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }), createdAt: now, duration: null, durationSecs: null, resumen: resumenObj, transcripcion: textoNota, source: 'telegram' };
+        const snap2 = await userRef.get();
+        const existing = snap2.exists ? (snap2.data().notes || []) : [];
+        await userRef.set({ notes: [nota, ...existing], updatedAt: now, lastBotUpdate: now }, { merge: true });
+        await tgSend(chatId, `✅ *${resumenObj.titulo}*\n_Guardado en Transcribeme_`, 'Markdown');
+        return res.status(200).json({ ok: true });
+      }
+
+      // /buscar — flujo guiado con estado en Firestore
+      if (cmd === 'buscar') {
+        await userRef.set({ botBuscarState: { step: 'barrio', params: {} } }, { merge: true });
+        await tgSend(chatId,
+          '🔍 *Búsqueda guiada de propiedades*\n\n' +
+          '¿En qué barrio?\n\n' +
+          '_Escribí el barrio o "cualquiera" para todos_',
+          'Markdown'
+        );
+        return res.status(200).json({ ok: true });
+      }
+
+      // Comando desconocido
+      await tgSend(chatId, '❓ Comando no reconocido. Usá `/ayuda` para ver los disponibles.', 'Markdown');
       return res.status(200).json({ ok: true });
+    }
+
+    // ── Flujo guiado /buscar (estado activo) ──
+    {
+      const db2 = getDb();
+      const userRef2 = db2.collection('users').doc(FIREBASE_UID);
+      const snap0 = await userRef2.get();
+      const buscarState = snap0.exists ? snap0.data().botBuscarState : null;
+
+      if (buscarState && buscarState.step) {
+        const step = buscarState.step;
+        const params = buscarState.params || {};
+        const MB_URL2 = 'https://hyxsdeeoyecdslrtqrmo.supabase.co';
+        const MB_KEY2 = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh5eHNkZWVveWVjZHNscnRxcm1vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0ODczNzYsImV4cCI6MjA5MTA2MzM3Nn0.YT76TJzSbxgjkNAdpIsRd5AGW9bC6PaTkyEFwOK7OTo';
+        const mbH2 = { 'apikey': MB_KEY2, 'Authorization': `Bearer ${MB_KEY2}` };
+
+        if (step === 'barrio') {
+          if (!/cualquiera|todos|todo|no importa|skip/i.test(textMsg)) params.barrio = textMsg.trim();
+          await userRef2.set({ botBuscarState: { step: 'tipo', params } }, { merge: true });
+          await tgSend(chatId,
+            '¿Qué tipo de propiedad?\n\n' +
+            '`depto` · `PH` · `casa` · `loft` · `duplex` · `oficina`\n\n' +
+            '_O "cualquiera"_', 'Markdown');
+          return res.status(200).json({ ok: true });
+        }
+
+        if (step === 'tipo') {
+          const tipoMap2 = { 'depto|departamento|dpto': 'Departamento', 'ph': 'PH', 'casa': 'Casa', 'loft': 'Loft', 'duplex|dúplex': 'Dúplex', 'oficina': 'Oficinas' };
+          for (const [pat, val] of Object.entries(tipoMap2)) {
+            if (new RegExp(`\\b(${pat})\\b`, 'i').test(textMsg)) { params.tipo = val; break; }
+          }
+          await userRef2.set({ botBuscarState: { step: 'modo', params } }, { merge: true });
+          await tgSend(chatId, '¿Venta o alquiler?\n\n`venta` · `alquiler` · `cualquiera`', 'Markdown');
+          return res.status(200).json({ ok: true });
+        }
+
+        if (step === 'modo') {
+          if (/venta|vender|compra/i.test(textMsg)) params.modo = 'venta';
+          else if (/alquiler|alquilar/i.test(textMsg)) params.modo = 'alquiler';
+          await userRef2.set({ botBuscarState: { step: 'dorm', params } }, { merge: true });
+          await tgSend(chatId, '¿Cuántos dormitorios?\n\n`1` · `2` · `3` · `4` · `cualquiera`', 'Markdown');
+          return res.status(200).json({ ok: true });
+        }
+
+        if (step === 'dorm') {
+          const ambM = textMsg.match(/(\d)\s*amb/i);
+          const dormM = textMsg.match(/\b(\d)\b/);
+          if (ambM) params.dormitorios = parseInt(ambM[1]) - 1;
+          else if (dormM && !/cualquiera|todos/i.test(textMsg)) params.dormitorios = parseInt(dormM[1]);
+          await userRef2.set({ botBuscarState: { step: 'precio', params } }, { merge: true });
+          await tgSend(chatId, '¿Precio máximo en USD?\n\n_Ej: `300000` o `300k` — o "sin límite"_', 'Markdown');
+          return res.status(200).json({ ok: true });
+        }
+
+        if (step === 'precio') {
+          const pm = textMsg.match(/(\d[\d.,]*)\s*(k)?/i);
+          if (pm && !/sin|no|cualquiera|skip/i.test(textMsg)) {
+            params.precio_max = parseFloat(pm[1].replace(/\./g,'').replace(',','.')) * (/k/i.test(pm[2]||'') ? 1000 : 1);
+            params.moneda = 'USD';
+          }
+          // Limpiar estado y ejecutar búsqueda
+          await userRef2.set({ botBuscarState: null }, { merge: true });
+
+          let url = `${MB_URL2}/rest/v1/propiedades?select=id,direccion,barrio,tipo,modo,precio,moneda,dormitorios,sup_cub,broker&activa=eq.true&limit=8&order=precio.asc`;
+          if (params.modo) url += `&modo=eq.${params.modo}`; else url += `&modo=neq.ghost`;
+          if (params.barrio) url += `&barrio=ilike.*${encodeURIComponent(params.barrio)}*`;
+          if (params.tipo) url += `&tipo=eq.${encodeURIComponent(params.tipo)}`;
+          if (params.dormitorios != null) url += `&dormitorios=eq.${params.dormitorios}`;
+          if (params.precio_max) url += `&precio=lte.${params.precio_max}&moneda=eq.USD`;
+
+          const resp2 = await fetch(url, { headers: mbH2 });
+          const props2 = await resp2.json();
+
+          if (!Array.isArray(props2) || !props2.length) {
+            await tgSend(chatId, '😕 No encontré propiedades con esos filtros. Intentá ampliar la búsqueda.');
+            return res.status(200).json({ ok: true });
+          }
+          let txt = `🔍 *${props2.length} propiedades encontradas*\n\n`;
+          props2.forEach(p => {
+            const precio = p.precio ? `${p.moneda === 'USD' ? 'USD ' : '$'}${Number(p.precio).toLocaleString('es-AR')}` : '';
+            const ficha = `https://www.mirandabosch.com/ficha/${Buffer.from(JSON.stringify({p:String(p.id),b:'33504'})).toString('base64')}`;
+            txt += `• *${p.tipo || ''}* ${p.direccion} (${p.barrio})\n  ${p.dormitorios != null ? p.dormitorios+' dorm | ' : ''}${p.sup_cub||'?'}m² | ${precio} | 🔑 ${p.broker||'?'}\n  🔗 ${ficha}\n\n`;
+          });
+          await tgSend(chatId, txt.trim(), 'Markdown');
+          return res.status(200).json({ ok: true });
+        }
+      }
     }
 
     // ── Detectar si es consulta o nota ──
