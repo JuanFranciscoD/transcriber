@@ -2462,11 +2462,8 @@ function loadMBClientes(callback) {
   if (_mbClientesCache && (Date.now() - _mbClientesCacheTs) < 300000) {
     callback(_mbClientesCache); return;
   }
-  fetch('https://mbseleccion.vercel.app/api/clientes', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'listar', pin: '931142' })
-  })
+  // Proxy propio — sin CORS, server-side
+  fetch('/api/mb-clientes')
     .then(function(r){ return r.json(); })
     .then(function(d){
       var list = (d.ok && Array.isArray(d.data)) ? d.data : [];
@@ -2474,7 +2471,10 @@ function loadMBClientes(callback) {
       _mbClientesCacheTs = Date.now();
       callback(list);
     })
-    .catch(function(){ callback([]); });
+    .catch(function(err){
+      console.warn('loadMBClientes error:', err);
+      callback([]);
+    });
 }
 
 function onMBLeadSearchInput(val) {
