@@ -568,13 +568,14 @@ body {
 /* ── SOURCE BADGE ── */
 .source-badge {
   font-family: 'Space Mono', monospace;
-  font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
-  padding: 1px 5px; border-radius: 2px; display: inline-flex; align-items: center; gap: 3px;
-  flex-shrink: 0;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 9999px;
+  display: inline-flex; align-items: center; gap: 3px;
+  flex-shrink: 0; line-height: 1.4;
 }
-.source-badge.tg   { background: var(--neon-blue-bg);   color: var(--neon-blue);   border: 1px solid rgba(0,210,255,0.2); }
-.source-badge.up   { background: var(--neon-orange-bg); color: var(--neon-orange); border: 1px solid rgba(255,107,43,0.2); }
-.source-badge.rec  { background: rgba(200,255,0,0.05);  color: var(--text-disabled); border: 1px solid var(--border-visible); }
+.source-badge.tg   { background: rgba(0,210,255,0.12);   color: var(--neon-blue);   }
+.source-badge.up   { background: rgba(255,107,43,0.12);  color: var(--neon-orange); }
+.source-badge.rec  { background: var(--surface-raised);  color: var(--text-secondary); }
 .note-chevron { color: var(--text-disabled); flex-shrink: 0; }
 
 /* ── EMPTY STATE ── */
@@ -732,16 +733,16 @@ body {
   display: flex; justify-content: space-between;
 }
 
-/* ── DURATION BADGE COLORS ── */
+/* ── DURATION BADGE — shadcn pill style ── */
 .dur-badge {
   font-family: 'Space Mono', monospace;
-  font-size: 11px; letter-spacing: 0.04em;
-  padding: 2px 7px; border-radius: 2px;
-  display: inline-block;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.04em;
+  padding: 2px 8px; border-radius: 9999px;
+  display: inline-block; line-height: 1.4;
 }
-.dur-badge.short  { background: var(--neon-green-bg);  color: var(--neon-green);  border: 1px solid rgba(200,255,0,0.18); }
-.dur-badge.medium { background: var(--neon-blue-bg);  color: var(--neon-blue);   border: 1px solid rgba(0,210,255,0.18); }
-.dur-badge.long   { background: var(--neon-orange-bg); color: var(--neon-orange); border: 1px solid rgba(255,107,43,0.18); }
+.dur-badge.short  { background: rgba(200,255,0,0.12);  color: var(--neon-green);  }
+.dur-badge.medium { background: rgba(0,210,255,0.12);  color: var(--neon-blue);   }
+.dur-badge.long   { background: rgba(255,107,43,0.12); color: var(--neon-orange); }
 
 /* ── DETAIL ── */
 .detail-title-row { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
@@ -2200,7 +2201,7 @@ function renderHome() {
             '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>' +
           '</span>' +
         '</div>' +
-        '<div class="folder-notes-inline ' + isOpen + '" data-folder-notes="' + f.id + '">' +
+        '<div class="folder-notes-inline ' + isOpen + '" data-folder-notes="' + f.id + '" style="border-left:2px solid ' + clr.border + '">' +
           (folderNotes.length > 0
             ? folderNotes.map(function(n){ return noteItemHtml(n, true); }).join('')
             : '<div style="padding:14px;font-family:\'Space Mono\',monospace;font-size:11px;color:var(--text-disabled);">Sin notas aún</div>') +
@@ -2546,15 +2547,30 @@ function openMoveSheetFor(id) {
 
 /* ── CARPETAS ── */
 function toggleFolder(id) {
-  _expandedFolders[id] = !_expandedFolders[id];
+  var opening = !_expandedFolders[id];
+
+  /* cerrar cualquier carpeta abierta antes de abrir otra */
+  if (opening) {
+    Object.keys(_expandedFolders).forEach(function(otherId) {
+      if (otherId !== id && _expandedFolders[otherId]) {
+        _expandedFolders[otherId] = false;
+        var otherEl = document.querySelector('.folder-card[data-folder-id="' + otherId + '"]');
+        var otherNotes = document.querySelector('.folder-notes-inline[data-folder-notes="' + otherId + '"]');
+        if (otherEl) otherEl.classList.remove('expanded');
+        if (otherNotes) otherNotes.classList.remove('open');
+      }
+    });
+  }
+
+  _expandedFolders[id] = opening;
   var folderEl = document.querySelector('.folder-card[data-folder-id="' + id + '"]');
   var notesEl = document.querySelector('.folder-notes-inline[data-folder-notes="' + id + '"]');
   if (!folderEl || !notesEl) return;
-  if (_expandedFolders[id]) {
+
+  if (opening) {
     folderEl.classList.add('expanded');
     notesEl.classList.add('open');
     attachSwipeHandlers();
-    /* stagger notas recién reveladas */
     notesEl.querySelectorAll('.note-item-wrap').forEach(function(el, i) {
       el.style.opacity = '0';
       setTimeout(function() { el.style.opacity = ''; el.classList.add('visible'); }, i * 40);
@@ -3419,19 +3435,3 @@ checkKeys();
       swipeActive = false; return;
     }
     var dx = e.changedTouches[0].clientX - swipeStartX;
-    var activeScreen = document.querySelector('.screen.active');
-    if (activeScreen) {
-      activeScreen.style.transform = '';
-      activeScreen.style.transition = '';
-    }
-    if (dx > 60) {
-      // Swipe derecha = ir atrás
-      var prev = _screenHistory[_screenHistory.length - 2];
-      if (prev) { showScreen(prev, true); }
-    }
-    swipeActive = false;
-  }, { passive: true });
-})();
-</script>
-</body>
-</html>
