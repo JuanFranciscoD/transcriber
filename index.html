@@ -2710,7 +2710,7 @@ function renderOperaciones() {
     var noteCount = notes.filter(function(n){ return n.opId === op.id; }).length;
     var propLine = op.prop ? escHtml(op.prop.direccion || op.prop.barrio || '') : '';
     var clienteLine = op.lead ? escHtml(op.lead.nombre || op.lead.slug || '') : '';
-    var brokerLine = op.broker ? escHtml(op.broker) : '';
+    var brokerLine = op.broker ? escHtml(op.broker) : (op.prop && op.prop.broker ? escHtml(op.prop.broker) : '');
     var metaParts = [];
     if (clienteLine) metaParts.push('👤 ' + clienteLine);
     if (propLine)    metaParts.push('🏠 ' + propLine);
@@ -2759,7 +2759,7 @@ function renderOpDetail() {
   html += '<div style="background:' + clr.bg + ';border:1px solid ' + clr.border + ';border-radius:12px;padding:14px;margin-bottom:14px;">' +
     '<div style="font-size:15px;font-weight:500;color:var(--text-display);margin-bottom:4px;">' + escHtml(op.titulo) + '</div>' +
     (op.partes ? '<div style="font-size:11px;color:var(--text-secondary);font-family:\'Space Mono\',monospace;">' + escHtml(op.partes) + '</div>' : '') +
-    (op.broker ? '<div style="font-size:10px;color:var(--text-disabled);font-family:\'Space Mono\',monospace;margin-top:2px;">🔑 ' + escHtml(op.broker) + '</div>' : '') +
+    (op.broker || (op.prop && op.prop.broker) ? '<div style="font-size:10px;color:var(--text-disabled);font-family:\'Space Mono\',monospace;margin-top:2px;">🔑 ' + escHtml(op.broker || op.prop.broker) + '</div>' : '') +
     '<div style="font-size:10px;color:var(--text-disabled);font-family:\'Space Mono\',monospace;margin-top:6px;letter-spacing:.04em;">' +
       new Date(op.createdAt).toLocaleDateString('es-AR', {day:'numeric',month:'short',year:'numeric'}).toUpperCase() +
     '</div>' +
@@ -2946,9 +2946,7 @@ function selectMBProp(p) {
   document.getElementById('nueva-op-prop-input').value = '';
   document.getElementById('nueva-op-prop-search-wrap').style.display = 'none';
   // Autocompletar broker si el campo está vacío
-  // No autocompletar broker con el de la prop — son datos distintos:
-  // p.broker = broker de MB Propy que lista la propiedad
-  // op.broker = broker responsable interno de esta operación
+  // El broker de la prop se guarda en p.broker — se muestra por prop, no en op.broker
   var precio = p.precio ? (p.moneda === 'USD' ? 'USD ' : '$') + Number(p.precio).toLocaleString('es-AR') : '';
   var meta = [p.barrio, p.tipo, p.dormitorios ? p.dormitorios + ' dorm' : '', p.sup_cub ? p.sup_cub + 'm²' : '', precio].filter(Boolean).join(' · ');
   var sel = document.getElementById('nueva-op-prop-selected');
@@ -2981,6 +2979,7 @@ function mbPropCardHtml(prop, op) {
     prop.sup_cub ? prop.sup_cub + ' m²' : '',
     precio
   ].filter(Boolean).join(' · ');
+  var brokerMeta = prop.broker ? '🔑 ' + prop.broker : '';
   var fichaUrl = getMBFichaUrl(prop.id);
   // Visita programada: si alguna visita tiene este propId, o si es la prop principal y hay visitas sin propId
   var hasVisita = false;
@@ -3001,6 +3000,7 @@ function mbPropCardHtml(prop, op) {
         '<div class="mb-prop-dir">' + escHtml(prop.direccion) + '</div>' +
         '<div class="mb-prop-meta">' + escHtml(prop.barrio || '') + '</div>' +
         '<div class="mb-prop-meta">' + escHtml(meta) + '</div>' +
+        (brokerMeta ? '<div class="mb-prop-meta" style="color:var(--text-disabled);">' + escHtml(brokerMeta) + '</div>' : '') +
         (hasVisita ? '<div style="margin-top:6px;"><span class="mprop-badge-visita">✓ Visita programada</span></div>' : '') +
       '</div>' +
       '<div style="flex-shrink:0;margin-left:8px;">' + menuBtn + '</div>' +
@@ -3264,9 +3264,10 @@ function updateVisitaPreview() {
   }
   var d = new Date(_calSelDate + 'T' + time);
   var dateStr = d.toLocaleDateString('es-AR', {weekday:'long', day:'numeric', month:'long'});
-  var propStr  = _visitaPropOverride ? _visitaPropOverride.direccion : (op && op.prop ? op.prop.direccion : '');
+  var propUsadaPreview = _visitaPropOverride || (op && op.prop) || null;
+  var propStr  = propUsadaPreview ? propUsadaPreview.direccion : '';
   var leadStr  = op && op.lead  ? (op.lead.nombre || op.lead.slug) : '';
-  var brokerStr = op && op.broker ? op.broker : '';
+  var brokerStr = propUsadaPreview && propUsadaPreview.broker ? propUsadaPreview.broker : '';
   var title = 'Visita' + (propStr ? ' · ' + propStr : '') + (leadStr ? ' · ' + leadStr : '');
   document.getElementById('visita-preview-body').innerHTML =
     '<strong>' + escHtml(title) + '</strong><br>' +
@@ -3290,7 +3291,7 @@ async function confirmarVisita() {
   var propUsada = _visitaPropOverride || op.prop || null;
   var propStr   = propUsada ? propUsada.direccion : '';
   var leadStr   = op.lead  ? (op.lead.nombre || op.lead.slug) : '';
-  var brokerStr = op.broker || '';
+  var brokerStr = propUsada && propUsada.broker ? propUsada.broker : '';
   var title = 'Visita' + (propStr ? ' · ' + propStr : '') + (leadStr ? ' · ' + leadStr : '');
   var desc  = [op.titulo, brokerStr, nota].filter(Boolean).join('\n');
 
@@ -4999,4 +5000,3 @@ checkKeys();
 })();
 </script>
 </body>
-</html>
