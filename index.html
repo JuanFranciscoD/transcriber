@@ -306,6 +306,14 @@ body {
 .mb-prop-link { display:inline-flex; align-items:center; gap:5px; margin-top:8px; font-family:'Space Mono',monospace; font-size:9px; letter-spacing:0.06em; text-transform:uppercase; color:var(--neon-blue); text-decoration:none; background:rgba(0,210,255,0.08); border:1px solid rgba(0,210,255,0.2); border-radius:6px; padding:4px 10px; }
 .mb-prop-remove { background:none; border:none; color:var(--text-disabled); cursor:pointer; padding:2px; font-size:18px; line-height:1; flex-shrink:0; }
 
+/* ── MB LEADS (clientes) ── */
+.mb-lead-card { border-radius:10px; border:1px solid rgba(255,107,43,0.25); background:rgba(255,107,43,0.05); padding:12px; margin-bottom:12px; }
+.mb-lead-card-top { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+.mb-lead-name { font-size:13px; font-weight:500; color:var(--text-display); margin-bottom:3px; }
+.mb-lead-meta { font-size:10px; color:var(--text-secondary); font-family:'Space Mono',monospace; line-height:1.6; }
+.mb-lead-tag { display:inline-block; font-size:9px; font-family:'Space Mono',monospace; text-transform:uppercase; letter-spacing:.05em; background:rgba(255,107,43,0.12); color:var(--neon-orange); border:1px solid rgba(255,107,43,0.2); border-radius:4px; padding:2px 6px; margin:2px 2px 0 0; }
+.mb-lead-remove { background:none; border:none; color:var(--text-disabled); cursor:pointer; padding:2px; font-size:18px; line-height:1; flex-shrink:0; }
+
 /* ── OPERACIONES ── */
 .op-card {
   border-radius: 12px; overflow: hidden; margin-bottom: 10px;
@@ -1788,6 +1796,14 @@ body {
     <input type="text" id="nueva-op-partes" placeholder="Ej: García (vendedor) · Romero (comprador)" style="width:100%;background:transparent;border:none;border-bottom:1px solid var(--border-visible);padding:8px 0;font-family:'Space Mono',monospace;font-size:12px;color:var(--text-display);outline:none;" />
   </div>
   <div style="margin-bottom:14px;">
+    <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">Cliente <span style="color:var(--text-disabled)">(MB Propy)</span></div>
+    <div id="nueva-op-lead-selected" style="display:none"></div>
+    <div class="mb-search-wrap" id="nueva-op-lead-search-wrap">
+      <input class="mb-search-input" id="nueva-op-lead-input" type="search" placeholder="Buscar por nombre..." oninput="onMBLeadSearchInput(this.value)" autocomplete="off" />
+      <div class="mb-search-results" id="nueva-op-lead-results"></div>
+    </div>
+  </div>
+  <div style="margin-bottom:14px;">
     <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">Propiedad <span style="color:var(--text-disabled)">(MB Propy)</span></div>
     <div id="nueva-op-prop-selected" style="display:none"></div>
     <div class="mb-search-wrap" id="nueva-op-prop-search-wrap">
@@ -2435,6 +2451,77 @@ function searchMBProps(query, callback) {
 }
 function checkKeys() {}
 
+/* ── MB LEADS — Clientes ── */
+var _mbLeadSearchTimer = null;
+var _nuevaOpLead = null;
+function searchMBLeads(query, callback) {
+  if (!query || query.length < 2) { callback([]); return; }
+  var q = encodeURIComponent(query);
+  var url = MB_URL + '/rest/v1/leads?select=id,nombre,email,telefono,status,broker,tags,budget_min,budget_max,barrios' +
+    '&nombre=ilike.*' + q + '*&limit=8';
+  fetch(url, { headers: { 'apikey': MB_KEY, 'Authorization': 'Bearer ' + MB_KEY } })
+    .then(function(r){ return r.json(); })
+    .then(function(data){ callback(Array.isArray(data) ? data : []); })
+    .catch(function(){ callback([]); });
+}
+function onMBLeadSearchInput(val) {
+  clearTimeout(_mbLeadSearchTimer);
+  var results = document.getElementById('nueva-op-lead-results');
+  if (!val || val.length < 2) { results.classList.remove('open'); results.innerHTML = ''; return; }
+  results.innerHTML = '<div class="mb-result-empty">Buscando...</div>';
+  results.classList.add('open');
+  _mbLeadSearchTimer = setTimeout(function() {
+    searchMBLeads(val, function(leads) {
+      if (!leads.length) {
+        results.innerHTML = '<div class="mb-result-empty">Sin resultados</div>';
+        return;
+      }
+      results.innerHTML = leads.map(function(l) {
+        var meta = [l.status, l.broker].filter(Boolean).join(' · ');
+        return '<div class="mb-result-item" onclick="selectMBLead(' + JSON.stringify(l).replace(/"/g, '&quot;') + ')">' +
+          '<div class="mb-result-dir">' + escHtml(l.nombre || l.id) + '</div>' +
+          '<div class="mb-result-meta">' + escHtml(meta) + '</div>' +
+        '</div>';
+      }).join('');
+    });
+  }, 320);
+}
+function selectMBLead(l) {
+  _nuevaOpLead = l;
+  document.getElementById('nueva-op-lead-results').classList.remove('open');
+  document.getElementById('nueva-op-lead-input').value = '';
+  document.getElementById('nueva-op-lead-search-wrap').style.display = 'none';
+  var sel = document.getElementById('nueva-op-lead-selected');
+  sel.style.display = 'block';
+  sel.innerHTML = mbLeadCardHtml(l, true);
+}
+function clearMBLead() {
+  _nuevaOpLead = null;
+  document.getElementById('nueva-op-lead-selected').style.display = 'none';
+  document.getElementById('nueva-op-lead-selected').innerHTML = '';
+  document.getElementById('nueva-op-lead-search-wrap').style.display = '';
+}
+function mbLeadCardHtml(l, withRemove) {
+  var tags = Array.isArray(l.tags) && l.tags.length
+    ? '<div style="margin-top:6px;">' + l.tags.map(function(t){ return '<span class="mb-lead-tag">' + escHtml(t) + '</span>'; }).join('') + '</div>'
+    : '';
+  var budgetLine = (l.budget_min || l.budget_max)
+    ? 'Presupuesto: ' + (l.budget_min ? '$'+l.budget_min.toLocaleString('es-AR') : '') + (l.budget_max ? ' – $'+l.budget_max.toLocaleString('es-AR') : '')
+    : '';
+  var barriosLine = l.barrios ? 'Barrios: ' + (Array.isArray(l.barrios) ? l.barrios.join(', ') : l.barrios) : '';
+  var meta = [l.status, l.broker, budgetLine, barriosLine].filter(Boolean).join('\n');
+  return '<div class="mb-lead-card">' +
+    '<div class="mb-lead-card-top">' +
+      '<div style="flex:1;">' +
+        '<div class="mb-lead-name">' + escHtml(l.nombre || l.id) + '</div>' +
+        '<div class="mb-lead-meta" style="white-space:pre-line;">' + escHtml(meta) + '</div>' +
+        tags +
+      '</div>' +
+      (withRemove ? '<button class="mb-lead-remove" onclick="clearMBLead()" title="Quitar">×</button>' : '') +
+    '</div>' +
+  '</div>';
+}
+
 /* ── FOLDER COLORS ── */
 var FOLDER_COLORS = [
   { bg: 'rgba(0,210,255,0.10)',  color: 'var(--neon-blue)',   border: 'rgba(0,210,255,0.25)' },
@@ -2545,6 +2632,12 @@ function renderOpDetail() {
       new Date(op.createdAt).toLocaleDateString('es-AR', {day:'numeric',month:'short',year:'numeric'}).toUpperCase() +
     '</div>' +
   '</div>';
+
+  // Cliente MB
+  if (op.lead) {
+    html += '<div class="section-header"><span class="section-label">Cliente</span></div>';
+    html += mbLeadCardHtml(op.lead, false);
+  }
 
   // Propiedad MB
   if (op.prop) {
@@ -2732,8 +2825,16 @@ var _newOpStage = 'contacto';
 function openNuevaOperacion() {
   _newOpStage = 'contacto';
   _nuevaOpProp = null;
+  _nuevaOpLead = null;
   document.getElementById('nueva-op-titulo').value = '';
   document.getElementById('nueva-op-partes').value = '';
+  // reset lead search
+  document.getElementById('nueva-op-lead-input').value = '';
+  document.getElementById('nueva-op-lead-results').classList.remove('open');
+  document.getElementById('nueva-op-lead-selected').style.display = 'none';
+  document.getElementById('nueva-op-lead-selected').innerHTML = '';
+  document.getElementById('nueva-op-lead-search-wrap').style.display = '';
+  // reset prop search
   document.getElementById('nueva-op-prop-input').value = '';
   document.getElementById('nueva-op-prop-results').classList.remove('open');
   document.getElementById('nueva-op-prop-selected').style.display = 'none';
@@ -2761,6 +2862,7 @@ function confirmarNuevaOp() {
     stage: _newOpStage,
     createdAt: Date.now(),
     prop: _nuevaOpProp || null,
+    lead: _nuevaOpLead || null,
   };
   operaciones.unshift(op);
   saveOps();
