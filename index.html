@@ -2981,31 +2981,44 @@ function mbPropCardHtml(prop, op) {
   ].filter(Boolean).join(' · ');
   var brokerMeta = prop.broker ? '🔑 ' + prop.broker : '';
   var fichaUrl = getMBFichaUrl(prop.id);
-  // Visita programada: si alguna visita tiene este propId, o si es la prop principal y hay visitas sin propId
   var hasVisita = false;
   if (op && op.visitas && op.visitas.length > 0) {
     hasVisita = op.visitas.some(function(v) {
       return v.propId === String(prop.id) || (!v.propId && op.prop && String(op.prop.id) === String(prop.id));
     });
   }
-  // Guardamos la prop en el mapa global para accederla desde el onclick por id
+  // Descartada: atenuar card
+  var isDescartada = op && op.propsDescartadas && op.propsDescartadas.includes(String(prop.id));
   _mpropPropsMap[String(prop.id)] = prop;
   var menuBtn = '<button onclick="event.stopPropagation();openPropActionSheet(\'' + prop.id + '\')" ' +
     'style="background:none;border:1px solid var(--border-visible);border-radius:6px;width:28px;height:28px;cursor:pointer;color:var(--text-secondary);display:flex;align-items:center;justify-content:center;flex-shrink:0;">' +
     '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>' +
     '</button>';
-  return '<div class="mb-prop-card">' +
-    '<div class="mb-prop-card-top">' +
+  var cardStyle = isDescartada
+    ? 'opacity:0.35;filter:grayscale(0.6);pointer-events:none;position:relative;'
+    : '';
+  var descartadaBadge = isDescartada
+    ? '<div style="margin-top:6px;"><span style="font-size:9px;font-family:\'Space Mono\',monospace;color:var(--accent);letter-spacing:.05em;background:rgba(255,59,48,0.08);border:1px solid rgba(255,59,48,0.2);border-radius:4px;padding:2px 6px;">✕ NO GUSTÓ</span></div>'
+    : '';
+  // Si está descartada, el menuBtn sigue siendo clickeable (quitamos pointer-events:none del contenedor pero lo re-aplicamos al contenido)
+  var wrapStyle = isDescartada ? 'position:relative;' : '';
+  var menuWrap = isDescartada
+    ? '<div style="flex-shrink:0;margin-left:8px;pointer-events:auto;opacity:1;filter:none;">' + menuBtn + '</div>'
+    : '<div style="flex-shrink:0;margin-left:8px;">' + menuBtn + '</div>';
+
+  return '<div class="mb-prop-card" style="' + wrapStyle + '">' +
+    '<div class="mb-prop-card-top" style="' + cardStyle + '">' +
       '<div style="flex:1;min-width:0;">' +
         '<div class="mb-prop-dir">' + escHtml(prop.direccion) + '</div>' +
         '<div class="mb-prop-meta">' + escHtml(prop.barrio || '') + '</div>' +
         '<div class="mb-prop-meta">' + escHtml(meta) + '</div>' +
         (brokerMeta ? '<div class="mb-prop-meta" style="color:var(--text-disabled);">' + escHtml(brokerMeta) + '</div>' : '') +
         (hasVisita ? '<div style="margin-top:6px;"><span class="mprop-badge-visita">✓ Visita programada</span></div>' : '') +
+        descartadaBadge +
       '</div>' +
-      '<div style="flex-shrink:0;margin-left:8px;">' + menuBtn + '</div>' +
     '</div>' +
-    (fichaUrl ? '<a class="mb-prop-link" href="' + fichaUrl + '" target="_blank" rel="noopener">' +
+    menuWrap +
+    (fichaUrl && !isDescartada ? '<a class="mb-prop-link" href="' + fichaUrl + '" target="_blank" rel="noopener">' +
       '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>' +
       'Ver en MB Propy' +
     '</a>' : '') +
@@ -3362,15 +3375,35 @@ function openPropActionSheet(propId) {
     '</button>';
   }
 
-  // Descartar
-  opts += '<button class="sheet-option" onclick="propActionDescartar(\'' + propId + '\')" style="color:var(--accent)">' +
-    '<div class="opt-icon" style="color:var(--accent)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>' +
-    '<span class="sheet-option-label">No gustó — descartar</span>' +
-  '</button>';
+  // Descartar / Restaurar según estado
+  var isDescartada = op.propsDescartadas && op.propsDescartadas.includes(String(propId));
+  if (isDescartada) {
+    opts += '<button class="sheet-option" onclick="propActionRestaurar(\'' + propId + '\')" style="color:var(--neon-green)">' +
+      '<div class="opt-icon" style="color:var(--neon-green)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg></div>' +
+      '<span class="sheet-option-label">Restaurar — volver a considerar</span>' +
+    '</button>';
+  } else {
+    opts += '<button class="sheet-option" onclick="propActionDescartar(\'' + propId + '\')" style="color:var(--accent)">' +
+      '<div class="opt-icon" style="color:var(--accent)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>' +
+      '<span class="sheet-option-label">No gustó — descartar</span>' +
+    '</button>';
+  }
 
   document.getElementById('prop-action-options').innerHTML = opts;
   document.getElementById('prop-action-sheet').classList.add('open');
   document.getElementById('overlay').classList.add('open');
+}
+
+function propActionRestaurar(propId) {
+  var op = operaciones.find(function(o){ return o.id === currentOpId; });
+  if (!op) return;
+  if (op.propsDescartadas) {
+    op.propsDescartadas = op.propsDescartadas.filter(function(id){ return id !== String(propId); });
+  }
+  saveOps();
+  closeAllSheets();
+  renderOpDetail();
+  showStatus('[RESTAURADA ✓]');
 }
 
 function propActionAvanzar(propId, targetStage) {
@@ -3409,17 +3442,16 @@ function propActionDescartar(propId) {
   var op = operaciones.find(function(o){ return o.id === currentOpId; });
   if (!op) return;
 
-  // 1. Sacar de la operación local
-  var isPrincipal = op.prop && String(op.prop.id) === String(propId);
-  if (isPrincipal) {
-    op.prop = (op.props && op.props.length) ? op.props.shift() : null;
-  } else {
-    if (op.props) op.props = op.props.filter(function(p){ return String(p.id) !== String(propId); });
+  // 1. Marcar como descartada (atenuar) en vez de borrar
+  var prop = _mpropPropsMap[String(propId)];
+  if (!op.propsDescartadas) op.propsDescartadas = [];
+  if (!op.propsDescartadas.includes(String(propId))) {
+    op.propsDescartadas.push(String(propId));
   }
   saveOps();
   closeAllSheets();
   renderOpDetail();
-  showStatus('[DESCARTADA — QUITANDO DE MB PROPY...]');
+  showStatus('[NO GUSTÓ — QUITANDO DE MB PROPY...]');
 
   // 2. Eliminar de favoritos en MB Propy si hay cliente asociado
   if (!op.lead) return;
@@ -5000,3 +5032,4 @@ checkKeys();
 })();
 </script>
 </body>
+</html>
