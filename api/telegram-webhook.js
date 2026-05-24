@@ -297,8 +297,7 @@ export default async function handler(req, res) {
 
     // ── Flujo guiado /crearop (estado activo) ──
     {
-      const db3 = getDb();
-      const userRef3 = db3.collection('users').doc(FIREBASE_UID);
+      const userRef3 = getDb().collection('users').doc(FIREBASE_UID);
       const snap3 = await userRef3.get();
       const crearOpState = snap3.exists ? snap3.data().botCrearOpState : null;
 
@@ -479,7 +478,7 @@ export default async function handler(req, res) {
           }
 
           const nuevaOp = {
-            id: String(now),
+            id: 'op_' + now,
             titulo: data.titulo,
             stage: data.etapa,
             createdAt: now,
@@ -492,11 +491,15 @@ export default async function handler(req, res) {
             timeline: timelineItems,
           };
 
-          // Guardar en Firestore
-          await userRef3.set({ botCrearOpState: null }, { merge: true });
+          // Guardar en Firestore — un solo get fresco + un solo write
           const snap4 = await userRef3.get();
           const existingOps = snap4.exists ? (snap4.data().operaciones || []) : [];
-          await userRef3.set({ operaciones: [nuevaOp, ...existingOps], updatedAt: now }, { merge: true });
+          await userRef3.set({
+            operaciones: [nuevaOp, ...existingOps],
+            updatedAt: now,
+            lastBotUpdate: now,
+            botCrearOpState: null,
+          }, { merge: true });
 
           let confirm = `✅ *Operación creada*\n\n`;
           confirm += `📋 *${data.titulo}*\n`;
