@@ -143,7 +143,7 @@ export default async function handler(req, res) {
         let ctxMB = '';
 
         // Detectar si pide búsqueda de propiedades
-        const esBusqueda = /\b(busca|buscar|encontra|encontrar|mostrame|mostrar|recomend\w*|quiero ver|props?|propiedades?|depto|departamentos?|ambientes?)\b/i.test(textMsg);
+        const esBusqueda = /\b(busca|buscar|encontra|encontrar|mostrame|mostrar|recomend\w*|quiero ver|props?|propiedades?|depto|departamentos?|ambientes?|broker|bajaron|precio|modificadas?|nuevas?)\b/i.test(textMsg);
         console.log('[BOT] esBusqueda:', esBusqueda, '| msg:', textMsg);
 
         // Detectar si menciona un cliente de sus operaciones
@@ -159,74 +159,95 @@ export default async function handler(req, res) {
             return nombre.split(' ').some(part => part.length > 3 && msgNorm.includes(part));
           });
 
-        // Extraer parámetros de búsqueda — primero con regex simples, luego Groq si hace falta
+        // ── Extracción de parámetros de búsqueda ──
         let searchParams = null;
         if (esBusqueda) {
-          // Extracción directa por regex (más rápida y confiable para casos comunes)
-          const barrios = ['Recoleta','Palermo Chico','Palermo Soho','Palermo Hollywood','Palermo','Retiro','Belgrano','Barrio Norte','Puerto Madero','Las Cañitas','Núñez','Nunez','Colegiales','Coghlan','Villa Crespo'];
+          const barrios = ['Recoleta','Palermo Chico','Palermo Soho','Palermo Hollywood','Palermo','Retiro','Belgrano','Barrio Norte','Puerto Madero','Las Cañitas','Núñez','Nunez','Colegiales','Coghlan','Villa Crespo','San Telmo','Almagro','Caballito','Flores','Villa Urquiza'];
           const msgLow = normalize(textMsg);
+
+          // Barrio
           const barrioMatch = barrios.find(b => msgLow.includes(normalize(b)));
-          const dormMatch = textMsg.match(/(\d)\s*(ambiente|dorm|cuarto|habit)/i);
-          const dormNum = dormMatch ? parseInt(dormMatch[1]) : null;
-          const modoMatch = /\b(alquiler|alquilar|rent)\b/i.test(textMsg) ? 'alquiler'
+
+          // Dormitorios: "3 ambientes" = 2 dorm, "2 dorm/dormitorios" = 2 dorm directo
+          const ambMatch = textMsg.match(/(\d)\s*ambientes?/i);
+          const dormMatch = textMsg.match(/(\d)\s*(dormitorios?|dorms?|cuartos?|habitaciones?)/i);
+          const dormNum = dormMatch ? parseInt(dormMatch[1])
+                        : ambMatch  ? parseInt(ambMatch[1]) - 1
+                        : null;
+
+          // Modo
+          const modoMatch = /\b(alquiler|alquilar|rent|alquila)\b/i.test(textMsg) ? 'alquiler'
                           : /\b(venta|vender|compra|comprar)\b/i.test(textMsg) ? 'venta' : null;
-          const precioMatch = textMsg.match(/(\d[\d.,]*)\s*k?\s*(usd|dolar|dólar|\$u)/i);
-          const precioMax = precioMatch ? parseFloat(precioMatch[1].replace(/\./g,'').replace(',','.')) * (precioMatch[0].toLowerCase().includes('k') ? 1000 : 1) : null;
 
-          searchParams = {
-            barrio: barrioMatch || null,
-            dormitorios: dormNum,
-            modo: modoMatch,
-            precio_max: precioMax,
-            moneda: precioMatch ? 'USD' : null,
+          // Precio (USD o ARS)
+          const precioMaxMatch = textMsg.match(/(?:hasta|max|maximo|menos de)\s*(\d[\d.,]*)\s*(k|mil)?\s*(usd|dolar|dolares|dólar|u\$s|\$u)?/i);
+          const precioMinMatch = textMsg.match(/(?:desde|mas de|más de|minimo|mínimo)\s*(\d[\d.,]*)\s*(k|mil)?\s*(usd|dolar|dolares|dólar|u\$s|\$u)?/i);
+          const parsePrecio = (m) => {
+            if (!m) return null;
+            const n = parseFloat(m[1].replace(/\./g,'').replace(',','.'));
+            const mult = /k|mil/i.test(m[2] || '') ? 1000 : 1;
+            return n * mult;
           };
-          console.log('[BOT] searchParams regex:', JSON.stringify(searchParams));
+          const precioMax = parsePrecio(precioMaxMatch);
+          const precioMin = parsePrecio(precioMinMatch);
+          const esUSD = /usd|dolar|dólar|u\$s|\$u/i.test(textMsg);
+          const esARS = /\bpesos?\b|\bars\b/i.test(textMsg);
+          const moneda = esUSD ? 'USD' : esARS ? 'ARS' : (precioMax || precioMin) ? 'USD' : null;
 
-          // Si no extrajo nada útil, usar Groq como fallback
-          const sinDatos = !searchParams.barrio && !searchParams.dormitorios && !searchParams.modo;
-          if (sinDatos) {
-            try {
-              const parseResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${GROQ_KEY}` },
-                body: JSON.stringify({
-                  model: 'llama-3.3-70b-versatile',
-                  max_tokens: 120,
-                  messages: [{
-                    role: 'user',
-                    content: `Extraé parámetros inmobiliarios. Solo ponés valores que estén EXPLÍCITOS en el texto, null si no se menciona. Devolvé SOLO JSON:
-{"barrio":string_o_null,"dormitorios":numero_o_null,"modo":"venta"|"alquiler"|null,"precio_max":numero_o_null,"moneda":"USD"|"ARS"|null}
-Texto: "${textMsg}"`,
-                  }],
-                }),
-              });
-              const pd = await parseResp.json();
-              const raw = pd.choices?.[0]?.message?.content || '';
-              const jm = raw.match(/\{[\s\S]*\}/);
-              if (jm) {
-                const parsed = JSON.parse(jm[0]);
-                // Merge solo valores no-null que Groq encontró
-                if (parsed.barrio && parsed.barrio !== 'null') searchParams.barrio = parsed.barrio;
-                if (parsed.dormitorios) searchParams.dormitorios = parsed.dormitorios;
-                if (parsed.modo && parsed.modo !== 'null') searchParams.modo = parsed.modo;
-                if (parsed.precio_max) searchParams.precio_max = parsed.precio_max;
-                if (parsed.moneda && parsed.moneda !== 'null') searchParams.moneda = parsed.moneda;
-              }
-            } catch { /* Groq falló, seguimos con lo que tenemos */ }
+          // Superficie
+          const supMinMatch = textMsg.match(/(?:mas de|más de|desde|minimo|mínimo|al menos)\s*(\d+)\s*m/i);
+          const supMin = supMinMatch ? parseInt(supMinMatch[1]) : null;
+
+          // Tipo de propiedad
+          const tipoMap = {
+            'departamento|depto|dpto': 'Departamento',
+            'ph|planta baja': 'PH',
+            'casa': 'Casa',
+            'loft': 'Loft',
+            'duplex|dúplex': 'Dúplex',
+            'triplex|tríplex': 'Triplex',
+            'oficina|oficinas': 'Oficinas',
+            'local|locales': 'Locales Comerciales',
+            'cochera|cocheras': 'Cocheras',
+            'semipiso': 'Semipiso',
+            'piso': 'Piso',
+          };
+          let tipoMatch = null;
+          for (const [pat, val] of Object.entries(tipoMap)) {
+            if (new RegExp(`\\b(${pat})\\b`, 'i').test(textMsg)) { tipoMatch = val; break; }
           }
+
+          // Broker mencionado (busca nombre parcial en lista de brokers MB)
+          const brokersMB = ['Gloria Ayerza','Mario Muñoz','Agustín Diez','Agustina Flaks','Ana Garay','Federico Arias','Juan David La Torre','Luciana Iglesias','Marina Padilla','Sofia Lalanne','Tini Solanet','Victoria Kelsey','Malala Bullrich','Fernanda Patrón','Carolina Miranda','Sebastián Miranda'];
+          const brokerMatch = brokersMB.find(b => msgLow.includes(normalize(b.split(' ')[0])) || msgLow.includes(normalize(b.split(' ').slice(-1)[0])));
+
+          // Propiedades con precio reducido recientemente (updated_at últimos 30 días)
+          const esBajaPrecio = /\b(bajo|bajaron|bajó|reduc|rebaj|modificad|actualiz|nuevo precio|precio nuevo|precio bajo)\b/i.test(textMsg);
+
+          searchParams = { barrio: barrioMatch || null, dormitorios: dormNum, modo: modoMatch, precio_max: precioMax, precio_min: precioMin, moneda, sup_min: supMin, tipo: tipoMatch, broker: brokerMatch || null, baja_precio: esBajaPrecio };
+          console.log('[BOT] searchParams:', JSON.stringify(searchParams));
         }
 
-        // Buscar propiedades en MB Propy
+        // ── Buscar propiedades en MB Propy ──
         if (esBusqueda) {
-          let propUrl = `${MB_URL}/rest/v1/propiedades?select=id,direccion,barrio,tipo,modo,precio,moneda,dormitorios,sup_cub,broker,telefono&activa=eq.true&limit=6&order=precio.asc`;
-          if (searchParams?.barrio) propUrl += `&barrio=ilike.*${encodeURIComponent(searchParams.barrio)}*`;
-          if (searchParams?.dormitorios) propUrl += `&dormitorios=eq.${searchParams.dormitorios}`;
-          // modo: solo filtrar si el usuario lo mencionó explícitamente, excluir 'ghost' siempre
+          let propUrl = `${MB_URL}/rest/v1/propiedades?select=id,direccion,barrio,tipo,modo,precio,moneda,dormitorios,sup_cub,broker,telefono,updated_at&activa=eq.true&limit=8`;
+
+          // Modo / ghost
           if (searchParams?.modo) propUrl += `&modo=eq.${searchParams.modo}`;
           else propUrl += `&modo=neq.ghost`;
-          if (searchParams?.precio_max && searchParams?.moneda) {
-            propUrl += `&precio=lte.${searchParams.precio_max}&moneda=eq.${searchParams.moneda}`;
-          }
+
+          // Filtros
+          if (searchParams?.barrio) propUrl += `&barrio=ilike.*${encodeURIComponent(searchParams.barrio)}*`;
+          if (searchParams?.dormitorios != null) propUrl += `&dormitorios=eq.${searchParams.dormitorios}`;
+          if (searchParams?.tipo) propUrl += `&tipo=eq.${encodeURIComponent(searchParams.tipo)}`;
+          if (searchParams?.broker) propUrl += `&broker=ilike.*${encodeURIComponent(searchParams.broker.split(' ')[0])}*`;
+          if (searchParams?.precio_max && searchParams?.moneda) propUrl += `&precio=lte.${searchParams.precio_max}&moneda=eq.${searchParams.moneda}`;
+          if (searchParams?.precio_min && searchParams?.moneda) propUrl += `&precio=gte.${searchParams.precio_min}`;
+          if (searchParams?.sup_min) propUrl += `&sup_cub=gte.${searchParams.sup_min}`;
+
+          // Baja de precio: ordenar por updated_at desc para ver las más recientes modificadas
+          if (searchParams?.baja_precio) propUrl += `&order=updated_at.desc`;
+          else propUrl += `&order=precio.asc`;
 
           console.log('[BOT] propUrl:', propUrl);
           const propResp = await fetch(propUrl, { headers: mbHeaders });
@@ -234,11 +255,17 @@ Texto: "${textMsg}"`,
           console.log('[BOT] props result:', Array.isArray(props) ? props.length + ' props' : JSON.stringify(props).slice(0,200));
 
           if (Array.isArray(props) && props.length > 0) {
-            ctxMB += '\nPROPIEDADES MB PROPY ENCONTRADAS:\n';
+            const label = searchParams?.baja_precio
+              ? '\nPROPIEDADES ACTUALIZADAS RECIENTEMENTE (posible baja de precio):\n'
+              : searchParams?.broker
+              ? `\nPROPIEDADES DE ${searchParams.broker.toUpperCase()}:\n`
+              : '\nPROPIEDADES MB PROPY ENCONTRADAS:\n';
+            ctxMB += label;
             props.forEach(p => {
               const precio = p.precio ? `${p.moneda === 'USD' ? 'USD ' : '$'}${Number(p.precio).toLocaleString('es-AR')}` : '';
               const fichaUrl = `https://www.mirandabosch.com/ficha/${Buffer.from(JSON.stringify({ p: String(p.id), b: '33504' })).toString('base64')}`;
-              ctxMB += `• ${p.direccion} (${p.barrio}) | ${p.dormitorios || '?'} dorm | ${p.sup_cub || '?'}m² | ${precio} | Broker: ${p.broker || '?'}\n  🔗 ${fichaUrl}\n`;
+              const updStr = searchParams?.baja_precio && p.updated_at ? ` | mod: ${p.updated_at.slice(0,10)}` : '';
+              ctxMB += `• ${p.tipo || ''} ${p.direccion} (${p.barrio}) | ${p.dormitorios != null ? p.dormitorios + ' dorm' : '?'} | ${p.sup_cub || '?'}m² | ${precio}${updStr} | 🔑 ${p.broker || '?'}\n  🔗 ${fichaUrl}\n`;
             });
           } else {
             ctxMB += '\nBúsqueda en MB Propy: no se encontraron propiedades con esos filtros.\n';
