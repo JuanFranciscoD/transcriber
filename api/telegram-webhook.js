@@ -79,15 +79,93 @@ export default async function handler(req, res) {
     // Comandos
     if (textMsg.startsWith('/')) {
       await tgSend(chatId,
-        '🤖 *Comandos disponibles:*\n\n' +
-        '• Mandame un 🎤 *audio de voz* → lo transcribo y resumo\n' +
-        '• Mandame un 🎥 *video* → extraigo el audio y resumo\n' +
-        '• Mandame un 📁 *archivo de audio* → ídem\n' +
-        '• Mandame un 📝 *mensaje de texto* → lo guardo como nota\n' +
-        '• /start → este mensaje\n\n' +
-        '_Todo se guarda automáticamente en Transcribeme._',
+        '🤖 *Tu asistente broker*\n\n' +
+        '*Guardar info:*\n' +
+        '• 🎤 Audio de voz → transcribo y resumo\n' +
+        '• 🎥 Video → extraigo audio y resumo\n' +
+        '• 📝 Texto → lo guardo como nota\n\n' +
+        '*Consultar:*\n' +
+        '• "qué pasó con Laura Rolandi"\n' +
+        '• "cuántas operaciones tengo activas"\n' +
+        '• "dame el estado de [operación]"\n' +
+        '• "busca 3 ambientes en Palermo hasta 200k"\n\n' +
+        '_Todo se sincroniza con Transcribeme._',
         'Markdown'
       );
+      return res.status(200).json({ ok: true });
+    }
+
+    // ── Detectar si es consulta o nota ──
+    // Es consulta si empieza con '?' o contiene palabras clave de pregunta
+    const consultaPatterns = [
+      /^\?/,
+      /^(qué|que|como|cómo|cuándo|cuando|cuánto|cuanto|quién|quien|cuál|cual)\b/i,
+      /\b(qué pasó|que paso|qué hay|que hay|dame|contame|mostrame|buscá|busca|resumí|resumi|estado de|cómo va|como va|qué tengo|que tengo|operacion(es)?|cliente|propiedad)\b/i,
+    ];
+    const esConsulta = consultaPatterns.some(p => p.test(textMsg.trim()));
+
+    if (esConsulta) {
+      console.log('[BOT] Consulta detectada:', textMsg);
+      try {
+        const db = getDb();
+        const userRef = db.collection('users').doc(FIREBASE_UID);
+        const snap = await userRef.get();
+        const userData = snap.exists ? snap.data() : {};
+        const notes = userData.notes || [];
+        const operaciones = userData.operaciones || [];
+
+        // Construir contexto compacto para Groq
+        const OP_STAGES = ['contacto','visita','negociacion','reserva','escritura','cerrada'];
+        const ctxOps = operaciones.slice(0, 20).map(op => {
+          const opNotes = notes.filter(n => n.opId === op.id).slice(0, 3);
+          const ultimaNota = opNotes[0];
+          const diasSinActividad = ultimaNota
+            ? Math.floor((Date.now() - ultimaNota.createdAt) / 86400000)
+            : null;
+          return [
+            `OP: "${op.titulo}" | Etapa: ${op.stage}`,
+            op.lead ? `  Cliente: ${op.lead.nombre || op.lead.slug}` : '',
+            op.prop ? `  Propiedad: ${op.prop.direccion}${op.prop.broker ? ' (broker: ' + op.prop.broker + ')' : ''}` : '',
+            op.visitas && op.visitas.length ? `  Visitas: ${op.visitas.length} programada/s` : '',
+            ultimaNota ? `  Última nota (hace ${diasSinActividad}d): "${ultimaNota.title}"` : '  Sin notas',
+          ].filter(Boolean).join('\n');
+        }).join('\n\n');
+
+        const ctxNotas = notes.slice(0, 10).map(n =>
+          `NOTA: "${n.title}" | ${n.date}${n.opId ? ' | Op: ' + (operaciones.find(o => o.id === n.opId) || {}).titulo : ''}`
+        ).join('\n');
+
+        const systemPrompt =
+          'Sos el asistente broker de Juan David La Torre, un broker inmobiliario de Miranda Bosch en Buenos Aires. ' +
+          'Respondés preguntas sobre sus operaciones, clientes y notas de manera concisa y directa. ' +
+          'Usás emojis con moderación. Respondés en español rioplatense. ' +
+          'Si no encontrás información relevante, lo decís claramente. ' +
+          'Nunca inventés datos. Respondés en texto plano compatible con Telegram Markdown.';
+
+        const userPrompt =
+          'OPERACIONES ACTIVAS:\n' + (ctxOps || 'Sin operaciones.') +
+          '\n\nÚLTIMAS NOTAS:\n' + (ctxNotas || 'Sin notas.') +
+          '\n\nPREGUNTA DE JUAN DAVID:\n' + textMsg;
+
+        const groqResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${GROQ_KEY}` },
+          body: JSON.stringify({
+            model: 'llama-3.3-70b-versatile',
+            max_tokens: 600,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user',   content: userPrompt },
+            ],
+          }),
+        });
+        const groqData = await groqResp.json();
+        const respuesta = groqData.choices?.[0]?.message?.content || 'No pude generar una respuesta.';
+        await tgSend(chatId, respuesta, 'Markdown');
+      } catch (err) {
+        console.error('[BOT] Error en consulta:', err.message);
+        await tgSend(chatId, '❌ Error procesando la consulta: ' + err.message);
+      }
       return res.status(200).json({ ok: true });
     }
 
