@@ -107,6 +107,7 @@ export default async function handler(req, res) {
     if (esConsulta) {
       console.log('[BOT] Consulta detectada:', textMsg);
       try {
+        // ── 1. Leer Firebase ──
         const db = getDb();
         const userRef = db.collection('users').doc(FIREBASE_UID);
         const snap = await userRef.get();
@@ -114,10 +115,9 @@ export default async function handler(req, res) {
         const notes = userData.notes || [];
         const operaciones = userData.operaciones || [];
 
-        // Construir contexto compacto para Groq
-        const OP_STAGES = ['contacto','visita','negociacion','reserva','escritura','cerrada'];
+        // ── 2. Contexto Firebase ──
         const ctxOps = operaciones.slice(0, 20).map(op => {
-          const opNotes = notes.filter(n => n.opId === op.id).slice(0, 3);
+          const opNotes = notes.filter(n => n.opId === op.id);
           const ultimaNota = opNotes[0];
           const diasSinActividad = ultimaNota
             ? Math.floor((Date.now() - ultimaNota.createdAt) / 86400000)
@@ -131,28 +131,138 @@ export default async function handler(req, res) {
           ].filter(Boolean).join('\n');
         }).join('\n\n');
 
-        const ctxNotas = notes.slice(0, 10).map(n =>
+        const ctxNotas = notes.slice(0, 8).map(n =>
           `NOTA: "${n.title}" | ${n.date}${n.opId ? ' | Op: ' + (operaciones.find(o => o.id === n.opId) || {}).titulo : ''}`
         ).join('\n');
 
-        const systemPrompt =
-          'Sos el asistente broker de Juan David La Torre, un broker inmobiliario de Miranda Bosch en Buenos Aires. ' +
-          'Respondés preguntas sobre sus operaciones, clientes y notas de manera concisa y directa. ' +
-          'Usás emojis con moderación. Respondés en español rioplatense. ' +
-          'Si no encontrás información relevante, lo decís claramente. ' +
-          'Nunca inventés datos. Respondés en texto plano compatible con Telegram Markdown.';
+        // ── 3. MB Propy: búsqueda de propiedades + favoritos de clientes ──
+        const MB_URL = 'https://hyxsdeeoyecdslrtqrmo.supabase.co';
+        const MB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh5eHNkZWVveWVjZHNscnRxcm1vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0ODczNzYsImV4cCI6MjA5MTA2MzM3Nn0.YT76TJzSbxgjkNAdpIsRd5AGW9bC6PaTkyEFwOK7OTo';
+        const mbHeaders = { 'apikey': MB_KEY, 'Authorization': `Bearer ${MB_KEY}` };
 
-        const userPrompt =
-          'OPERACIONES ACTIVAS:\n' + (ctxOps || 'Sin operaciones.') +
-          '\n\nÚLTIMAS NOTAS:\n' + (ctxNotas || 'Sin notas.') +
-          '\n\nPREGUNTA DE JUAN DAVID:\n' + textMsg;
+        let ctxMB = '';
+
+        // Detectar si pide búsqueda de propiedades
+        const esBusqueda = /\b(busca|buscá|encontrá|encontra|mostrá|mostra|recomend|quiero ver|prop(iedades)?)\b/i.test(textMsg);
+
+        // Detectar si menciona un cliente de sus operaciones
+        const clienteMencionado = operaciones
+          .filter(op => op.lead)
+          .map(op => op.lead)
+          .find(lead => {
+            const nombre = (lead.nombre || lead.slug || '').toLowerCase();
+            return nombre.split(' ').some(part => part.length > 3 && textMsg.toLowerCase().includes(part));
+          });
+
+        // Extraer parámetros de búsqueda con Groq (rápido, solo si es búsqueda)
+        let searchParams = null;
+        if (esBusqueda) {
+          const parseResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${GROQ_KEY}` },
+            body: JSON.stringify({
+              model: 'llama-3.3-70b-versatile',
+              max_tokens: 150,
+              messages: [{
+                role: 'user',
+                content: `Extraé los parámetros de búsqueda inmobiliaria de este texto. Devolvé SOLO JSON válido:
+{"barrio":"nombre o null","dormitorios":numero_o_null,"modo":"venta o alquiler o null","precio_max":numero_o_null,"moneda":"USD o ARS o null","cliente":"nombre o null"}
+
+Texto: "${textMsg}"
+
+Barrios disponibles: Recoleta, Palermo, Palermo Chico, Retiro, Belgrano, Barrio Norte, Puerto Madero, Palermo Hollywood, Las Cañitas, Palermo Soho, Núñez.`
+              }],
+            }),
+          });
+          const parseData = await parseResp.json();
+          try {
+            const raw = parseData.choices[0].message.content;
+            const jm = raw.match(/\{[\s\S]*\}/);
+            searchParams = JSON.parse(jm ? jm[0] : raw);
+          } catch { searchParams = null; }
+        }
+
+        // Buscar propiedades en MB Propy
+        if (searchParams || esBusqueda) {
+          let propUrl = `${MB_URL}/rest/v1/propiedades?select=id,direccion,barrio,tipo,modo,precio,moneda,dormitorios,sup_cub,broker,telefono&activa=eq.true&limit=6&order=precio.asc`;
+          if (searchParams?.barrio) propUrl += `&barrio=ilike.*${encodeURIComponent(searchParams.barrio)}*`;
+          if (searchParams?.dormitorios) propUrl += `&dormitorios=eq.${searchParams.dormitorios}`;
+          if (searchParams?.modo && searchParams.modo !== 'null') propUrl += `&modo=eq.${searchParams.modo}`;
+          if (searchParams?.precio_max) propUrl += `&precio=lte.${searchParams.precio_max}`;
+          if (searchParams?.moneda && searchParams.moneda !== 'null') propUrl += `&moneda=eq.${searchParams.moneda}`;
+
+          const propResp = await fetch(propUrl, { headers: mbHeaders });
+          const props = await propResp.json();
+
+          if (Array.isArray(props) && props.length > 0) {
+            ctxMB += '\nPROPIEDADES MB PROPY ENCONTRADAS:\n';
+            props.forEach(p => {
+              const precio = p.precio ? `${p.moneda === 'USD' ? 'USD ' : '$'}${Number(p.precio).toLocaleString('es-AR')}` : '';
+              const fichaUrl = `https://www.mirandabosch.com/ficha/${Buffer.from(JSON.stringify({ p: String(p.id), b: '33504' })).toString('base64')}`;
+              ctxMB += `• ${p.direccion} (${p.barrio}) | ${p.dormitorios || '?'} dorm | ${p.sup_cub || '?'}m² | ${precio} | Broker: ${p.broker || '?'}\n  🔗 ${fichaUrl}\n`;
+            });
+          } else {
+            ctxMB += '\nBúsqueda en MB Propy: no se encontraron propiedades con esos filtros.\n';
+          }
+        }
+
+        // Si hay cliente mencionado, traer sus favoritos de MB Propy
+        if (clienteMencionado) {
+          const clienteNombre = clienteMencionado.nombre || clienteMencionado.slug;
+          const favResp = await fetch(
+            `${MB_URL}/rest/v1/favoritos?select=propiedad_id,origen&cliente=eq.${encodeURIComponent(clienteNombre)}&limit=20`,
+            { headers: mbHeaders }
+          );
+          const favs = await favResp.json();
+
+          if (Array.isArray(favs) && favs.length > 0) {
+            const favBroker = favs.filter(f => f.origen === 'broker').map(f => f.propiedad_id);
+            const favCliente = favs.filter(f => f.origen === 'cliente').map(f => f.propiedad_id);
+            const todosIds = [...new Set([...favBroker, ...favCliente])];
+
+            const propsResp = await fetch(
+              `${MB_URL}/rest/v1/propiedades?select=id,direccion,barrio,dormitorios,precio,moneda,sup_cub,broker&id=in.(${todosIds.join(',')})`,
+              { headers: mbHeaders }
+            );
+            const propsCliente = await propsResp.json();
+
+            if (Array.isArray(propsCliente) && propsCliente.length > 0) {
+              ctxMB += `\nPROPIEDADES DE ${clienteNombre.toUpperCase()} EN MB PROPY:\n`;
+              propsCliente.forEach(p => {
+                const precio = p.precio ? `${p.moneda === 'USD' ? 'USD ' : '$'}${Number(p.precio).toLocaleString('es-AR')}` : '';
+                const tag = favBroker.includes(p.id) && favCliente.includes(p.id)
+                  ? '⭐ broker+cliente'
+                  : favCliente.includes(p.id) ? '❤️ le gustó' : '📋 selección broker';
+                const fichaUrl = `https://www.mirandabosch.com/ficha/${Buffer.from(JSON.stringify({ p: String(p.id), b: '33504' })).toString('base64')}`;
+                ctxMB += `• ${tag} ${p.direccion} (${p.barrio}) | ${p.dormitorios || '?'} dorm | ${precio}\n  🔗 ${fichaUrl}\n`;
+              });
+            }
+          } else {
+            ctxMB += `\n${clienteMencionado.nombre || clienteMencionado.slug} no tiene propiedades guardadas en MB Propy todavía.\n`;
+          }
+        }
+
+        // ── 4. Llamar a Groq con todo el contexto ──
+        const systemPrompt =
+          'Sos el asistente broker de Juan David La Torre, broker inmobiliario de Miranda Bosch en Buenos Aires. ' +
+          'Tenés acceso a sus operaciones, notas y a la base de datos de MB Propy con propiedades reales. ' +
+          'Cuando respondés búsquedas o recomendaciones, siempre incluí los links de ficha. ' +
+          'Respondés de forma concisa, en español rioplatense, con emojis moderados. ' +
+          'Nunca inventés datos. Si hay links, ponelos en línea separada para que Telegram los muestre bien.';
+
+        const userPrompt = [
+          'OPERACIONES ACTIVAS:\n' + (ctxOps || 'Sin operaciones.'),
+          'ÚLTIMAS NOTAS:\n' + (ctxNotas || 'Sin notas.'),
+          ctxMB ? 'DATOS MB PROPY:\n' + ctxMB : '',
+          'PREGUNTA DE JUAN DAVID:\n' + textMsg,
+        ].filter(Boolean).join('\n\n');
 
         const groqResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${GROQ_KEY}` },
           body: JSON.stringify({
             model: 'llama-3.3-70b-versatile',
-            max_tokens: 600,
+            max_tokens: 800,
             messages: [
               { role: 'system', content: systemPrompt },
               { role: 'user',   content: userPrompt },
