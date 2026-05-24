@@ -287,6 +287,138 @@ body {
 }
 
 /* ── FOLDER CARD ── */
+/* ── OPERACIONES ── */
+.op-card {
+  border-radius: 12px; overflow: hidden; margin-bottom: 10px;
+  border: 1px solid var(--border-visible); background: var(--surface);
+  opacity: 0; transform: translateY(8px);
+  transition: opacity 200ms ease-out, transform 200ms ease-out;
+  cursor: pointer;
+}
+.op-card.visible { opacity: 1; transform: translateY(0); }
+.op-card-head {
+  display: flex; align-items: center; gap: 12px;
+  padding: 13px 14px;
+}
+.op-card-head:active { opacity: 0.7; }
+.op-icon-wrap {
+  width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.op-info { flex: 1; min-width: 0; }
+.op-info h3 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 14px; font-weight: 500; color: var(--text-display);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  margin-bottom: 2px;
+}
+.op-info p { font-size: 12px; color: var(--text-secondary); }
+.op-stage-badge {
+  font-family: 'Space Mono', monospace; font-size: 9px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 3px 8px; border-radius: 9999px; flex-shrink: 0;
+}
+.op-stage-badge.negociacion { background: rgba(0,210,255,0.12); color: var(--neon-blue); }
+.op-stage-badge.reserva     { background: rgba(200,255,0,0.12);  color: var(--neon-green); }
+.op-stage-badge.escritura   { background: rgba(200,255,0,0.20);  color: var(--neon-green); }
+.op-stage-badge.contacto    { background: rgba(255,255,255,0.07); color: var(--text-secondary); }
+.op-stage-badge.visita      { background: rgba(255,107,43,0.12); color: var(--neon-orange); }
+.op-stage-badge.cerrada     { background: rgba(215,25,33,0.12);  color: var(--accent); }
+
+/* timeline en detalle */
+.op-timeline { padding: 0 14px 14px; position: relative; }
+.op-tl-line {
+  position: absolute; left: 27px; top: 0; bottom: 0;
+  width: 1px; background: var(--border);
+}
+.op-tl-step {
+  position: relative; display: flex; align-items: flex-start;
+  gap: 10px; margin-bottom: 8px;
+}
+.op-tl-dot {
+  width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0;
+  border: 2px solid transparent;
+  display: flex; align-items: center; justify-content: center;
+  margin-top: 3px; z-index: 1; background: var(--surface);
+}
+.op-tl-dot.done  { background: rgba(200,255,0,0.12);  border-color: rgba(200,255,0,0.5); color: var(--neon-green); }
+.op-tl-dot.active{ background: rgba(0,210,255,0.12);  border-color: var(--neon-blue);    color: var(--neon-blue);
+  box-shadow: 0 0 8px rgba(0,210,255,0.3); }
+.op-tl-dot.future{ background: var(--surface-raised); border-color: var(--border-visible); color: var(--text-disabled); }
+.op-tl-card {
+  flex: 1; border-radius: 10px; border: 1px solid var(--border);
+  background: var(--surface-raised); padding: 9px 11px; cursor: pointer;
+  transition: border-color 150ms;
+}
+.op-tl-card.active { border-color: rgba(0,210,255,0.3); background: rgba(0,210,255,0.04); }
+.op-tl-card.done   { border-color: rgba(200,255,0,0.15); }
+.op-tl-card-row    { display: flex; justify-content: space-between; align-items: center; }
+.op-tl-name { font-size: 12px; font-weight: 500; color: var(--text-display); }
+.op-tl-meta { font-size: 11px; color: var(--text-disabled); margin-top: 3px; }
+.op-tl-excerpt {
+  font-size: 11px; color: var(--text-secondary); line-height: 1.45;
+  margin-top: 5px; display: -webkit-box; -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical; overflow: hidden;
+}
+.op-tl-notes-wrap { margin-top: 6px; display: flex; gap: 5px; flex-wrap: wrap; }
+.op-note-chip {
+  background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+  border-radius: 6px; padding: 3px 8px;
+  font-family: 'Space Mono', monospace; font-size: 9px; color: var(--text-secondary);
+  cursor: pointer; transition: border-color 150ms;
+}
+.op-note-chip:active { border-color: var(--neon-blue); }
+
+/* AI bloque */
+.op-ai-block {
+  margin: 12px 14px; background: rgba(0,210,255,0.05);
+  border: 1px solid rgba(0,210,255,0.2); border-radius: 10px; padding: 11px 12px;
+}
+.op-ai-label {
+  font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--neon-blue); margin-bottom: 5px;
+}
+.op-ai-text { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+.op-ai-text strong { color: var(--text-display); font-weight: 500; }
+
+/* empty ops */
+.op-empty {
+  text-align: center; padding: 60px 20px;
+}
+.op-empty-icon {
+  width: 52px; height: 52px; border-radius: 14px;
+  border: 1px solid var(--border-visible);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 16px; color: var(--text-disabled);
+}
+.op-empty p { font-size: 14px; color: var(--text-secondary); }
+
+/* btn outline */
+.btn-outline {
+  width: 100%; padding: 11px; border-radius: 10px;
+  border: 1px solid var(--border-visible); background: transparent;
+  font-family: 'Space Mono', monospace; font-size: 10px;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-secondary); cursor: pointer; transition: border-color 150ms, color 150ms;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+}
+.btn-outline:active { border-color: var(--neon-blue); color: var(--neon-blue); }
+.btn-outline.primary {
+  border-color: rgba(200,255,0,0.4); color: var(--neon-green);
+}
+
+/* sheet ops — nueva operación */
+.op-stages-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px;
+}
+.op-stage-opt {
+  padding: 10px; border-radius: 8px;
+  border: 1px solid var(--border-visible); background: var(--surface-raised);
+  font-size: 12px; color: var(--text-secondary); cursor: pointer;
+  text-align: center; transition: border-color 150ms, color 150ms;
+}
+.op-stage-opt.selected { border-color: var(--neon-blue); color: var(--neon-blue); }
+
 .folder-card {
   border-radius: 12px;
   overflow: hidden;
@@ -1242,6 +1374,21 @@ body {
   <symbol id="ic-stats" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
     <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
   </symbol>
+  <symbol id="ic-briefcase" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="12.01"/>
+  </symbol>
+  <symbol id="ic-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+  </symbol>
+  <symbol id="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="20 6 9 17 4 12"/>
+  </symbol>
+  <symbol id="ic-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+  </symbol>
+  <symbol id="ic-doc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+  </symbol>
 </svg>
 
 <!-- LOGIN -->
@@ -1273,6 +1420,9 @@ body {
   <div class="topbar">
     <span class="topbar-title">Transcribeme</span>
     <span id="sync-dot" class="sync-dot sync-offline" title="Sin conexión"></span>
+    <button class="icon-btn" onclick="showScreen('operaciones')" title="Operaciones">
+      <svg width="17" height="17"><use href="#ic-briefcase"/></svg>
+    </button>
     <button class="icon-btn" onclick="showScreen('dashboard')" title="Dashboard">
       <svg width="17" height="17"><use href="#ic-stats"/></svg>
     </button>
@@ -1567,6 +1717,91 @@ body {
   </div>
 </div>
 
+<!-- OPERACIONES (lista) -->
+<div id="screen-operaciones" class="screen">
+  <div class="topbar">
+    <button class="back-btn" onclick="showScreen('home', true)">
+      <svg width="16" height="16"><use href="#ic-chevron-left"/></svg>
+    </button>
+    <span class="topbar-title">Operaciones</span>
+    <button class="icon-btn" onclick="openNuevaOperacion()" title="Nueva operación">
+      <svg width="17" height="17"><use href="#ic-plus"/></svg>
+    </button>
+  </div>
+  <div class="content">
+    <div id="ops-list"></div>
+  </div>
+</div>
+
+<!-- OPERACION DETALLE -->
+<div id="screen-operacion" class="screen">
+  <div class="topbar">
+    <button class="back-btn" onclick="showScreen('operaciones', true)">
+      <svg width="16" height="16"><use href="#ic-chevron-left"/></svg>
+    </button>
+    <span class="topbar-title" id="op-detail-title"></span>
+    <button class="icon-btn" id="op-menu-btn" onclick="openOpMenu()" title="Opciones">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+    </button>
+  </div>
+  <div class="content" id="op-detail-content"></div>
+</div>
+
+<!-- SHEET: Nueva Operación -->
+<div class="sheet" id="nueva-op-sheet">
+  <div class="sheet-handle"></div>
+  <p class="sheet-label">Nueva operación</p>
+  <div style="margin-bottom:14px;">
+    <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">Título</div>
+    <input type="text" id="nueva-op-titulo" placeholder="Ej: Palermo · 3 amb · García" style="width:100%;background:transparent;border:none;border-bottom:1px solid var(--border-visible);padding:8px 0;font-family:'Space Mono',monospace;font-size:13px;color:var(--text-display);outline:none;" />
+  </div>
+  <div style="margin-bottom:14px;">
+    <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">Partes</div>
+    <input type="text" id="nueva-op-partes" placeholder="Ej: García (vendedor) · Romero (comprador)" style="width:100%;background:transparent;border:none;border-bottom:1px solid var(--border-visible);padding:8px 0;font-family:'Space Mono',monospace;font-size:12px;color:var(--text-display);outline:none;" />
+  </div>
+  <div style="margin-bottom:16px;">
+    <div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;">Etapa inicial</div>
+    <div class="op-stages-grid" id="nueva-op-stages">
+      <div class="op-stage-opt selected" data-stage="contacto" onclick="selectOpStage(this)">Primer contacto</div>
+      <div class="op-stage-opt" data-stage="visita" onclick="selectOpStage(this)">Visita</div>
+      <div class="op-stage-opt" data-stage="negociacion" onclick="selectOpStage(this)">Negociación</div>
+      <div class="op-stage-opt" data-stage="reserva" onclick="selectOpStage(this)">Reserva</div>
+      <div class="op-stage-opt" data-stage="escritura" onclick="selectOpStage(this)">Escritura</div>
+      <div class="op-stage-opt" data-stage="cerrada" onclick="selectOpStage(this)">Cerrada</div>
+    </div>
+  </div>
+  <button class="btn-outline primary" onclick="confirmarNuevaOp()" style="margin-bottom:8px;">
+    <svg width="14" height="14"><use href="#ic-plus"/></svg> Crear operación
+  </button>
+  <button class="btn-outline" onclick="closeAllSheets()">Cancelar</button>
+</div>
+
+<!-- SHEET: Menú operación -->
+<div class="sheet" id="op-menu-sheet">
+  <div class="sheet-handle"></div>
+  <p class="sheet-label" id="op-menu-label"></p>
+  <button class="sheet-option" onclick="closeAllSheets(); renameCurrentOp()">
+    <div class="opt-icon"><svg width="16" height="16"><use href="#ic-pencil"/></svg></div>
+    <span class="sheet-option-label">Renombrar</span>
+  </button>
+  <button class="sheet-option" onclick="closeAllSheets(); avanzarEtapaOp()">
+    <div class="opt-icon"><svg width="16" height="16"><use href="#ic-check"/></svg></div>
+    <span class="sheet-option-label">Avanzar etapa</span>
+  </button>
+  <button class="sheet-option" onclick="closeAllSheets(); setTimeout(deleteCurrentOp, 50)" style="color:var(--accent)">
+    <div class="opt-icon" style="color:var(--accent)"><svg width="16" height="16"><use href="#ic-trash"/></svg></div>
+    <span class="sheet-option-label" style="color:var(--accent)">Eliminar operación</span>
+  </button>
+</div>
+
+<!-- SHEET: Adjuntar nota a operación -->
+<div class="sheet" id="attach-op-sheet">
+  <div class="sheet-handle"></div>
+  <p class="sheet-label">Agregar a operación</p>
+  <div id="attach-op-list"></div>
+  <button class="btn-outline" onclick="closeAllSheets()" style="margin-top:10px;">Cancelar</button>
+</div>
+
 <!-- ERROR -->
 <div id="screen-error" class="screen">
   <div class="topbar">
@@ -1696,6 +1931,9 @@ body {
       <button class="nds-action" onclick="openMoveSheetFor(_ndsNoteId)">
         <svg width="15" height="15"><use href="#ic-move"/></svg>Mover
       </button>
+      <button class="nds-action" onclick="closeNoteSheet();setTimeout(function(){_attachNoteId=_ndsNoteId;openAttachFromNoteSheet();},200)">
+        <svg width="15" height="15"><use href="#ic-briefcase"/></svg>Operación
+      </button>
       <button class="nds-action" onclick="shareNdsNote()">
         <svg width="15" height="15"><use href="#ic-share"/></svg>Compartir
       </button>
@@ -1742,9 +1980,11 @@ body {
 <script>
 var notes = JSON.parse(localStorage.getItem('transcriber-notes') || '[]');
 var folders = JSON.parse(localStorage.getItem('transcriber-folders') || '[]');
+var operaciones = JSON.parse(localStorage.getItem('transcriber-ops') || '[]');
 var deletedNoteIds = new Set(JSON.parse(localStorage.getItem('transcriber-deleted') || '[]'));
 var currentNoteId = null;
 var currentFolderId = null;
+var currentOpId = null;
 var currentTab = 'resumen';
 var detailFromFolder = false;
 var modalCallback = null;
@@ -1861,6 +2101,7 @@ async function loadFromFirebase() {
       var data = snap.data();
       if (data.notes) { notes = data.notes; localStorage.setItem('transcriber-notes', JSON.stringify(notes)); }
       if (data.folders) { folders = data.folders; localStorage.setItem('transcriber-folders', JSON.stringify(folders)); }
+      if (data.operaciones) { operaciones = data.operaciones; localStorage.setItem('transcriber-ops', JSON.stringify(operaciones)); }
       renderHome(); showStatus('[SINCRONIZADO]');
     }
   } catch(e) { console.warn('Firebase load error:', e); }
@@ -1883,6 +2124,7 @@ function showScreen(name, isBack) {
   }
 
   if (name === 'dashboard') renderDashboard();
+  if (name === 'operaciones') renderOperaciones();
 
   // FAB visible solo en home y folder
   var fab = document.getElementById('fab-mic');
@@ -2160,6 +2402,397 @@ function recentCardHtml(n) {
     '<div class="recent-card-title">' + escHtml(n.title) + '</div>' +
     '<div class="recent-card-meta">' + escHtml(n.date || '') + (dur ? ' · ' : '') + (dur||'') + '</div>' +
   '</div>';
+}
+
+/* ── OPERACIONES ── */
+var OP_STAGES = [
+  { id: 'contacto',    label: 'Primer contacto' },
+  { id: 'visita',      label: 'Visita' },
+  { id: 'negociacion', label: 'Negociación' },
+  { id: 'reserva',     label: 'Reserva' },
+  { id: 'escritura',   label: 'Escritura' },
+  { id: 'cerrada',     label: 'Cerrada' },
+];
+var OP_COLORS = [
+  { bg:'rgba(0,210,255,0.10)',  color:'var(--neon-blue)',   border:'rgba(0,210,255,0.25)' },
+  { bg:'rgba(255,107,43,0.10)', color:'var(--neon-orange)', border:'rgba(255,107,43,0.25)' },
+  { bg:'rgba(200,255,0,0.10)',  color:'var(--neon-green)',  border:'rgba(200,255,0,0.25)' },
+  { bg:'rgba(215,25,33,0.10)',  color:'var(--accent)',      border:'rgba(215,25,33,0.25)' },
+];
+function opColor(idx) { return OP_COLORS[idx % OP_COLORS.length]; }
+
+function renderOperaciones() {
+  var c = document.getElementById('ops-list');
+  if (!c) return;
+  if (operaciones.length === 0) {
+    c.innerHTML = '<div class="op-empty">' +
+      '<div class="op-empty-icon"><svg width="22" height="22"><use href="#ic-briefcase"/></svg></div>' +
+      '<p>Tus operaciones aparecerán acá</p>' +
+      '</div>' +
+      '<button class="btn-outline primary" onclick="openNuevaOperacion()" style="margin:0 0 12px">' +
+        '<svg width="14" height="14"><use href="#ic-plus"/></svg> Nueva operación' +
+      '</button>';
+    return;
+  }
+  var html = '';
+  operaciones.forEach(function(op, idx) {
+    var clr = opColor(idx);
+    var stageLabel = (OP_STAGES.find(function(s){ return s.id === op.stage; }) || {label: op.stage}).label;
+    var noteCount = notes.filter(function(n){ return n.opId === op.id; }).length;
+    html += '<div class="op-card" data-op-id="' + op.id + '" onclick="openOperacion(\'' + op.id + '\')">' +
+      '<div class="op-card-head">' +
+        '<div class="op-icon-wrap" style="background:' + clr.bg + ';border:1px solid ' + clr.border + ';color:' + clr.color + '">' +
+          '<svg width="16" height="16"><use href="#ic-briefcase"/></svg>' +
+        '</div>' +
+        '<div class="op-info">' +
+          '<h3>' + escHtml(op.titulo) + '</h3>' +
+          '<p>' + noteCount + ' nota' + (noteCount !== 1 ? 's' : '') + (op.partes ? ' · ' + escHtml(op.partes) : '') + '</p>' +
+        '</div>' +
+        '<span class="op-stage-badge ' + op.stage + '">' + escHtml(stageLabel) + '</span>' +
+      '</div>' +
+    '</div>';
+  });
+  c.innerHTML = html;
+  c.querySelectorAll('.op-card').forEach(function(el, i) {
+    setTimeout(function() { el.classList.add('visible'); }, i * 60);
+  });
+}
+
+function openOperacion(id) {
+  var op = operaciones.find(function(o){ return o.id === id; });
+  if (!op) return;
+  currentOpId = id;
+  document.getElementById('op-detail-title').textContent = op.titulo.toUpperCase().slice(0, 22);
+  renderOpDetail();
+  showScreen('operacion');
+}
+
+function renderOpDetail() {
+  var op = operaciones.find(function(o){ return o.id === currentOpId; });
+  if (!op) return;
+  var c = document.getElementById('op-detail-content');
+  var opNotes = notes.filter(function(n){ return n.opId === op.id; });
+  var stageIdx = OP_STAGES.findIndex(function(s){ return s.id === op.stage; });
+
+  var html = '';
+
+  // Header card
+  var clr = opColor(operaciones.indexOf(op));
+  html += '<div style="background:' + clr.bg + ';border:1px solid ' + clr.border + ';border-radius:12px;padding:14px;margin-bottom:14px;">' +
+    '<div style="font-size:15px;font-weight:500;color:var(--text-display);margin-bottom:4px;">' + escHtml(op.titulo) + '</div>' +
+    (op.partes ? '<div style="font-size:11px;color:var(--text-secondary);font-family:\'Space Mono\',monospace;">' + escHtml(op.partes) + '</div>' : '') +
+    '<div style="font-size:10px;color:var(--text-disabled);font-family:\'Space Mono\',monospace;margin-top:6px;letter-spacing:.04em;">' +
+      new Date(op.createdAt).toLocaleDateString('es-AR', {day:'numeric',month:'short',year:'numeric'}).toUpperCase() +
+    '</div>' +
+  '</div>';
+
+  // Timeline
+  html += '<div class="section-header"><span class="section-label">Línea de tiempo</span></div>';
+  html += '<div class="op-timeline"><div class="op-tl-line"></div>';
+
+  OP_STAGES.forEach(function(stage, i) {
+    var isDone   = i < stageIdx;
+    var isActive = i === stageIdx;
+    var dotClass = isDone ? 'done' : isActive ? 'active' : 'future';
+    var cardClass = isDone ? 'done' : isActive ? 'active' : '';
+    var stageNotes = opNotes.filter(function(n){ return n.opStage === stage.id; });
+    // Fallback: notas sin etapa asignada van a la activa
+    if (isActive) {
+      stageNotes = stageNotes.concat(opNotes.filter(function(n){ return !n.opStage; }));
+    }
+    var dotIcon = isDone
+      ? '<svg width="8" height="8"><use href="#ic-check"/></svg>'
+      : (isActive ? '●' : '');
+
+    html += '<div class="op-tl-step">' +
+      '<div class="op-tl-dot ' + dotClass + '">' + dotIcon + '</div>' +
+      '<div class="op-tl-card ' + cardClass + '">' +
+        '<div class="op-tl-card-row">' +
+          '<span class="op-tl-name">' + escHtml(stage.label) + '</span>' +
+          (isActive ? '<span class="op-stage-badge ' + stage.id + '">' + escHtml(stage.label) + '</span>' : '') +
+        '</div>';
+
+    if (stageNotes.length > 0) {
+      var latest = stageNotes[0];
+      var excerpt = latest.resumen && latest.resumen.secciones && latest.resumen.secciones[0]
+        ? (latest.resumen.secciones[0].puntos || [])[0] || ''
+        : (latest.transcripcion || '').slice(0, 120);
+      if (excerpt) {
+        html += '<div class="op-tl-excerpt">' + escHtml(excerpt) + '</div>';
+      }
+      html += '<div class="op-tl-notes-wrap">';
+      stageNotes.forEach(function(n) {
+        html += '<span class="op-note-chip" onclick="event.stopPropagation();openNoteSheet(\'' + n.id + '\')">' +
+          escHtml(n.title.slice(0,20)) + '</span>';
+      });
+      html += '</div>';
+    } else if (isActive) {
+      html += '<div class="op-tl-meta">Sin notas aún en esta etapa</div>';
+    }
+
+    html += '</div></div>';
+  });
+
+  html += '</div>'; // /op-timeline
+
+  // AI: detectar compromisos simples (búsqueda de palabras clave)
+  var commitments = [];
+  opNotes.forEach(function(n) {
+    var text = (n.transcripcion || '') + ' ' + (n.title || '');
+    var patterns = [
+      /antes del\s+([^\.,;]+)/gi,
+      /el\s+(lunes|martes|miércoles|jueves|viernes|sábado|domingo)\s+([^\.,;]+)/gi,
+      /para el\s+([^\.,;]+)/gi,
+      /acord[oó]\s+([^\.,]+)/gi,
+    ];
+    patterns.forEach(function(re) {
+      var m;
+      while ((m = re.exec(text)) !== null) {
+        var found = m[0].slice(0, 80);
+        if (!commitments.includes(found)) commitments.push(found);
+      }
+    });
+  });
+  if (commitments.length > 0) {
+    html += '<div class="op-ai-block">' +
+      '<div class="op-ai-label">✦ Detectado en tus notas</div>' +
+      commitments.slice(0,2).map(function(c) {
+        return '<div class="op-ai-text" style="margin-bottom:4px;">· <strong>' + escHtml(c) + '</strong></div>';
+      }).join('') +
+    '</div>';
+  }
+
+  // Acciones
+  html += '<div style="margin-top:4px;display:flex;flex-direction:column;gap:8px;">';
+  html += '<button class="btn-outline" onclick="openAttachNote(\'' + op.id + '\')">' +
+    '<svg width="14" height="14"><use href="#ic-link"/></svg> Adjuntar nota existente' +
+  '</button>';
+  if (op.stage !== 'cerrada') {
+    html += '<button class="btn-outline" onclick="avanzarEtapaOp()">' +
+      '<svg width="14" height="14"><use href="#ic-check"/></svg> Avanzar a ' +
+      escHtml((OP_STAGES[stageIdx + 1] || {label:'Cerrada'}).label) +
+    '</button>';
+  }
+  html += '<button class="btn-outline primary" onclick="generarResumenOp(\'' + op.id + '\')">' +
+    '<svg width="14" height="14"><use href="#ic-doc"/></svg> Generar resumen para escribano' +
+  '</button>';
+  html += '</div>';
+
+  c.innerHTML = html;
+}
+
+/* ── NUEVA OPERACION ── */
+var _newOpStage = 'contacto';
+function openNuevaOperacion() {
+  _newOpStage = 'contacto';
+  document.getElementById('nueva-op-titulo').value = '';
+  document.getElementById('nueva-op-partes').value = '';
+  document.querySelectorAll('.op-stage-opt').forEach(function(el) {
+    el.classList.toggle('selected', el.dataset.stage === 'contacto');
+  });
+  document.getElementById('nueva-op-sheet').classList.add('open');
+  document.getElementById('overlay').classList.add('open');
+  setTimeout(function(){ document.getElementById('nueva-op-titulo').focus(); }, 200);
+}
+function selectOpStage(el) {
+  document.querySelectorAll('.op-stage-opt').forEach(function(e){ e.classList.remove('selected'); });
+  el.classList.add('selected');
+  _newOpStage = el.dataset.stage;
+}
+function confirmarNuevaOp() {
+  var titulo = document.getElementById('nueva-op-titulo').value.trim();
+  if (!titulo) { document.getElementById('nueva-op-titulo').focus(); return; }
+  var op = {
+    id: 'op_' + Date.now(),
+    titulo: titulo,
+    partes: document.getElementById('nueva-op-partes').value.trim(),
+    stage: _newOpStage,
+    createdAt: Date.now(),
+  };
+  operaciones.unshift(op);
+  saveOps();
+  closeAllSheets();
+  renderOperaciones();
+  showStatus('[OPERACIÓN CREADA]');
+}
+
+/* ── MENU OPERACION ── */
+function openOpMenu() {
+  var op = operaciones.find(function(o){ return o.id === currentOpId; });
+  if (!op) return;
+  document.getElementById('op-menu-label').textContent = op.titulo.toUpperCase();
+  document.getElementById('op-menu-sheet').classList.add('open');
+  document.getElementById('overlay').classList.add('open');
+}
+function renameCurrentOp() {
+  var op = operaciones.find(function(o){ return o.id === currentOpId; });
+  if (!op) return;
+  openModal('Renombrar operación', op.titulo, 'Título', function(val) {
+    op.titulo = val.trim();
+    saveOps();
+    document.getElementById('op-detail-title').textContent = op.titulo.toUpperCase().slice(0,22);
+    renderOpDetail();
+    showStatus('[GUARDADO]');
+  });
+}
+function avanzarEtapaOp() {
+  var op = operaciones.find(function(o){ return o.id === currentOpId; });
+  if (!op) return;
+  var idx = OP_STAGES.findIndex(function(s){ return s.id === op.stage; });
+  if (idx < OP_STAGES.length - 1) {
+    op.stage = OP_STAGES[idx + 1].id;
+    saveOps();
+    renderOpDetail();
+    showStatus('[ETAPA AVANZADA: ' + (OP_STAGES[idx+1].label).toUpperCase() + ']');
+  }
+}
+function deleteCurrentOp() {
+  var op = operaciones.find(function(o){ return o.id === currentOpId; });
+  if (!op) return;
+  openConfirm('¿Eliminar "' + op.titulo + '"?', function() {
+    operaciones = operaciones.filter(function(o){ return o.id !== currentOpId; });
+    // Desasociar notas
+    notes.forEach(function(n){ if (n.opId === currentOpId) { delete n.opId; delete n.opStage; } });
+    saveOps(); saveLocal();
+    showScreen('operaciones', true);
+    renderOperaciones();
+    showStatus('[OPERACIÓN ELIMINADA]');
+  });
+}
+
+/* ── ADJUNTAR NOTA ── */
+var _attachingOpId = null;
+function openAttachNote(opId) {
+  _attachingOpId = opId;
+  var op = operaciones.find(function(o){ return o.id === opId; });
+  var stageIdx = OP_STAGES.findIndex(function(s){ return s.id === (op ? op.stage : ''); });
+  var freeNotes = notes.filter(function(n){ return !n.opId; });
+  var list = document.getElementById('attach-op-list');
+  if (freeNotes.length === 0) {
+    list.innerHTML = '<div style="padding:12px 0;font-size:13px;color:var(--text-secondary);">No hay notas sin operación asignada.</div>';
+  } else {
+    list.innerHTML = freeNotes.map(function(n) {
+      return '<button class="sheet-option" onclick="attachNoteToOp(\'' + n.id + '\')">' +
+        '<div class="opt-icon"><svg width="16" height="16"><use href="#ic-file-text"/></svg></div>' +
+        '<span class="sheet-option-label">' + escHtml(n.title) + '</span>' +
+      '</button>';
+    }).join('');
+  }
+  document.getElementById('attach-op-sheet').classList.add('open');
+  document.getElementById('overlay').classList.add('open');
+}
+function attachNoteToOp(noteId) {
+  var op = operaciones.find(function(o){ return o.id === _attachingOpId; });
+  var note = notes.find(function(n){ return n.id === noteId; });
+  if (!op || !note) return;
+  note.opId = op.id;
+  note.opStage = op.stage;
+  saveLocal();
+  closeAllSheets();
+  renderOpDetail();
+  showStatus('[NOTA ADJUNTADA]');
+}
+
+/* ── ADJUNTAR AL GUARDAR (desde note sheet) ── */
+function openAttachNoteFromSheet(noteId) {
+  closeNoteSheet();
+  setTimeout(function(){ openAttachNote(operaciones[0] ? operaciones[0].id : null); _attachingOpId = null; }, 200);
+  // Versión simplificada: abrir sheet de elegir operación para esta nota
+  _attachNoteId = noteId;
+  var list = document.getElementById('attach-op-list');
+  if (operaciones.length === 0) {
+    list.innerHTML = '<div style="padding:12px 0;font-size:13px;color:var(--text-secondary);">Primero creá una operación.</div>';
+  } else {
+    list.innerHTML = operaciones.map(function(op) {
+      return '<button class="sheet-option" onclick="attachNoteToOpById(\'' + op.id + '\')">' +
+        '<div class="opt-icon"><svg width="16" height="16"><use href="#ic-briefcase"/></svg></div>' +
+        '<span class="sheet-option-label">' + escHtml(op.titulo) + '</span>' +
+      '</button>';
+    }).join('');
+  }
+  document.getElementById('attach-op-sheet').classList.add('open');
+  document.getElementById('overlay').classList.add('open');
+}
+var _attachNoteId = null;
+function openAttachFromNoteSheet() {
+  var list = document.getElementById('attach-op-list');
+  if (operaciones.length === 0) {
+    list.innerHTML = '<div style="padding:12px 0;font-size:13px;color:var(--text-secondary);">Primero creá una operación desde el ícono de maletín en la topbar.</div>';
+  } else {
+    list.innerHTML = operaciones.map(function(op) {
+      var stageLabel = (OP_STAGES.find(function(s){ return s.id === op.stage; }) || {label:op.stage}).label;
+      return '<button class="sheet-option" onclick="attachNoteToOpById(\'' + op.id + '\')">' +
+        '<div class="opt-icon"><svg width="16" height="16"><use href="#ic-briefcase"/></svg></div>' +
+        '<div>' +
+          '<div class="sheet-option-label">' + escHtml(op.titulo) + '</div>' +
+          '<div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">' + escHtml(stageLabel) + '</div>' +
+        '</div>' +
+      '</button>';
+    }).join('');
+  }
+  document.getElementById('attach-op-sheet').classList.add('open');
+  document.getElementById('overlay').classList.add('open');
+}
+function attachNoteToOpById(opId) {
+  var op = operaciones.find(function(o){ return o.id === opId; });
+  var note = notes.find(function(n){ return n.id === _attachNoteId; });
+  if (!op || !note) return;
+  note.opId = op.id;
+  note.opStage = op.stage;
+  saveLocal();
+  closeAllSheets();
+  showStatus('[NOTA ADJUNTADA A ' + op.titulo.toUpperCase().slice(0,20) + ']');
+}
+
+/* ── GENERAR RESUMEN ── */
+function generarResumenOp(opId) {
+  var op = operaciones.find(function(o){ return o.id === opId; });
+  if (!op) return;
+  var opNotes = notes.filter(function(n){ return n.opId === opId; });
+  var lines = ['RESUMEN DE OPERACIÓN', '====================', ''];
+  lines.push('Operación: ' + op.titulo);
+  if (op.partes) lines.push('Partes: ' + op.partes);
+  lines.push('Etapa actual: ' + (OP_STAGES.find(function(s){ return s.id === op.stage; }) || {label:op.stage}).label);
+  lines.push('Fecha: ' + new Date().toLocaleDateString('es-AR'));
+  lines.push('');
+  lines.push('NOTAS (' + opNotes.length + ')');
+  lines.push('─────');
+  opNotes.forEach(function(n, i) {
+    lines.push('');
+    lines.push((i+1) + '. ' + n.title + ' — ' + n.date);
+    if (n.resumen && n.resumen.secciones) {
+      n.resumen.secciones.forEach(function(s) {
+        lines.push('   ' + s.titulo + ':');
+        (s.puntos||[]).forEach(function(p){ lines.push('   • ' + p); });
+      });
+    } else if (n.transcripcion) {
+      lines.push('   ' + n.transcripcion.slice(0, 400) + (n.transcripcion.length > 400 ? '...' : ''));
+    }
+  });
+  var text = lines.join('\n');
+  // Copiar al clipboard
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(function() {
+      showStatus('[RESUMEN COPIADO AL PORTAPAPELES]');
+    });
+  } else {
+    showStatus('[' + text.slice(0,40).toUpperCase() + '...]');
+  }
+}
+
+/* ── SINCRONIZAR OPS CON FIREBASE ── */
+function saveOpsToFirebase() {
+  if (!db || !currentUser) return;
+  import('https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js').then(function(fbm) {
+    var ref = fbm.doc(fbm.getFirestore(), 'users', currentUser.uid);
+    fbm.updateDoc(ref, { operaciones: operaciones, updatedAt: Date.now() }).catch(function() {
+      fbm.setDoc(ref, { operaciones: operaciones, updatedAt: Date.now() }, { merge: true });
+    });
+  });
+}
+function saveOps() {
+  localStorage.setItem('transcriber-ops', JSON.stringify(operaciones));
+  saveOpsToFirebase();
 }
 
 /* ── RENDER HOME ── */
