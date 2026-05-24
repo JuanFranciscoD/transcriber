@@ -1987,7 +1987,7 @@ body {
       <button class="nds-action" onclick="openMoveSheetFor(_ndsNoteId)">
         <svg width="15" height="15"><use href="#ic-move"/></svg>Mover
       </button>
-      <button class="nds-action" onclick="closeNoteSheet();setTimeout(function(){_attachNoteId=_ndsNoteId;openAttachFromNoteSheet();},200)">
+      <button class="nds-action" onclick="_attachNoteId=_ndsNoteId;closeNoteSheet();setTimeout(openAttachFromNoteSheet,200)">
         <svg width="15" height="15"><use href="#ic-briefcase"/></svg>Operación
       </button>
       <button class="nds-action" onclick="shareNdsNote()">
