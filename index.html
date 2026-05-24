@@ -1811,6 +1811,10 @@ body {
       <div class="mb-search-results" id="nueva-op-prop-results"></div>
     </div>
   </div>
+  <div style="margin-bottom:14px;">
+    <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">Broker responsable</div>
+    <input type="text" id="nueva-op-broker" placeholder="Ej: Juan David La Torre" style="width:100%;background:transparent;border:none;border-bottom:1px solid var(--border-visible);padding:8px 0;font-family:'Space Mono',monospace;font-size:12px;color:var(--text-display);outline:none;" />
+  </div>
   <div style="margin-bottom:16px;">
     <div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;">Etapa inicial</div>
     <div class="op-stages-grid" id="nueva-op-stages">
@@ -2441,7 +2445,7 @@ var _mbSearchTimer = null;
 function searchMBProps(query, callback) {
   if (!query || query.length < 3) { callback([]); return; }
   var q = encodeURIComponent(query);
-  var url = MB_URL + '/rest/v1/propiedades?select=id,direccion,barrio,tipo,modo,precio,moneda,dormitorios,sup_cub,activa' +
+  var url = MB_URL + '/rest/v1/propiedades?select=id,direccion,barrio,tipo,modo,precio,moneda,dormitorios,sup_cub,broker,activa' +
     '&or=(direccion.ilike.*' + q + '*,barrio.ilike.*' + q + '*)' +
     '&activa=eq.true&limit=8';
   fetch(url, { headers: { 'apikey': MB_KEY, 'Authorization': 'Bearer ' + MB_KEY } })
@@ -2602,6 +2606,14 @@ function renderOperaciones() {
     var clr = opColor(idx);
     var stageLabel = (OP_STAGES.find(function(s){ return s.id === op.stage; }) || {label: op.stage}).label;
     var noteCount = notes.filter(function(n){ return n.opId === op.id; }).length;
+    var propLine = op.prop ? escHtml(op.prop.direccion || op.prop.barrio || '') : '';
+    var clienteLine = op.lead ? escHtml(op.lead.nombre || op.lead.slug || '') : '';
+    var brokerLine = op.broker ? escHtml(op.broker) : '';
+    var metaParts = [];
+    if (clienteLine) metaParts.push('👤 ' + clienteLine);
+    if (propLine)    metaParts.push('🏠 ' + propLine);
+    if (brokerLine)  metaParts.push('🔑 ' + brokerLine);
+
     html += '<div class="op-card" data-op-id="' + op.id + '" onclick="openOperacion(\'' + op.id + '\')">' +
       '<div class="op-card-head">' +
         '<div class="op-icon-wrap" style="background:' + clr.bg + ';border:1px solid ' + clr.border + ';color:' + clr.color + '">' +
@@ -2610,6 +2622,7 @@ function renderOperaciones() {
         '<div class="op-info">' +
           '<h3>' + escHtml(op.titulo) + '</h3>' +
           '<p>' + noteCount + ' nota' + (noteCount !== 1 ? 's' : '') + (op.partes ? ' · ' + escHtml(op.partes) : '') + '</p>' +
+          (metaParts.length ? '<p style="font-size:10px;color:var(--text-disabled);margin-top:3px;line-height:1.6;">' + metaParts.join('  ') + '</p>' : '') +
         '</div>' +
         '<span class="op-stage-badge ' + op.stage + '">' + escHtml(stageLabel) + '</span>' +
       '</div>' +
@@ -2644,6 +2657,7 @@ function renderOpDetail() {
   html += '<div style="background:' + clr.bg + ';border:1px solid ' + clr.border + ';border-radius:12px;padding:14px;margin-bottom:14px;">' +
     '<div style="font-size:15px;font-weight:500;color:var(--text-display);margin-bottom:4px;">' + escHtml(op.titulo) + '</div>' +
     (op.partes ? '<div style="font-size:11px;color:var(--text-secondary);font-family:\'Space Mono\',monospace;">' + escHtml(op.partes) + '</div>' : '') +
+    (op.broker ? '<div style="font-size:10px;color:var(--text-disabled);font-family:\'Space Mono\',monospace;margin-top:2px;">🔑 ' + escHtml(op.broker) + '</div>' : '') +
     '<div style="font-size:10px;color:var(--text-disabled);font-family:\'Space Mono\',monospace;margin-top:6px;letter-spacing:.04em;">' +
       new Date(op.createdAt).toLocaleDateString('es-AR', {day:'numeric',month:'short',year:'numeric'}).toUpperCase() +
     '</div>' +
@@ -2789,6 +2803,11 @@ function selectMBProp(p) {
   document.getElementById('nueva-op-prop-results').classList.remove('open');
   document.getElementById('nueva-op-prop-input').value = '';
   document.getElementById('nueva-op-prop-search-wrap').style.display = 'none';
+  // Autocompletar broker si el campo está vacío
+  if (p.broker) {
+    var brokerInput = document.getElementById('nueva-op-broker');
+    if (brokerInput && !brokerInput.value.trim()) brokerInput.value = p.broker;
+  }
   var precio = p.precio ? (p.moneda === 'USD' ? 'USD ' : '$') + Number(p.precio).toLocaleString('es-AR') : '';
   var meta = [p.barrio, p.tipo, p.dormitorios ? p.dormitorios + ' dorm' : '', p.sup_cub ? p.sup_cub + 'm²' : '', precio].filter(Boolean).join(' · ');
   var sel = document.getElementById('nueva-op-prop-selected');
@@ -2844,6 +2863,7 @@ function openNuevaOperacion() {
   _nuevaOpLead = null;
   document.getElementById('nueva-op-titulo').value = '';
   document.getElementById('nueva-op-partes').value = '';
+  document.getElementById('nueva-op-broker').value = '';
   // reset lead search
   document.getElementById('nueva-op-lead-input').value = '';
   document.getElementById('nueva-op-lead-results').classList.remove('open');
@@ -2875,6 +2895,7 @@ function confirmarNuevaOp() {
     id: 'op_' + Date.now(),
     titulo: titulo,
     partes: document.getElementById('nueva-op-partes').value.trim(),
+    broker: document.getElementById('nueva-op-broker').value.trim(),
     stage: _newOpStage,
     createdAt: Date.now(),
     prop: _nuevaOpProp || null,
