@@ -144,6 +144,7 @@ export default async function handler(req, res) {
 
         // Detectar si pide búsqueda de propiedades
         const esBusqueda = /\b(busca|buscar|encontra|encontrar|mostrame|mostrar|recomend\w*|quiero ver|props?|propiedades?|depto|departamentos?|ambientes?)\b/i.test(textMsg);
+        console.log('[BOT] esBusqueda:', esBusqueda, '| msg:', textMsg);
 
         // Detectar si menciona un cliente de sus operaciones
         // Normaliza texto quitando tildes para comparar
@@ -179,6 +180,7 @@ export default async function handler(req, res) {
             precio_max: precioMax,
             moneda: precioMatch ? 'USD' : null,
           };
+          console.log('[BOT] searchParams regex:', JSON.stringify(searchParams));
 
           // Si no extrajo nada útil, usar Groq como fallback
           const sinDatos = !searchParams.barrio && !searchParams.dormitorios && !searchParams.modo;
@@ -226,8 +228,10 @@ Texto: "${textMsg}"`,
             propUrl += `&precio=lte.${searchParams.precio_max}&moneda=eq.${searchParams.moneda}`;
           }
 
+          console.log('[BOT] propUrl:', propUrl);
           const propResp = await fetch(propUrl, { headers: mbHeaders });
           const props = await propResp.json();
+          console.log('[BOT] props result:', Array.isArray(props) ? props.length + ' props' : JSON.stringify(props).slice(0,200));
 
           if (Array.isArray(props) && props.length > 0) {
             ctxMB += '\nPROPIEDADES MB PROPY ENCONTRADAS:\n';
