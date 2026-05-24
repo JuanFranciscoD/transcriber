@@ -430,10 +430,16 @@ export default async function handler(req, res) {
               if (jm) {
                 const parsed = JSON.parse(jm[0]);
                 if (parsed.fecha) {
+                  // Construir datetime ISO desde DD/MM/YYYY + HH:MM
+                  // "15/06/2026" + "10:30" → "2026-06-15T10:30:00"
+                  const [dd, mm, yyyy] = parsed.fecha.split('/');
+                  const horaStr = parsed.hora && parsed.hora !== 'null' ? parsed.hora : '10:00';
+                  const datetimeISO = `${yyyy}-${mm}-${dd}T${horaStr}:00`;
                   visitaObj = {
                     id: String(Date.now()),
                     fecha: parsed.fecha,
-                    hora: parsed.hora || '',
+                    hora: horaStr,
+                    datetime: datetimeISO,
                     propId: data.prop ? String(data.prop.id) : null,
                     broker: data.prop?.broker || '',
                     confirmada: false,
@@ -443,12 +449,15 @@ export default async function handler(req, res) {
               }
             } catch { /* si Groq falla, guardar texto crudo */ }
 
-            // Fallback: guardar texto como fecha
+            // Fallback: guardar fecha como hoy a las 10:00
             if (!visitaObj) {
+              const ahora = new Date();
+              const datetimeISO = ahora.toISOString();
               visitaObj = {
                 id: String(Date.now()),
                 fecha: textMsg.trim(),
                 hora: '',
+                datetime: datetimeISO,
                 propId: data.prop ? String(data.prop.id) : null,
                 broker: data.prop?.broker || '',
                 confirmada: false,
