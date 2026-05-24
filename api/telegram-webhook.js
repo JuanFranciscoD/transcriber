@@ -69,7 +69,8 @@ async function registerCommands(token) {
         { command: 'bajas',   description: '📉 Propiedades con precio actualizado' },
         { command: 'buscar',  description: '🔍 Buscar propiedades paso a paso' },
         { command: 'crearop',       description: '➕ Crear nueva operación desde el bot' },
-        { command: 'agendarvisita', description: '🗓 Agendar visita a operación existente' },
+        { command: 'agendarvisita',  description: '🗓 Agendar visita a operación existente' },
+        { command: 'buscacliente',   description: '👤 Buscar cliente en MB Propy y ver su actividad' },
         { command: 'nota',    description: '📝 Forzar guardar texto como nota' },
         { command: 'ayuda',   description: '❓ Ver todos los comandos disponibles' },
       ],
@@ -269,6 +270,20 @@ export default async function handler(req, res) {
         return res.status(200).json({ ok: true });
       }
 
+      // /buscacliente — buscar cliente en MB Propy
+      if (cmd === 'buscacliente') {
+        const nombreArg = textMsg.replace(/^\/buscacliente\s*/i, '').trim();
+        if (!nombreArg) {
+          await userRef.set({ botBuscaClienteState: { step: 'nombre' } }, { merge: true });
+          await tgSend(chatId, '👤 *Buscar cliente en MB Propy*\n\n¿Cómo se llama el cliente?', 'Markdown');
+          return res.status(200).json({ ok: true });
+        }
+        // Si vino el nombre directo: ir a buscar
+        await userRef.set({ botBuscaClienteState: { step: 'resultado', nombre: nombreArg } }, { merge: true });
+        await buscarClienteMBPropy(chatId, nombreArg, userRef, res);
+        return res.status(200).json({ ok: true });
+      }
+
       // /agendarvisita — flujo guiado para agendar visita a op existente
       if (cmd === 'agendarvisita') {
         const snap = await userRef.get();
@@ -316,6 +331,146 @@ export default async function handler(req, res) {
       // Comando desconocido
       await tgSend(chatId, '❓ Comando no reconocido. Usá `/ayuda` para ver los disponibles.', 'Markdown');
       return res.status(200).json({ ok: true });
+    }
+
+    // ── Flujo guiado /buscacliente (estado activo) ──
+    {
+      const userRefBC = getDb().collection('users').doc(FIREBASE_UID);
+      const snapBC = await userRefBC.get();
+      const bcState = snapBC.exists ? snapBC.data().botBuscaClienteState : null;
+
+      if (bcState && bcState.step) {
+        if (/^\/cancelar|^\/cancel/i.test(textMsg)) {
+          await userRefBC.set({ botBuscaClienteState: null }, { merge: true });
+          await tgSend(chatId, '❌ Cancelado.');
+          return res.status(200).json({ ok: true });
+        }
+
+        // Paso 0b: elegir entre múltiples matches
+        if (bcState.step === 'elegir_cliente') {
+          const num = parseInt(textMsg.trim());
+          const matches = bcState.matches || [];
+          const elegido = !isNaN(num) && matches[num-1] ? matches[num-1] : null;
+          if (!elegido) {
+            await tgSend(chatId, '❓ Elegí un número de la lista.');
+            return res.status(200).json({ ok: true });
+          }
+          const MB_URL_BC = 'https://hyxsdeeoyecdslrtqrmo.supabase.co';
+          const MB_KEY_BC = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh5eHNkZWVveWVjZHNscnRxcm1vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0ODczNzYsImV4cCI6MjA5MTA2MzM3Nn0.YT76TJzSbxgjkNAdpIsRd5AGW9bC6PaTkyEFwOK7OTo';
+          const mbHBC = { 'apikey': MB_KEY_BC, 'Authorization': `Bearer ${MB_KEY_BC}` };
+          await mostrarActividadCliente(chatId, elegido, userRefBC, mbHBC, MB_URL_BC);
+          return res.status(200).json({ ok: true });
+        }
+
+        // Paso 1: recibir nombre
+        if (bcState.step === 'nombre') {
+          await userRefBC.set({ botBuscaClienteState: { step: 'resultado', nombre: textMsg.trim() } }, { merge: true });
+          await buscarClienteMBPropy(chatId, textMsg.trim(), userRefBC, res);
+          return res.status(200).json({ ok: true });
+        }
+
+        // Paso 2: elegir prop para agendar visita
+        if (bcState.step === 'elegir_prop_visita') {
+          const num = parseInt(textMsg.trim());
+          const props = bcState.props || [];
+          if (/saltar|skip|no|cancelar/i.test(textMsg) || (!isNaN(num) && num === 0)) {
+            await userRefBC.set({ botBuscaClienteState: null }, { merge: true });
+            await tgSend(chatId, '👍 Listo, sin agendar visita.');
+            return res.status(200).json({ ok: true });
+          }
+          const propElegida = !isNaN(num) && props[num-1] ? props[num-1] : null;
+          if (!propElegida) {
+            await tgSend(chatId, '❓ Elegí un número de la lista, o "no" para saltar.');
+            return res.status(200).json({ ok: true });
+          }
+          await userRefBC.set({ botBuscaClienteState: { step: 'fecha_visita', nombre: bcState.nombre, prop: propElegida } }, { merge: true });
+          await tgSend(chatId, `✅ *${propElegida.direccion}*\n\n¿Qué fecha y hora?\n_Ej: "viernes 5 a las 10", "05/06 11:00"_`, 'Markdown');
+          return res.status(200).json({ ok: true });
+        }
+
+        // Paso 3: fecha → crear operación + visita + GCal
+        if (bcState.step === 'fecha_visita') {
+          const clienteNombre = bcState.nombre;
+          const prop = bcState.prop;
+
+          // Parsear fecha con Groq
+          let visitaObj = null;
+          try {
+            const hoyStr = new Date().toLocaleDateString('es-AR', { weekday:'long', day:'numeric', month:'long', year:'numeric', timeZone:'America/Argentina/Buenos_Aires' });
+            const pr = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${GROQ_KEY}` },
+              body: JSON.stringify({ model: 'llama-3.3-70b-versatile', max_tokens: 100,
+                messages: [{ role: 'user', content: `Hoy es ${hoyStr}. Devolvé SOLO JSON: {"iso":"YYYY-MM-DDTHH:MM:00","fecha":"DD/MM/YYYY","hora":"HH:MM"}. Si no hay hora usá "10:00". Texto: "${textMsg}"` }] }),
+            });
+            const pd = await pr.json();
+            const jm = (pd.choices?.[0]?.message?.content || '').match(/\{[\s\S]*?\}/);
+            if (jm) {
+              const parsed = JSON.parse(jm[0]);
+              const dt = new Date(parsed.iso);
+              if (!isNaN(dt.getTime())) {
+                visitaObj = { id: String(Date.now()), fecha: parsed.fecha, hora: parsed.hora, datetime: parsed.iso, propId: prop?.id ? String(prop.id) : null, broker: prop?.broker || '', confirmada: false, createdAt: Date.now() };
+              }
+            }
+          } catch(e) { console.log('[BOT] buscacliente fecha err:', e.message); }
+
+          // Fallback manual
+          if (!visitaObj) {
+            const ahora = new Date();
+            const diaM = textMsg.match(/\b(\d{1,2})\b/);
+            const horaM = textMsg.match(/las?\s+(\d{1,2})(?::(\d{2}))?/i) || textMsg.match(/(\d{1,2}):(\d{2})/);
+            let dt = new Date(ahora);
+            if (diaM) { dt.setDate(parseInt(diaM[1])); if (dt < ahora) dt.setMonth(dt.getMonth()+1); }
+            if (horaM) dt.setHours(parseInt(horaM[1]), parseInt(horaM[2]||'0'), 0, 0); else dt.setHours(10,0,0,0);
+            const iso = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}T${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}:00`;
+            visitaObj = { id: String(Date.now()), fecha: `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear()}`, hora: `${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`, datetime: iso, propId: prop?.id ? String(prop.id) : null, broker: prop?.broker || '', confirmada: false, createdAt: Date.now() };
+          }
+
+          // GCal
+          let gcalLink = null;
+          try {
+            const gr = await fetch('https://transcribeme.vercel.app/api/gcal', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ title: `Visita: ${clienteNombre} — ${prop?.direccion || ''}`, date: visitaObj.datetime.slice(0,10), time: visitaObj.datetime.slice(11,16), description: `Cliente: ${clienteNombre}\nPropiedad: ${prop?.direccion || ''} (${prop?.barrio || ''})\nBroker: ${prop?.broker || ''}` }),
+            });
+            const gd = await gr.json();
+            if (gd.ok) { gcalLink = gd.htmlLink; visitaObj.gcalLink = gcalLink; }
+          } catch(e) { console.log('[BOT] gcal buscacliente err:', e.message); }
+
+          // Crear operación nueva en Transcribeme
+          const now = Date.now();
+          const nuevaOp = {
+            id: 'op_' + now,
+            titulo: `${clienteNombre}${prop ? ' — ' + (prop.barrio || prop.direccion) : ''}`,
+            stage: 'visita',
+            createdAt: now, updatedAt: now, source: 'telegram',
+            lead: { nombre: clienteNombre, slug: clienteNombre.toLowerCase().replace(/\s+/g,'-') },
+            prop: prop || null,
+            props: [], visitas: [visitaObj],
+            timeline: [
+              { id: String(now), type: 'stage', stage: 'visita', label: 'Operación creada desde bot (cliente MB Propy)', date: new Date().toLocaleDateString('es-AR', { day:'numeric', month:'short' }), createdAt: now },
+              { id: visitaObj.id, type: 'visita', label: `Visita agendada — ${visitaObj.fecha} ${visitaObj.hora}`, date: new Date().toLocaleDateString('es-AR', { day:'numeric', month:'short' }), createdAt: now },
+            ],
+          };
+
+          const snapFresh = await userRefBC.get();
+          const existingOps = snapFresh.exists ? (snapFresh.data().operaciones || []) : [];
+          await userRefBC.set({
+            operaciones: [nuevaOp, ...existingOps],
+            updatedAt: now, lastBotUpdate: now,
+            botBuscaClienteState: null,
+          }, { merge: true });
+
+          let confirm = `✅ *Operación creada*\n\n`;
+          confirm += `👤 ${clienteNombre}\n`;
+          if (prop) confirm += `🏢 ${prop.direccion} (${prop.barrio || ''})\n`;
+          confirm += `🗓 ${visitaObj.fecha} ${visitaObj.hora}\n`;
+          if (gcalLink) confirm += `📅 [Ver en Google Calendar](${gcalLink})\n`;
+          confirm += `\n_Cliente y operación guardados en Transcribeme_`;
+          await tgSend(chatId, confirm, 'Markdown');
+          return res.status(200).json({ ok: true });
+        }
+      }
     }
 
     // ── Flujo guiado /agendarvisita (estado activo) ──
@@ -1283,6 +1438,118 @@ export default async function handler(req, res) {
   }
 
   return res.status(200).json({ ok: true });
+}
+
+// ── Buscar cliente en MB Propy y mostrar actividad ──
+async function buscarClienteMBPropy(chatId, nombreBuscado, userRef, res) {
+  const MB_URL = 'https://hyxsdeeoyecdslrtqrmo.supabase.co';
+  const MB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh5eHNkZWVveWVjZHNscnRxcm1vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0ODczNzYsImV4cCI6MjA5MTA2MzM3Nn0.YT76TJzSbxgjkNAdpIsRd5AGW9bC6PaTkyEFwOK7OTo';
+  const mbH = { 'apikey': MB_KEY, 'Authorization': `Bearer ${MB_KEY}` };
+
+  try {
+    // 1. Buscar clientes que coincidan con el nombre (búsqueda parcial)
+    const normalize = s => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    const termino = normalize(nombreBuscado);
+
+    // Traer todos los clientes únicos de favoritos
+    const favAllResp = await fetch(`${MB_URL}/rest/v1/favoritos?select=cliente&limit=500`, { headers: mbH });
+    const favAll = await favAllResp.json();
+    const clientesUnicos = [...new Set((favAll || []).map(f => f.cliente).filter(Boolean))];
+
+    // Filtrar por nombre parcial
+    const matches = clientesUnicos.filter(c => normalize(c).includes(termino));
+
+    if (!matches.length) {
+      await tgSend(chatId, `😕 No encontré ningún cliente con "${nombreBuscado}" en MB Propy.\n\n_Intentá con otro nombre o parte del nombre._`, 'Markdown');
+      await userRef.set({ botBuscaClienteState: null }, { merge: true });
+      return;
+    }
+
+    // Si hay varios matches, mostrar lista para elegir
+    if (matches.length > 1) {
+      let txt = `👤 Encontré ${matches.length} clientes:\n\n`;
+      matches.slice(0,8).forEach((c, i) => { txt += `*${i+1}.* ${c}\n`; });
+      txt += '\n_Respondé con el número_';
+      await userRef.set({ botBuscaClienteState: { step: 'elegir_cliente', matches: matches.slice(0,8) } }, { merge: true });
+      await tgSend(chatId, txt, 'Markdown');
+      return;
+    }
+
+    // Un solo match → mostrar actividad directamente
+    const clienteNombre = matches[0];
+    await mostrarActividadCliente(chatId, clienteNombre, userRef, mbH, MB_URL);
+
+  } catch(e) {
+    console.log('[BOT] buscacliente error:', e.message);
+    await tgSend(chatId, '❌ Error buscando cliente: ' + e.message);
+    await userRef.set({ botBuscaClienteState: null }, { merge: true });
+  }
+}
+
+async function mostrarActividadCliente(chatId, clienteNombre, userRef, mbH, MB_URL) {
+  // Traer todos sus favoritos
+  const favResp = await fetch(
+    `${MB_URL}/rest/v1/favoritos?select=propiedad_id,origen,created_at&cliente=eq.${encodeURIComponent(clienteNombre)}&order=created_at.desc&limit=30`,
+    { headers: mbH }
+  );
+  const favs = await favResp.json();
+
+  if (!Array.isArray(favs) || !favs.length) {
+    await tgSend(chatId, `👤 *${clienteNombre}*\n\nNo tiene actividad en MB Propy todavía.`, 'Markdown');
+    await userRef.set({ botBuscaClienteState: null }, { merge: true });
+    return;
+  }
+
+  const favCliente = favs.filter(f => f.origen === 'cliente').map(f => f.propiedad_id);
+  const favBroker  = favs.filter(f => f.origen === 'broker').map(f => f.propiedad_id);
+  const todosIds   = [...new Set([...favCliente, ...favBroker])];
+
+  // Traer propiedades
+  const propsResp = await fetch(
+    `${MB_URL}/rest/v1/propiedades?select=id,direccion,barrio,tipo,modo,precio,moneda,dormitorios,sup_cub,broker,activa&id=in.(${todosIds.join(',')})`,
+    { headers: mbH }
+  );
+  const props = await propsResp.json();
+
+  if (!Array.isArray(props) || !props.length) {
+    await tgSend(chatId, `👤 *${clienteNombre}*\n\nTiene favoritos pero las propiedades no se encontraron.`, 'Markdown');
+    await userRef.set({ botBuscaClienteState: null }, { merge: true });
+    return;
+  }
+
+  // Armar texto de actividad
+  let txt = `👤 *${clienteNombre}*\n`;
+  txt += `${favCliente.length} le gustaron ❤️ · ${favBroker.length} selección broker 📋\n\n`;
+
+  const propsActivas = props.filter(p => p.activa !== false);
+  const propsInactivas = props.filter(p => p.activa === false);
+
+  propsActivas.forEach((p, i) => {
+    const precio = p.precio ? `${p.moneda === 'USD' ? 'USD ' : '$'}${Number(p.precio).toLocaleString('es-AR')}` : '';
+    const tag = favCliente.includes(p.id) && favBroker.includes(p.id) ? '⭐'
+              : favCliente.includes(p.id) ? '❤️' : '📋';
+    const ficha = `https://www.mirandabosch.com/ficha/${Buffer.from(JSON.stringify({p:String(p.id),b:'33504'})).toString('base64')}`;
+    txt += `*${i+1}.* ${tag} ${p.direccion} (${p.barrio})\n`;
+    txt += `  ${p.dormitorios != null ? p.dormitorios+' dorm | ' : ''}${p.sup_cub||'?'}m² | ${precio} | 🔑 ${p.broker||'?'}\n`;
+    txt += `  🔗 ${ficha}\n\n`;
+  });
+
+  if (propsInactivas.length) {
+    txt += `_+ ${propsInactivas.length} prop/s ya no activa/s_\n\n`;
+  }
+
+  txt += `¿Querés agendar una visita?\nRespondé con el *número* de la propiedad, o "no"`;
+
+  // Guardar estado con las props activas para el siguiente paso
+  await userRef.set({
+    botBuscaClienteState: {
+      step: 'elegir_prop_visita',
+      nombre: clienteNombre,
+      props: propsActivas.map(p => ({ id: p.id, direccion: p.direccion, barrio: p.barrio, broker: p.broker, precio: p.precio, moneda: p.moneda })),
+    }
+  }, { merge: true });
+
+  await tgSend(chatId, txt, 'Markdown');
 }
 
 async function tgSend(chatId, text, parseMode) {
