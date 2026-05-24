@@ -96,11 +96,11 @@ export default async function handler(req, res) {
     }
 
     // ── Detectar si es consulta o nota ──
-    // Es consulta si empieza con '?' o contiene palabras clave de pregunta
+    // Sin tildes para tolerar cualquier input, más amplio
     const consultaPatterns = [
       /^\?/,
-      /^(qué|que|como|cómo|cuándo|cuando|cuánto|cuanto|quién|quien|cuál|cual)\b/i,
-      /\b(qué pasó|que paso|qué hay|que hay|dame|contame|mostrame|buscá|busca|resumí|resumi|estado de|cómo va|como va|qué tengo|que tengo|operacion(es)?|cliente|propiedad)\b/i,
+      /^(que|como|cuando|cuanto|quien|cual|quiero)\b/i,
+      /\b(que paso|que hay|dame|contame|mostrame|busca|buscar|encontra|encontrar|recomienda|recomenda|recomendame|resumi|estado de|como va|que tengo|operaciones?|cliente|propiedad|props?|depto|departamentos?|ambientes?)\b/i,
     ];
     const esConsulta = consultaPatterns.some(p => p.test(textMsg.trim()));
 
@@ -143,53 +143,88 @@ export default async function handler(req, res) {
         let ctxMB = '';
 
         // Detectar si pide búsqueda de propiedades
-        const esBusqueda = /\b(busca|buscá|encontrá|encontra|mostrá|mostra|recomend|quiero ver|prop(iedades)?)\b/i.test(textMsg);
+        const esBusqueda = /\b(busca|buscar|encontra|encontrar|mostrame|mostrar|recomend\w*|quiero ver|props?|propiedades?|depto|departamentos?|ambientes?)\b/i.test(textMsg);
 
         // Detectar si menciona un cliente de sus operaciones
+        // Normaliza texto quitando tildes para comparar
+        const normalize = s => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+        const msgNorm = normalize(textMsg);
         const clienteMencionado = operaciones
           .filter(op => op.lead)
           .map(op => op.lead)
           .find(lead => {
-            const nombre = (lead.nombre || lead.slug || '').toLowerCase();
-            return nombre.split(' ').some(part => part.length > 3 && textMsg.toLowerCase().includes(part));
+            const nombre = normalize(lead.nombre || lead.slug || '');
+            // Match si cualquier parte del nombre (>3 chars) aparece en el mensaje
+            return nombre.split(' ').some(part => part.length > 3 && msgNorm.includes(part));
           });
 
-        // Extraer parámetros de búsqueda con Groq (rápido, solo si es búsqueda)
+        // Extraer parámetros de búsqueda — primero con regex simples, luego Groq si hace falta
         let searchParams = null;
         if (esBusqueda) {
-          const parseResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${GROQ_KEY}` },
-            body: JSON.stringify({
-              model: 'llama-3.3-70b-versatile',
-              max_tokens: 150,
-              messages: [{
-                role: 'user',
-                content: `Extraé los parámetros de búsqueda inmobiliaria de este texto. Devolvé SOLO JSON válido:
-{"barrio":"nombre o null","dormitorios":numero_o_null,"modo":"venta o alquiler o null","precio_max":numero_o_null,"moneda":"USD o ARS o null","cliente":"nombre o null"}
+          // Extracción directa por regex (más rápida y confiable para casos comunes)
+          const barrios = ['Recoleta','Palermo Chico','Palermo Soho','Palermo Hollywood','Palermo','Retiro','Belgrano','Barrio Norte','Puerto Madero','Las Cañitas','Núñez','Nunez','Colegiales','Coghlan','Villa Crespo'];
+          const msgLow = normalize(textMsg);
+          const barrioMatch = barrios.find(b => msgLow.includes(normalize(b)));
+          const dormMatch = textMsg.match(/(\d)\s*(ambiente|dorm|cuarto|habit)/i);
+          const dormNum = dormMatch ? parseInt(dormMatch[1]) : null;
+          const modoMatch = /\b(alquiler|alquilar|rent)\b/i.test(textMsg) ? 'alquiler'
+                          : /\b(venta|vender|compra|comprar)\b/i.test(textMsg) ? 'venta' : null;
+          const precioMatch = textMsg.match(/(\d[\d.,]*)\s*k?\s*(usd|dolar|dólar|\$u)/i);
+          const precioMax = precioMatch ? parseFloat(precioMatch[1].replace(/\./g,'').replace(',','.')) * (precioMatch[0].toLowerCase().includes('k') ? 1000 : 1) : null;
 
-Texto: "${textMsg}"
+          searchParams = {
+            barrio: barrioMatch || null,
+            dormitorios: dormNum,
+            modo: modoMatch,
+            precio_max: precioMax,
+            moneda: precioMatch ? 'USD' : null,
+          };
 
-Barrios disponibles: Recoleta, Palermo, Palermo Chico, Retiro, Belgrano, Barrio Norte, Puerto Madero, Palermo Hollywood, Las Cañitas, Palermo Soho, Núñez.`
-              }],
-            }),
-          });
-          const parseData = await parseResp.json();
-          try {
-            const raw = parseData.choices[0].message.content;
-            const jm = raw.match(/\{[\s\S]*\}/);
-            searchParams = JSON.parse(jm ? jm[0] : raw);
-          } catch { searchParams = null; }
+          // Si no extrajo nada útil, usar Groq como fallback
+          const sinDatos = !searchParams.barrio && !searchParams.dormitorios && !searchParams.modo;
+          if (sinDatos) {
+            try {
+              const parseResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${GROQ_KEY}` },
+                body: JSON.stringify({
+                  model: 'llama-3.3-70b-versatile',
+                  max_tokens: 120,
+                  messages: [{
+                    role: 'user',
+                    content: `Extraé parámetros inmobiliarios. Solo ponés valores que estén EXPLÍCITOS en el texto, null si no se menciona. Devolvé SOLO JSON:
+{"barrio":string_o_null,"dormitorios":numero_o_null,"modo":"venta"|"alquiler"|null,"precio_max":numero_o_null,"moneda":"USD"|"ARS"|null}
+Texto: "${textMsg}"`,
+                  }],
+                }),
+              });
+              const pd = await parseResp.json();
+              const raw = pd.choices?.[0]?.message?.content || '';
+              const jm = raw.match(/\{[\s\S]*\}/);
+              if (jm) {
+                const parsed = JSON.parse(jm[0]);
+                // Merge solo valores no-null que Groq encontró
+                if (parsed.barrio && parsed.barrio !== 'null') searchParams.barrio = parsed.barrio;
+                if (parsed.dormitorios) searchParams.dormitorios = parsed.dormitorios;
+                if (parsed.modo && parsed.modo !== 'null') searchParams.modo = parsed.modo;
+                if (parsed.precio_max) searchParams.precio_max = parsed.precio_max;
+                if (parsed.moneda && parsed.moneda !== 'null') searchParams.moneda = parsed.moneda;
+              }
+            } catch { /* Groq falló, seguimos con lo que tenemos */ }
+          }
         }
 
         // Buscar propiedades en MB Propy
-        if (searchParams || esBusqueda) {
+        if (esBusqueda) {
           let propUrl = `${MB_URL}/rest/v1/propiedades?select=id,direccion,barrio,tipo,modo,precio,moneda,dormitorios,sup_cub,broker,telefono&activa=eq.true&limit=6&order=precio.asc`;
           if (searchParams?.barrio) propUrl += `&barrio=ilike.*${encodeURIComponent(searchParams.barrio)}*`;
           if (searchParams?.dormitorios) propUrl += `&dormitorios=eq.${searchParams.dormitorios}`;
-          if (searchParams?.modo && searchParams.modo !== 'null') propUrl += `&modo=eq.${searchParams.modo}`;
-          if (searchParams?.precio_max) propUrl += `&precio=lte.${searchParams.precio_max}`;
-          if (searchParams?.moneda && searchParams.moneda !== 'null') propUrl += `&moneda=eq.${searchParams.moneda}`;
+          // modo: solo filtrar si el usuario lo mencionó explícitamente, excluir 'ghost' siempre
+          if (searchParams?.modo) propUrl += `&modo=eq.${searchParams.modo}`;
+          else propUrl += `&modo=neq.ghost`;
+          if (searchParams?.precio_max && searchParams?.moneda) {
+            propUrl += `&precio=lte.${searchParams.precio_max}&moneda=eq.${searchParams.moneda}`;
+          }
 
           const propResp = await fetch(propUrl, { headers: mbHeaders });
           const props = await propResp.json();
