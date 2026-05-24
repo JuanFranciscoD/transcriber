@@ -83,6 +83,21 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(200).json({ ok: true });
 
   const update = req.body;
+
+  // ── Manejar pulsaciones de botones inline (callback_query) ──
+  if (update.callback_query) {
+    const cq      = update.callback_query;
+    const cqChatId = String(cq.message.chat.id);
+    const data    = cq.data || '';
+    await tgAnswerCallback(cq.id);
+
+    if (ALLOWED_CHAT && cqChatId !== ALLOWED_CHAT) return res.status(200).json({ ok: true });
+
+    // Simulamos como si el usuario hubiera enviado ese texto
+    await handleCallbackData(cqChatId, data, res);
+    return res.status(200).json({ ok: true });
+  }
+
   const msg = update.message || update.channel_post;
   if (!msg) return res.status(200).json({ ok: true });
 
@@ -311,47 +326,34 @@ export default async function handler(req, res) {
         return res.status(200).json({ ok: true });
       }
 
-      // /agendarvisita — flujo guiado para agendar visita a op existente
+      // /agendarvisita — preguntar si es op existente o nuevo cliente
       if (cmd === 'agendarvisita') {
-        const snap = await userRef.get();
-        const operaciones = snap.exists ? (snap.data().operaciones || []) : [];
-        const opsActivas = operaciones.filter(o => o.stage !== 'archivada');
-        if (!opsActivas.length) {
-          await tgSend(chatId, '📋 No tenés operaciones activas. Usá `/crearop` para crear una.', 'Markdown');
-          return res.status(200).json({ ok: true });
-        }
-        // Listar ops para elegir
-        let txt = '🗓 *Agendar visita*\n\n¿A qué operación?\n\n';
-        opsActivas.slice(0, 8).forEach((op, i) => {
-          txt += `*${i+1}.* ${op.titulo}`;
-          if (op.lead) txt += ` — ${op.lead.nombre || op.lead.slug}`;
-          txt += '\n';
-        });
-        txt += '\n_Respondé con el número_';
-        await userRef.set({ botAgendarState: { step: 'elegir_op', ops: opsActivas.slice(0,8).map(o => ({ id: o.id, titulo: o.titulo, lead: o.lead, prop: o.prop, props: o.props || [] })) } }, { merge: true });
-        await tgSend(chatId, txt, 'Markdown');
+        await userRef.set({ botAgendarState: { step: 'tipo_cliente' } }, { merge: true });
+        await tgKeyboard(chatId, '🗓 *Agendar visita*\n\n¿Es para un cliente con operación activa o uno nuevo?',
+          [
+            [{ text: '📋 Operación existente', data: 'av:existente' }],
+            [{ text: '👤 Nuevo lead / cliente', data: 'av:nuevo' }],
+            [{ text: '❌ Cancelar', data: 'av:cancelar' }],
+          ], 'Markdown');
         return res.status(200).json({ ok: true });
       }
 
       // /crearop — flujo guiado para crear operación
       if (cmd === 'crearop') {
         await userRef.set({ botCrearOpState: { step: 'titulo', data: {} } }, { merge: true });
-        await tgSend(chatId,
-          '➕ *Nueva operación*\n\n¿Cómo se llama la operación?\n\n_Ej: "Rolandi — Recoleta" o "Familia Pérez"_',
-          'Markdown'
-        );
+        await tgSend(chatId, '➕ *Nueva operación*\n\n¿Cómo se llama la operación?\n_Ej: "Rolandi — Recoleta" o "Familia Pérez"_', 'Markdown');
         return res.status(200).json({ ok: true });
       }
 
-      // /buscar — flujo guiado con estado en Firestore
+      // /buscar — flujo guiado con botones inline
       if (cmd === 'buscar') {
         await userRef.set({ botBuscarState: { step: 'barrio', params: {} } }, { merge: true });
-        await tgSend(chatId,
-          '🔍 *Búsqueda guiada de propiedades*\n\n' +
-          '¿En qué barrio?\n\n' +
-          '_Escribí el barrio o "cualquiera" para todos_',
-          'Markdown'
-        );
+        await tgKeyboard(chatId, '🔍 *Búsqueda guiada*\n\n¿En qué barrio?', [
+          [{ text: 'Recoleta', data: 'bs:Recoleta' }, { text: 'Palermo', data: 'bs:Palermo' }, { text: 'Belgrano', data: 'bs:Belgrano' }],
+          [{ text: 'Retiro', data: 'bs:Retiro' }, { text: 'Barrio Norte', data: 'bs:Barrio Norte' }, { text: 'Núñez', data: 'bs:Núñez' }],
+          [{ text: 'Las Cañitas', data: 'bs:Las Cañitas' }, { text: 'Puerto Madero', data: 'bs:Puerto Madero' }],
+          [{ text: '📦 Cualquiera', data: 'bs:cualquiera' }],
+        ], 'Markdown');
         return res.status(200).json({ ok: true });
       }
 
@@ -516,36 +518,26 @@ export default async function handler(req, res) {
           return res.status(200).json({ ok: true });
         }
 
-        // Paso 1: elegir operación
-        if (step === 'elegir_op') {
-          const num = parseInt(textMsg.trim());
-          const ops = av.ops || [];
-          const opElegida = !isNaN(num) && ops[num-1] ? ops[num-1] : null;
-          if (!opElegida) {
-            await tgSend(chatId, '❓ Elegí un número de la lista.');
-            return res.status(200).json({ ok: true });
-          }
-          // Armar lista de propiedades de esa op
-          const todasProps = [];
-          if (opElegida.prop) todasProps.push(opElegida.prop);
-          (opElegida.props || []).forEach(p => todasProps.push(p));
+        // Paso nuevo_cliente_nombre: nombre del cliente nuevo
+        if (step === 'nuevo_cliente_nombre') {
+          const nombreCliente = textMsg.trim();
+          await userRefAV.set({ botAgendarState: { step: 'nuevo_cliente_prop', clienteNombre: nombreCliente } }, { merge: true });
+          await tgSend(chatId, `👤 *${nombreCliente}*\n\n¿Para qué propiedad?\n_Escribí la dirección o "saltar"_`, 'Markdown');
+          return res.status(200).json({ ok: true });
+        }
 
-          if (todasProps.length === 0) {
-            // Sin propiedades → preguntar propiedad libre o buscar
-            await userRefAV.set({ botAgendarState: { step: 'prop_texto', opId: opElegida.id, opTitulo: opElegida.titulo } }, { merge: true });
-            await tgSend(chatId, `✅ *${opElegida.titulo}*\n\n¿Para qué propiedad?\n_Escribí dirección o "saltar"_`, 'Markdown');
-          } else if (todasProps.length === 1) {
-            // Una sola prop → ir directo a fecha
-            await userRefAV.set({ botAgendarState: { step: 'fecha', opId: opElegida.id, opTitulo: opElegida.titulo, prop: todasProps[0] } }, { merge: true });
-            await tgSend(chatId, `✅ *${opElegida.titulo}*\n🏢 ${todasProps[0].direccion}\n\n¿Qué fecha y hora?\n_Ej: "lunes 1 a las 10", "02/06 11:30"_`, 'Markdown');
-          } else {
-            // Múltiples props → elegir cuál
-            let txt = `✅ *${opElegida.titulo}*\n\n¿Para qué propiedad?\n\n`;
-            todasProps.forEach((p, i) => { txt += `*${i+1}.* ${p.direccion} (${p.barrio || ''})\n`; });
-            txt += `\n_Número o "saltar"_`;
-            await userRefAV.set({ botAgendarState: { step: 'elegir_prop_av', opId: opElegida.id, opTitulo: opElegida.titulo, props: todasProps } }, { merge: true });
-            await tgSend(chatId, txt, 'Markdown');
-          }
+        // Paso nuevo_cliente_prop: dirección libre → crear op + visita
+        if (step === 'nuevo_cliente_prop') {
+          const propTexto = !/saltar|skip/i.test(textMsg) ? textMsg.trim() : null;
+          await userRefAV.set({ botAgendarState: { step: 'fecha', clienteNombre: av.clienteNombre, opId: null, opTitulo: `${av.clienteNombre}${propTexto ? ' — ' + propTexto : ''}`, prop: propTexto ? { direccion: propTexto } : null, esNuevo: true } }, { merge: true });
+          await tgSend(chatId, '¿Qué fecha y hora?\n_Ej: "lunes 2 a las 10", "02/06 11:30"_', 'Markdown');
+          return res.status(200).json({ ok: true });
+        }
+
+        // Paso 1: elegir operación (cuando viene por texto, por si acaso)
+        if (step === 'elegir_op') {
+          // Los botones lo manejan por callback; si llega texto, redirigir
+          await tgSend(chatId, '👆 Elegí una opción de los botones de arriba.');
           return res.status(200).json({ ok: true });
         }
 
@@ -615,20 +607,42 @@ export default async function handler(req, res) {
             if (gd.ok) { gcalLinkAV = gd.htmlLink; visitaObj.gcalLink = gcalLinkAV; }
           } catch(e) { console.log('[BOT] gcal agendarvisita error:', e.message); }
 
-          // Guardar en Firestore — leer ops frescas y agregar visita a la op correcta
+          // Guardar en Firestore
           const snapFresh = await userRefAV.get();
           const allOps = snapFresh.exists ? (snapFresh.data().operaciones || []) : [];
-          const opIdx = allOps.findIndex(o => o.id === av.opId);
-          if (opIdx >= 0) {
-            if (!allOps[opIdx].visitas) allOps[opIdx].visitas = [];
-            allOps[opIdx].visitas.push(visitaObj);
-            // Timeline entry
-            if (!allOps[opIdx].timeline) allOps[opIdx].timeline = [];
-            allOps[opIdx].timeline.push({ id: visitaObj.id, type: 'visita', label: `Visita agendada — ${visitaObj.fecha} ${visitaObj.hora}`, date: new Date().toLocaleDateString('es-AR', { day:'numeric', month:'short' }), createdAt: Date.now() });
-          }
-          await userRefAV.set({ operaciones: allOps, updatedAt: Date.now(), lastBotUpdate: Date.now(), botAgendarState: null }, { merge: true });
+          const nowTs = Date.now();
 
-          let confirm = `✅ *Visita agendada*\n\n📋 ${av.opTitulo}\n`;
+          if (av.esNuevo) {
+            // Crear nueva operación para el cliente nuevo
+            const nuevaOp = {
+              id: 'op_' + nowTs,
+              titulo: av.opTitulo,
+              stage: 'visita',
+              createdAt: nowTs, updatedAt: nowTs, source: 'telegram',
+              lead: av.clienteNombre ? { nombre: av.clienteNombre, slug: av.clienteNombre.toLowerCase().replace(/\s+/g,'-') } : null,
+              prop: av.prop || null,
+              props: [], visitas: [visitaObj],
+              timeline: [
+                { id: String(nowTs), type: 'stage', stage: 'visita', label: 'Operación creada desde bot', date: new Date().toLocaleDateString('es-AR', { day:'numeric', month:'short' }), createdAt: nowTs },
+                { id: visitaObj.id, type: 'visita', label: `Visita agendada — ${visitaObj.fecha} ${visitaObj.hora}`, date: new Date().toLocaleDateString('es-AR', { day:'numeric', month:'short' }), createdAt: nowTs },
+              ],
+            };
+            allOps.unshift(nuevaOp);
+          } else {
+            // Agregar visita a op existente
+            const opIdx = allOps.findIndex(o => o.id === av.opId);
+            if (opIdx >= 0) {
+              if (!allOps[opIdx].visitas) allOps[opIdx].visitas = [];
+              allOps[opIdx].visitas.push(visitaObj);
+              if (!allOps[opIdx].timeline) allOps[opIdx].timeline = [];
+              allOps[opIdx].timeline.push({ id: visitaObj.id, type: 'visita', label: `Visita agendada — ${visitaObj.fecha} ${visitaObj.hora}`, date: new Date().toLocaleDateString('es-AR', { day:'numeric', month:'short' }), createdAt: nowTs });
+            }
+          }
+
+          await userRefAV.set({ operaciones: allOps, updatedAt: nowTs, lastBotUpdate: nowTs, botAgendarState: null }, { merge: true });
+
+          let confirm = av.esNuevo ? `✅ *Nueva operación + visita creadas*\n\n` : `✅ *Visita agendada*\n\n`;
+          confirm += `📋 ${av.opTitulo}\n`;
           if (av.prop?.direccion) confirm += `🏢 ${av.prop.direccion}\n`;
           confirm += `🗓 ${visitaObj.fecha} ${visitaObj.hora}\n`;
           if (gcalLinkAV) confirm += `📅 [Ver en Google Calendar](${gcalLinkAV})\n`;
@@ -694,7 +708,7 @@ export default async function handler(req, res) {
             const propResults = await propResp3.json();
 
             if (Array.isArray(propResults) && propResults.length > 0) {
-              // Guardar resultados en state para que elija
+              // Guardar resultados → botones inline
               data.propOptions = propResults;
               await userRef3.set({ botCrearOpState: { step: 'elegir_prop', data } }, { merge: true });
               let txt = `🏢 Encontré ${propResults.length} propiedad/es:\n\n`;
@@ -702,42 +716,33 @@ export default async function handler(req, res) {
                 const precio = p.precio ? `${p.moneda === 'USD' ? 'USD ' : '$'}${Number(p.precio).toLocaleString('es-AR')}` : '';
                 txt += `*${i+1}.* ${p.direccion} (${p.barrio}) | ${p.dormitorios != null ? p.dormitorios+' dorm | ' : ''}${precio}\n`;
               });
-              txt += '\n_Respondé con el número (1, 2...) o "saltar"_';
-              await tgSend(chatId, txt, 'Markdown');
+              const btns = propResults.map((p, i) => [{ text: `${i+1}. ${p.direccion.slice(0,35)}`, data: `co:prop_${i}` }]);
+              btns.push([{ text: '⏭ Saltar', data: 'co:prop_skip' }]);
+              await tgKeyboard(chatId, txt, btns, 'Markdown');
               return res.status(200).json({ ok: true });
             } else {
               // No encontró, guardar texto libre como nombre de prop
               data.propTexto = textMsg.trim();
             }
           }
+          // Ir a etapa con botones
           await userRef3.set({ botCrearOpState: { step: 'etapa', data } }, { merge: true });
-          await tgSend(chatId,
-            (data.prop ? `✅ Propiedad: *${data.prop.direccion}*\n\n` : data.propTexto ? `✅ Propiedad: *${data.propTexto}*\n\n` : '⏭ Sin propiedad por ahora.\n\n') +
-            '¿Etapa de la operación?\n\n`contacto` · `visita` · `negociacion` · `reserva`',
-            'Markdown'
-          );
+          const propLabel = data.prop ? `✅ Propiedad: *${data.prop.direccion}*\n\n` : data.propTexto ? `✅ Propiedad: *${data.propTexto}*\n\n` : '⏭ Sin propiedad por ahora.\n\n';
+          await tgKeyboard(chatId, propLabel + '¿Etapa de la operación?', [
+            [{ text: '📞 Contacto', data: 'co:contacto' }, { text: '🏠 Visita', data: 'co:visita' }],
+            [{ text: '🤝 Negociación', data: 'co:negociacion' }, { text: '📑 Reserva', data: 'co:reserva' }],
+            [{ text: '❌ Cancelar', data: 'co:cancelar' }],
+          ], 'Markdown');
           return res.status(200).json({ ok: true });
         }
 
-        // Paso 3b: elegir prop de la lista
+        // Paso 3b: elegir prop — los botones lo manejan via callback
         if (step === 'elegir_prop') {
-          const numEl = parseInt(textMsg.trim());
-          if (!isNaN(numEl) && data.propOptions && data.propOptions[numEl-1]) {
-            data.prop = data.propOptions[numEl-1];
-          } else if (!/saltar|skip/i.test(textMsg)) {
-            data.propTexto = textMsg.trim();
-          }
-          delete data.propOptions;
-          await userRef3.set({ botCrearOpState: { step: 'etapa', data } }, { merge: true });
-          await tgSend(chatId,
-            (data.prop ? `✅ Propiedad: *${data.prop.direccion}*\n\n` : data.propTexto ? `✅ Propiedad: *${data.propTexto}*\n\n` : '⏭ Sin propiedad.\n\n') +
-            '¿Etapa de la operación?\n\n`contacto` · `visita` · `negociacion` · `reserva`',
-            'Markdown'
-          );
+          await tgSend(chatId, '👆 Elegí una opción de los botones de arriba, o escribí para saltar.');
           return res.status(200).json({ ok: true });
         }
 
-        // Paso 4: etapa → preguntar visita
+        // Paso 4: etapa → preguntar visita (si llega por texto, igual funciona)
         if (step === 'etapa') {
           const etapaMap = { contacto:'contacto', visita:'visita', negoci:'negociacion', reserva:'reserva', escritura:'escritura' };
           let etapa = 'contacto';
@@ -947,10 +952,11 @@ export default async function handler(req, res) {
         if (step === 'barrio') {
           if (!/cualquiera|todos|todo|no importa|skip/i.test(textMsg)) params.barrio = textMsg.trim();
           await userRef2.set({ botBuscarState: { step: 'tipo', params } }, { merge: true });
-          await tgSend(chatId,
-            '¿Qué tipo de propiedad?\n\n' +
-            '`depto` · `PH` · `casa` · `loft` · `duplex` · `oficina`\n\n' +
-            '_O "cualquiera"_', 'Markdown');
+          await tgKeyboard(chatId, '¿Qué tipo de propiedad?', [
+            [{ text: '🏢 Depto', data: 'bs:tipo_Departamento' }, { text: '🏠 PH', data: 'bs:tipo_PH' }, { text: '🏡 Casa', data: 'bs:tipo_Casa' }],
+            [{ text: '✨ Loft', data: 'bs:tipo_Loft' }, { text: '🏘 Dúplex', data: 'bs:tipo_Dúplex' }, { text: '🏬 Oficina', data: 'bs:tipo_Oficinas' }],
+            [{ text: '📦 Cualquiera', data: 'bs:tipo_cualquiera' }],
+          ]);
           return res.status(200).json({ ok: true });
         }
 
@@ -960,7 +966,9 @@ export default async function handler(req, res) {
             if (new RegExp(`\\b(${pat})\\b`, 'i').test(textMsg)) { params.tipo = val; break; }
           }
           await userRef2.set({ botBuscarState: { step: 'modo', params } }, { merge: true });
-          await tgSend(chatId, '¿Venta o alquiler?\n\n`venta` · `alquiler` · `cualquiera`', 'Markdown');
+          await tgKeyboard(chatId, '¿Venta o alquiler?', [
+            [{ text: '🏷 Venta', data: 'bs:modo_venta' }, { text: '🔑 Alquiler', data: 'bs:modo_alquiler' }, { text: '📦 Cualquiera', data: 'bs:modo_cualquiera' }],
+          ]);
           return res.status(200).json({ ok: true });
         }
 
@@ -968,7 +976,10 @@ export default async function handler(req, res) {
           if (/venta|vender|compra/i.test(textMsg)) params.modo = 'venta';
           else if (/alquiler|alquilar/i.test(textMsg)) params.modo = 'alquiler';
           await userRef2.set({ botBuscarState: { step: 'dorm', params } }, { merge: true });
-          await tgSend(chatId, '¿Cuántos dormitorios?\n\n`1` · `2` · `3` · `4` · `cualquiera`', 'Markdown');
+          await tgKeyboard(chatId, '¿Cuántos dormitorios?', [
+            [{ text: '1', data: 'bs:dorm_1' }, { text: '2', data: 'bs:dorm_2' }, { text: '3', data: 'bs:dorm_3' }],
+            [{ text: '4+', data: 'bs:dorm_4' }, { text: '📦 Cualquiera', data: 'bs:dorm_cualquiera' }],
+          ]);
           return res.status(200).json({ ok: true });
         }
 
@@ -978,7 +989,10 @@ export default async function handler(req, res) {
           if (ambM) params.dormitorios = parseInt(ambM[1]) - 1;
           else if (dormM && !/cualquiera|todos/i.test(textMsg)) params.dormitorios = parseInt(dormM[1]);
           await userRef2.set({ botBuscarState: { step: 'precio', params } }, { merge: true });
-          await tgSend(chatId, '¿Precio máximo en USD?\n\n_Ej: `300000` o `300k` — o "sin límite"_', 'Markdown');
+          await tgKeyboard(chatId, '¿Precio máximo (USD)?', [
+            [{ text: '100k', data: 'bs:pmax_100000' }, { text: '200k', data: 'bs:pmax_200000' }, { text: '300k', data: 'bs:pmax_300000' }],
+            [{ text: '400k', data: 'bs:pmax_400000' }, { text: '500k', data: 'bs:pmax_500000' }, { text: '📦 Sin límite', data: 'bs:pmax_cualquiera' }],
+          ]);
           return res.status(200).json({ ok: true });
         }
 
@@ -1473,6 +1487,285 @@ export default async function handler(req, res) {
   return res.status(200).json({ ok: true });
 }
 
+// ── Despacha datos de callback_query como si fueran mensajes de texto ──
+// Prefijos de data: "bc:", "av:", "co:", "bs:" para cada flujo
+async function handleCallbackData(chatId, data, res) {
+  const db   = getDb();
+  const uRef = db.collection('users').doc(FIREBASE_UID);
+  const snap = await uRef.get();
+  const d    = snap.exists ? snap.data() : {};
+
+  // ── BuscaCliente ──
+  if (data.startsWith('bc:')) {
+    const val = data.slice(3);
+    const bcState = d.botBuscaClienteState;
+    if (!bcState) return;
+
+    if (bcState.step === 'elegir_cliente') {
+      const num = parseInt(val);
+      const matches = bcState.matches || [];
+      const elegido = !isNaN(num) && matches[num-1] ? matches[num-1] : null;
+      if (!elegido) return;
+      const MB_URL = 'https://hyxsdeeoyecdslrtqrmo.supabase.co';
+      const MB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh5eHNkZWVveWVjZHNscnRxcm1vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0ODczNzYsImV4cCI6MjA5MTA2MzM3Nn0.YT76TJzSbxgjkNAdpIsRd5AGW9bC6PaTkyEFwOK7OTo';
+      await mostrarActividadCliente(chatId, elegido, uRef, { 'apikey': MB_KEY, 'Authorization': `Bearer ${MB_KEY}` }, MB_URL);
+      return;
+    }
+    if (bcState.step === 'elegir_prop_visita') {
+      if (val === 'no') {
+        await uRef.set({ botBuscaClienteState: null }, { merge: true });
+        await tgSend(chatId, '👍 Listo, sin agendar visita.');
+        return;
+      }
+      const num = parseInt(val);
+      const props = bcState.props || [];
+      const propElegida = !isNaN(num) && props[num-1] ? props[num-1] : null;
+      if (!propElegida) return;
+      await uRef.set({ botBuscaClienteState: { step: 'fecha_visita', nombre: bcState.nombre, prop: propElegida } }, { merge: true });
+      await tgSend(chatId, `✅ *${propElegida.direccion}*\n\n¿Qué fecha y hora?\n_Ej: "viernes 30 a las 10", "30/05 11:00"_`, 'Markdown');
+      return;
+    }
+    return;
+  }
+
+  // ── AgendarVisita ──
+  if (data.startsWith('av:')) {
+    const val = data.slice(3);
+    const avState = d.botAgendarState;
+    if (!avState) return;
+
+    if (avState.step === 'tipo_cliente') {
+      if (val === 'existente') {
+        // Listar ops activas
+        const operaciones = d.operaciones || [];
+        const opsActivas  = operaciones.filter(o => o.stage !== 'archivada');
+        if (!opsActivas.length) {
+          await tgSend(chatId, '📋 No tenés operaciones activas. Usá /crearop para crear una.');
+          await uRef.set({ botAgendarState: null }, { merge: true });
+          return;
+        }
+        let txt = '🗓 *Agendar visita*\n\n¿A qué operación?\n\n';
+        const opsSlice = opsActivas.slice(0, 8);
+        opsSlice.forEach((op, i) => {
+          txt += `*${i+1}.* ${op.titulo}`;
+          if (op.lead) txt += ` — ${op.lead.nombre || op.lead.slug}`;
+          txt += '\n';
+        });
+        const buttons = opsSlice.map((op, i) => [{ text: `${i+1}. ${op.titulo.slice(0,30)}`, data: `av:op_${i}` }]);
+        buttons.push([{ text: '❌ Cancelar', data: 'av:cancelar' }]);
+        await uRef.set({ botAgendarState: { step: 'elegir_op', ops: opsSlice.map(o => ({ id: o.id, titulo: o.titulo, lead: o.lead, prop: o.prop, props: o.props || [] })) } }, { merge: true });
+        await tgKeyboard(chatId, txt, buttons, 'Markdown');
+        return;
+      }
+      if (val === 'nuevo') {
+        await uRef.set({ botAgendarState: { step: 'nuevo_cliente_nombre' } }, { merge: true });
+        await tgSend(chatId, '👤 ¿Cómo se llama el nuevo cliente?\n\n_Escribí el nombre:_', 'Markdown');
+        return;
+      }
+      if (val === 'cancelar') {
+        await uRef.set({ botAgendarState: null }, { merge: true });
+        await tgSend(chatId, '❌ Cancelado.');
+        return;
+      }
+    }
+
+    if (avState.step === 'elegir_op') {
+      if (val === 'cancelar') {
+        await uRef.set({ botAgendarState: null }, { merge: true });
+        await tgSend(chatId, '❌ Cancelado.');
+        return;
+      }
+      if (val.startsWith('op_')) {
+        const num = parseInt(val.slice(3));
+        const ops = avState.ops || [];
+        const opElegida = ops[num] || null;
+        if (!opElegida) return;
+        const todasProps = [];
+        if (opElegida.prop) todasProps.push(opElegida.prop);
+        (opElegida.props || []).forEach(p => todasProps.push(p));
+        if (todasProps.length === 0) {
+          await uRef.set({ botAgendarState: { step: 'prop_texto', opId: opElegida.id, opTitulo: opElegida.titulo } }, { merge: true });
+          await tgSend(chatId, `✅ *${opElegida.titulo}*\n\n¿Para qué propiedad?\n_Escribí la dirección o "saltar"_`, 'Markdown');
+        } else if (todasProps.length === 1) {
+          await uRef.set({ botAgendarState: { step: 'fecha', opId: opElegida.id, opTitulo: opElegida.titulo, prop: todasProps[0] } }, { merge: true });
+          await tgSend(chatId, `✅ *${opElegida.titulo}*\n🏢 ${todasProps[0].direccion}\n\n¿Qué fecha y hora?\n_Ej: "lunes 2 a las 10"_`, 'Markdown');
+        } else {
+          let txt2 = `✅ *${opElegida.titulo}*\n\n¿Para qué propiedad?\n\n`;
+          todasProps.forEach((p, i) => { txt2 += `*${i+1}.* ${p.direccion} (${p.barrio || ''})\n`; });
+          const btns2 = todasProps.map((p, i) => [{ text: `${i+1}. ${p.direccion.slice(0,35)}`, data: `av:prop_${i}` }]);
+          btns2.push([{ text: '⏭ Saltar', data: 'av:prop_skip' }]);
+          await uRef.set({ botAgendarState: { step: 'elegir_prop_av', opId: opElegida.id, opTitulo: opElegida.titulo, props: todasProps } }, { merge: true });
+          await tgKeyboard(chatId, txt2, btns2, 'Markdown');
+        }
+        return;
+      }
+    }
+
+    if (avState.step === 'elegir_prop_av') {
+      let propElegida = null;
+      if (val.startsWith('prop_') && val !== 'prop_skip') {
+        const num = parseInt(val.slice(5));
+        propElegida = (avState.props || [])[num] || null;
+      }
+      await uRef.set({ botAgendarState: { step: 'fecha', opId: avState.opId, opTitulo: avState.opTitulo, prop: propElegida } }, { merge: true });
+      await tgSend(chatId,
+        (propElegida ? `✅ ${propElegida.direccion}\n\n` : '') +
+        '¿Qué fecha y hora?\n_Ej: "lunes 2 a las 10", "02/06 11:30"_', 'Markdown');
+      return;
+    }
+
+    return;
+  }
+
+  // ── CrearOp ──
+  if (data.startsWith('co:')) {
+    const val = data.slice(3);
+    const coState = d.botCrearOpState;
+    if (!coState) return;
+
+    if (coState.step === 'etapa') {
+      const etapaMap2 = { contacto:'contacto', visita:'visita', negociacion:'negociacion', reserva:'reserva', escritura:'escritura' };
+      const etapa = etapaMap2[val] || 'contacto';
+      const data2 = coState.data || {};
+      data2.etapa = etapa;
+      await uRef.set({ botCrearOpState: { step: 'visita', data: data2 } }, { merge: true });
+      await tgSend(chatId,
+        `✅ Etapa: *${etapa}*\n\n🏠 ¿Agendamos una visita?\n\nEscribí fecha y hora:\n_Ej: "15/06 10:30" o "lunes 15 a las 11" — o "saltar"_`,
+        'Markdown'
+      );
+      return;
+    }
+
+    if (coState.step === 'elegir_prop') {
+      const data2 = coState.data || {};
+      if (val !== 'skip' && val.startsWith('prop_')) {
+        const num = parseInt(val.slice(5));
+        data2.prop = (data2.propOptions || [])[num] || null;
+      }
+      delete data2.propOptions;
+      await uRef.set({ botCrearOpState: { step: 'etapa', data: data2 } }, { merge: true });
+      const etapaBtns = [
+        [{ text: '📞 Contacto', data: 'co:contacto' }, { text: '🏠 Visita', data: 'co:visita' }],
+        [{ text: '🤝 Negociación', data: 'co:negociacion' }, { text: '📑 Reserva', data: 'co:reserva' }],
+        [{ text: '❌ Cancelar', data: 'co:cancelar' }],
+      ];
+      await tgKeyboard(chatId,
+        (data2.prop ? `✅ Propiedad: *${data2.prop.direccion}*\n\n` : '⏭ Sin propiedad.\n\n') + '¿Etapa de la operación?',
+        etapaBtns, 'Markdown');
+      return;
+    }
+
+    if (val === 'cancelar') {
+      await uRef.set({ botCrearOpState: null }, { merge: true });
+      await tgSend(chatId, '❌ Cancelado.');
+      return;
+    }
+
+    // etapas directas (contacto, visita, negociacion, reserva, escritura)
+    const etapasValidas = ['contacto','visita','negociacion','reserva','escritura'];
+    if (etapasValidas.includes(val)) {
+      const data2 = coState.data || {};
+      data2.etapa = val;
+      await uRef.set({ botCrearOpState: { step: 'visita', data: data2 } }, { merge: true });
+      await tgSend(chatId,
+        `✅ Etapa: *${val}*\n\n🏠 ¿Agendamos una visita?\n\nEscribí fecha y hora o "saltar":`,
+        'Markdown'
+      );
+      return;
+    }
+    return;
+  }
+
+  // ── Buscar ──
+  if (data.startsWith('bs:')) {
+    const val = data.slice(3);
+    const bsState = d.botBuscarState;
+    if (!bsState) return;
+
+    const db2  = getDb();
+    const uRef2 = db2.collection('users').doc(FIREBASE_UID);
+    const MB_URL = 'https://hyxsdeeoyecdslrtqrmo.supabase.co';
+    const MB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh5eHNkZWVveWVjZHNscnRxcm1vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0ODczNzYsImV4cCI6MjA5MTA2MzM3Nn0.YT76TJzSbxgjkNAdpIsRd5AGW9bC6PaTkyEFwOK7OTo';
+    const mbH  = { 'apikey': MB_KEY, 'Authorization': `Bearer ${MB_KEY}` };
+    const params = bsState.params || {};
+
+    if (bsState.step === 'barrio') {
+      if (val !== 'cualquiera') params.barrio = val;
+      await uRef2.set({ botBuscarState: { step: 'tipo', params } }, { merge: true });
+      await tgKeyboard(chatId, '¿Qué tipo de propiedad?', [
+        [{ text: '🏢 Depto', data: 'bs:tipo_Departamento' }, { text: '🏠 PH', data: 'bs:tipo_PH' }, { text: '🏡 Casa', data: 'bs:tipo_Casa' }],
+        [{ text: '✨ Loft', data: 'bs:tipo_Loft' }, { text: '🏘 Dúplex', data: 'bs:tipo_Dúplex' }, { text: '🏬 Oficina', data: 'bs:tipo_Oficinas' }],
+        [{ text: '📦 Cualquiera', data: 'bs:tipo_cualquiera' }],
+      ]);
+      return;
+    }
+
+    if (bsState.step === 'tipo') {
+      if (val.startsWith('tipo_') && val !== 'tipo_cualquiera') params.tipo = val.slice(5);
+      await uRef2.set({ botBuscarState: { step: 'modo', params } }, { merge: true });
+      await tgKeyboard(chatId, '¿Venta o alquiler?', [
+        [{ text: '🏷 Venta', data: 'bs:modo_venta' }, { text: '🔑 Alquiler', data: 'bs:modo_alquiler' }, { text: '📦 Cualquiera', data: 'bs:modo_cualquiera' }],
+      ]);
+      return;
+    }
+
+    if (bsState.step === 'modo') {
+      if (val === 'modo_venta') params.modo = 'venta';
+      else if (val === 'modo_alquiler') params.modo = 'alquiler';
+      await uRef2.set({ botBuscarState: { step: 'dorm', params } }, { merge: true });
+      await tgKeyboard(chatId, '¿Cuántos dormitorios?', [
+        [{ text: '1', data: 'bs:dorm_1' }, { text: '2', data: 'bs:dorm_2' }, { text: '3', data: 'bs:dorm_3' }],
+        [{ text: '4+', data: 'bs:dorm_4' }, { text: '📦 Cualquiera', data: 'bs:dorm_cualquiera' }],
+      ]);
+      return;
+    }
+
+    if (bsState.step === 'dorm') {
+      if (val.startsWith('dorm_') && val !== 'dorm_cualquiera') params.dormitorios = parseInt(val.slice(5));
+      await uRef2.set({ botBuscarState: { step: 'precio', params } }, { merge: true });
+      await tgKeyboard(chatId, '¿Precio máximo (USD)?', [
+        [{ text: '100k', data: 'bs:pmax_100000' }, { text: '200k', data: 'bs:pmax_200000' }, { text: '300k', data: 'bs:pmax_300000' }],
+        [{ text: '400k', data: 'bs:pmax_400000' }, { text: '500k', data: 'bs:pmax_500000' }, { text: '📦 Sin límite', data: 'bs:pmax_cualquiera' }],
+      ]);
+      return;
+    }
+
+    if (bsState.step === 'precio') {
+      if (val.startsWith('pmax_') && val !== 'pmax_cualquiera') {
+        params.precio_max = parseInt(val.slice(5));
+        params.moneda = 'USD';
+      }
+      // Ejecutar búsqueda
+      await uRef2.set({ botBuscarState: null }, { merge: true });
+      let propUrl = `${MB_URL}/rest/v1/propiedades?select=id,direccion,barrio,tipo,modo,precio,moneda,dormitorios,sup_cub,broker,telefono&activa=eq.true&limit=8`;
+      if (params.modo) propUrl += `&modo=eq.${params.modo}`;
+      else propUrl += `&modo=neq.ghost`;
+      if (params.barrio) propUrl += `&barrio=ilike.*${encodeURIComponent(params.barrio)}*`;
+      if (params.dormitorios != null) propUrl += `&dormitorios=eq.${params.dormitorios}`;
+      if (params.tipo) propUrl += `&tipo=eq.${encodeURIComponent(params.tipo)}`;
+      if (params.precio_max && params.moneda) propUrl += `&precio=lte.${params.precio_max}&moneda=eq.${params.moneda}`;
+      propUrl += `&order=precio.asc`;
+      const propResp = await fetch(propUrl, { headers: mbH });
+      const props = await propResp.json();
+      if (!Array.isArray(props) || !props.length) {
+        await tgSend(chatId, '😕 No encontré propiedades con esos filtros. Intentá con menos restricciones.');
+        return;
+      }
+      let txt = `🔍 *${props.length} propiedades encontradas*\n\n`;
+      props.forEach((p, i) => {
+        const precio = p.precio ? `${p.moneda === 'USD' ? 'USD ' : '$'}${Number(p.precio).toLocaleString('es-AR')}` : '';
+        const ficha = `https://www.mirandabosch.com/ficha/${Buffer.from(JSON.stringify({p:String(p.id),b:'33504'})).toString('base64')}`;
+        txt += `*${i+1}.* ${p.tipo||''} ${p.direccion} (${p.barrio})\n`;
+        txt += `  ${p.dormitorios != null ? p.dormitorios+' dorm | ' : ''}${p.sup_cub||'?'}m² | ${precio}\n`;
+        txt += `  🔑 ${p.broker||'?'} | 🔗 ${ficha}\n\n`;
+      });
+      await tgSend(chatId, txt.trim(), 'Markdown');
+      return;
+    }
+    return;
+  }
+}
+
 // ── Buscar cliente en MB Propy y mostrar actividad ──
 async function buscarClienteMBPropy(chatId, nombreBuscado, userRef, res) {
   const MB_URL = 'https://hyxsdeeoyecdslrtqrmo.supabase.co';
@@ -1480,17 +1773,40 @@ async function buscarClienteMBPropy(chatId, nombreBuscado, userRef, res) {
   const mbH = { 'apikey': MB_KEY, 'Authorization': `Bearer ${MB_KEY}` };
 
   try {
-    // 1. Buscar clientes que coincidan con el nombre (búsqueda parcial)
+    // 1. Buscar clientes en favoritos con ilike (búsqueda parcial en Supabase)
+    // Usamos dos búsquedas: por nombre con ilike, y paginamos para cubrir todo el dataset
     const normalize = s => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
     const termino = normalize(nombreBuscado);
+    const terminoEncoded = encodeURIComponent(nombreBuscado);
 
-    // Traer todos los clientes únicos de favoritos
-    const favAllResp = await fetch(`${MB_URL}/rest/v1/favoritos?select=cliente&limit=500`, { headers: mbH });
-    const favAll = await favAllResp.json();
-    const clientesUnicos = [...new Set((favAll || []).map(f => f.cliente).filter(Boolean))];
+    // Búsqueda directa con ilike en Supabase (insensitive a case, no a tildes)
+    const [resp1, resp2] = await Promise.all([
+      fetch(`${MB_URL}/rest/v1/favoritos?select=cliente&cliente=ilike.*${terminoEncoded}*&limit=200`, { headers: mbH }),
+      // Segunda búsqueda paginada para cubrir casos de tildes/variantes
+      fetch(`${MB_URL}/rest/v1/favoritos?select=cliente&limit=1000&offset=0`, { headers: mbH }),
+    ]);
+    const [direct, all1] = await Promise.all([resp1.json(), resp2.json()]);
 
-    // Filtrar por nombre parcial
-    const matches = clientesUnicos.filter(c => normalize(c).includes(termino));
+    // Unir resultados y filtrar duplicados
+    const directMatches = [...new Set((direct || []).map(f => f.cliente).filter(Boolean))];
+
+    // Del dataset grande, filtrar por normalize para manejar tildes
+    const allClientes = [...new Set((all1 || []).map(f => f.cliente).filter(Boolean))];
+    const normalizedMatches = allClientes.filter(c => normalize(c).includes(termino));
+
+    // Si hay más de 1000 en BD, paginar
+    let allClientesFull = allClientes;
+    if (all1.length === 1000) {
+      const resp3 = await fetch(`${MB_URL}/rest/v1/favoritos?select=cliente&limit=1000&offset=1000`, { headers: mbH });
+      const all2 = await resp3.json();
+      const extra = (all2 || []).map(f => f.cliente).filter(Boolean);
+      allClientesFull = [...allClientes, ...extra];
+      const extraMatches = extra.filter(c => normalize(c).includes(termino));
+      normalizedMatches.push(...extraMatches);
+    }
+
+    // Combinar ambos métodos de búsqueda sin duplicar
+    const matches = [...new Set([...directMatches, ...normalizedMatches])];
 
     if (!matches.length) {
       await tgSend(chatId, `😕 No encontré ningún cliente con "${nombreBuscado}" en MB Propy.\n\n_Intentá con otro nombre o parte del nombre._`, 'Markdown');
@@ -1498,13 +1814,14 @@ async function buscarClienteMBPropy(chatId, nombreBuscado, userRef, res) {
       return;
     }
 
-    // Si hay varios matches, mostrar lista para elegir
+    // Si hay varios matches, mostrar botones para elegir
     if (matches.length > 1) {
-      let txt = `👤 Encontré ${matches.length} clientes:\n\n`;
-      matches.slice(0,8).forEach((c, i) => { txt += `*${i+1}.* ${c}\n`; });
-      txt += '\n_Respondé con el número_';
-      await userRef.set({ botBuscaClienteState: { step: 'elegir_cliente', matches: matches.slice(0,8) } }, { merge: true });
-      await tgSend(chatId, txt, 'Markdown');
+      const matchesSlice = matches.slice(0, 8);
+      let txt = `👤 Encontré ${matches.length} cliente/s con "${nombreBuscado}":\n\n`;
+      matchesSlice.forEach((c, i) => { txt += `${i+1}. ${c}\n`; });
+      const buttons = matchesSlice.map((c, i) => [{ text: `${i+1}. ${c.slice(0,40)}`, data: `bc:${i+1}` }]);
+      await userRef.set({ botBuscaClienteState: { step: 'elegir_cliente', matches: matchesSlice } }, { merge: true });
+      await tgKeyboard(chatId, txt, buttons, 'Markdown');
       return;
     }
 
@@ -1571,18 +1888,24 @@ async function mostrarActividadCliente(chatId, clienteNombre, userRef, mbH, MB_U
     txt += `_+ ${propsInactivas.length} prop/s ya no activa/s_\n\n`;
   }
 
-  txt += `¿Querés agendar una visita?\nRespondé con el *número* de la propiedad, o "no"`;
+  txt += `¿Agendamos una visita?`;
+
+  const propsParaState = propsActivas.map(p => ({ id: p.id, direccion: p.direccion, barrio: p.barrio, broker: p.broker, precio: p.precio, moneda: p.moneda }));
 
   // Guardar estado con las props activas para el siguiente paso
   await userRef.set({
     botBuscaClienteState: {
       step: 'elegir_prop_visita',
       nombre: clienteNombre,
-      props: propsActivas.map(p => ({ id: p.id, direccion: p.direccion, barrio: p.barrio, broker: p.broker, precio: p.precio, moneda: p.moneda })),
+      props: propsParaState,
     }
   }, { merge: true });
 
-  await tgSend(chatId, txt, 'Markdown');
+  // Botones: una por prop + No
+  const btns = propsActivas.slice(0, 6).map((p, i) => [{ text: `${i+1}. ${p.direccion.slice(0,35)}`, data: `bc:${i+1}` }]);
+  btns.push([{ text: '❌ Sin visita', data: 'bc:no' }]);
+
+  await tgKeyboard(chatId, txt, btns, 'Markdown');
 }
 
 async function tgSend(chatId, text, parseMode) {
@@ -1592,5 +1915,33 @@ async function tgSend(chatId, text, parseMode) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
+  });
+}
+
+// Envía mensaje con botones inline
+// buttons: array de arrays → [[{text, data}], [{text, data}, {text, data}]]
+async function tgKeyboard(chatId, text, buttons, parseMode) {
+  const inline_keyboard = buttons.map(row =>
+    row.map(btn => ({ text: btn.text, callback_data: btn.data }))
+  );
+  const body = {
+    chat_id: chatId,
+    text,
+    reply_markup: { inline_keyboard },
+  };
+  if (parseMode) body.parse_mode = parseMode;
+  await fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+// Responde a un callback_query (toca un botón inline)
+async function tgAnswerCallback(callbackQueryId, text) {
+  await fetch(`https://api.telegram.org/bot${TG_TOKEN}/answerCallbackQuery`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ callback_query_id: callbackQueryId, text: text || '' }),
   });
 }
