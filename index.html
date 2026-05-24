@@ -306,6 +306,17 @@ body {
 .mb-prop-link { display:inline-flex; align-items:center; gap:5px; margin-top:8px; font-family:'Space Mono',monospace; font-size:9px; letter-spacing:0.06em; text-transform:uppercase; color:var(--neon-blue); text-decoration:none; background:rgba(0,210,255,0.08); border:1px solid rgba(0,210,255,0.2); border-radius:6px; padding:4px 10px; }
 .mb-prop-remove { background:none; border:none; color:var(--text-disabled); cursor:pointer; padding:2px; font-size:18px; line-height:1; flex-shrink:0; }
 
+/* ── MULTI-PROPS ── */
+.mprop-tabs { display:flex; gap:0; margin-bottom:12px; border:1px solid var(--border-visible); border-radius:8px; overflow:hidden; }
+.mprop-tab { flex:1; padding:8px 0; font-family:'Space Mono',monospace; font-size:10px; letter-spacing:.06em; text-transform:uppercase; background:transparent; border:none; color:var(--text-disabled); cursor:pointer; transition:background 120ms,color 120ms; }
+.mprop-tab.active { background:rgba(0,210,255,0.10); color:var(--neon-blue); }
+.mprop-item { display:flex; align-items:flex-start; gap:10px; padding:10px 2px; border-bottom:1px solid var(--border); cursor:pointer; user-select:none; }
+.mprop-item:last-child { border-bottom:none; }
+.mprop-item:active { opacity:0.7; }
+.mprop-check { width:18px; height:18px; border-radius:4px; border:1px solid var(--border-visible); flex-shrink:0; margin-top:1px; display:flex; align-items:center; justify-content:center; transition:background 100ms,border-color 100ms; }
+.mprop-check.checked { background:rgba(0,210,255,0.15); border-color:var(--neon-blue); }
+.mprop-badge-visita { display:inline-block; font-size:9px; font-family:'Space Mono',monospace; letter-spacing:.05em; text-transform:uppercase; background:rgba(200,255,0,0.10); color:var(--neon-green); border:1px solid rgba(200,255,0,0.25); border-radius:4px; padding:2px 7px; margin-top:5px; }
+
 /* ── CALENDARIO / VISITAS ── */
 .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:3px; margin-bottom:4px; }
 .cal-day-label { text-align:center; font-size:9px; color:var(--text-disabled); font-family:'Space Mono',monospace; padding:3px 0; }
@@ -1890,6 +1901,31 @@ body {
   <button class="btn-outline" onclick="closeAllSheets()">Cancelar</button>
 </div>
 
+<!-- SHEET: Agregar propiedades -->
+<div class="sheet" id="mprops-sheet" style="max-height:88vh;display:flex;flex-direction:column;">
+  <div class="sheet-handle"></div>
+  <p class="sheet-label">Propiedades</p>
+  <div class="mprop-tabs">
+    <button class="mprop-tab active" id="mprop-tab-broker" onclick="switchMpropTab('broker')">Mis selecciones</button>
+    <button class="mprop-tab" id="mprop-tab-search" onclick="switchMpropTab('search')">Buscar en MB Propy</button>
+  </div>
+  <!-- Panel mis selecciones -->
+  <div id="mprop-panel-broker" style="flex:1;overflow-y:auto;">
+    <div id="mprop-broker-list"><div class="mb-result-empty">Cargando...</div></div>
+  </div>
+  <!-- Panel búsqueda -->
+  <div id="mprop-panel-search" style="flex:1;overflow-y:auto;display:none;">
+    <input class="mb-search-input" id="mprop-search-input" type="search" placeholder="Buscar por dirección o barrio..." oninput="onMpropSearchInput(this.value)" autocomplete="off" style="margin-bottom:8px;" />
+    <div id="mprop-search-list"></div>
+  </div>
+  <!-- Footer fijo -->
+  <div style="padding-top:10px;border-top:1px solid var(--border);margin-top:auto;">
+    <div id="mprop-sel-count" style="font-size:10px;font-family:'Space Mono',monospace;color:var(--text-secondary);margin-bottom:8px;min-height:14px;"></div>
+    <button class="btn-outline primary" id="mprop-confirm-btn" onclick="confirmarMprops()" style="margin-bottom:8px;" disabled>Agregar seleccionadas</button>
+    <button class="btn-outline" onclick="closeAllSheets()">Cancelar</button>
+  </div>
+</div>
+
 <!-- SHEET: Menú operación -->
 <div class="sheet" id="op-menu-sheet">
   <div class="sheet-handle"></div>
@@ -2730,13 +2766,27 @@ function renderOpDetail() {
   // Propiedad MB
   if (op.prop) {
     html += '<div class="section-header"><span class="section-label">Propiedad</span></div>';
-    html += mbPropCardHtml(op.prop);
+    html += mbPropCardHtml(op.prop, op);
   }
 
-  // Botón agendar visita (solo si hay propiedad o cliente)
-  html += '<button class="btn-outline primary" onclick="openVisitaSheet()" style="margin-bottom:14px;">' +
+  // Props adicionales
+  if (op.props && op.props.length) {
+    if (!op.prop) html += '<div class="section-header"><span class="section-label">Propiedades</span></div>';
+    op.props.forEach(function(p) {
+      html += mbPropCardHtml(p, null);
+    });
+  }
+
+  // Botón agendar visita
+  html += '<button class="btn-outline primary" onclick="openVisitaSheet()" style="margin-bottom:8px;">' +
     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>' +
     ' Agendar visita' +
+  '</button>';
+
+  // Botón agregar propiedades
+  html += '<button class="btn-outline" onclick="openMpropsSheet()" style="margin-bottom:14px;">' +
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>' +
+    ' Agregar propiedades' +
   '</button>';
 
   // Visitas agendadas
@@ -2912,7 +2962,7 @@ function clearMBProp() {
   document.getElementById('nueva-op-prop-search-wrap').style.display = '';
 }
 
-function mbPropCardHtml(prop) {
+function mbPropCardHtml(prop, op) {
   if (!prop) return '';
   var precio = prop.precio ? (prop.moneda === 'USD' ? 'USD ' : '$') + Number(prop.precio).toLocaleString('es-AR') : '';
   var meta = [
@@ -2923,12 +2973,14 @@ function mbPropCardHtml(prop) {
     precio
   ].filter(Boolean).join(' · ');
   var fichaUrl = getMBFichaUrl(prop.id);
+  var hasVisita = op && op.visitas && op.visitas.length > 0;
   return '<div class="mb-prop-card">' +
     '<div class="mb-prop-card-top">' +
       '<div style="flex:1;min-width:0;">' +
         '<div class="mb-prop-dir">' + escHtml(prop.direccion) + '</div>' +
         '<div class="mb-prop-meta">' + escHtml(prop.barrio || '') + '</div>' +
         '<div class="mb-prop-meta">' + escHtml(meta) + '</div>' +
+        (hasVisita ? '<div style="margin-top:6px;"><span class="mprop-badge-visita">✓ Visita programada</span></div>' : '') +
       '</div>' +
     '</div>' +
     (fichaUrl ? '<a class="mb-prop-link" href="' + fichaUrl + '" target="_blank" rel="noopener">' +
@@ -3228,6 +3280,160 @@ async function confirmarVisita() {
     btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Crear evento';
     showStatus('[ERROR: ' + e.message.toUpperCase().slice(0,30) + ']');
   }
+}
+
+/* ── MULTI-PROPS ── */
+var _mpropSelected = {}; // { propId: propObject }
+var _mpropPropsMap = {}; // { propId: propObject } — cache for toggle
+
+function openMpropsSheet() {
+  _mpropSelected = {};
+  _mpropPropsMap = {};
+  updateMpropFooter();
+  switchMpropTab('broker');
+  document.getElementById('mprops-sheet').classList.add('open');
+  document.getElementById('overlay').classList.add('open');
+  loadMpropsBroker();
+}
+
+function switchMpropTab(tab) {
+  var isBroker = tab === 'broker';
+  document.getElementById('mprop-tab-broker').classList.toggle('active', isBroker);
+  document.getElementById('mprop-tab-search').classList.toggle('active', !isBroker);
+  document.getElementById('mprop-panel-broker').style.display = isBroker ? '' : 'none';
+  document.getElementById('mprop-panel-search').style.display = isBroker ? 'none' : '';
+  if (!isBroker) {
+    setTimeout(function(){ document.getElementById('mprop-search-input').focus(); }, 100);
+  }
+}
+
+function loadMpropsBroker() {
+  var op = operaciones.find(function(o){ return o.id === currentOpId; });
+  var list = document.getElementById('mprop-broker-list');
+  // If no client linked, show message
+  if (!op || !op.lead || !op.lead.slug) {
+    list.innerHTML = '<div class="mb-result-empty" style="padding:20px 0;">Asociá un cliente a la operación para ver tus selecciones en MB Propy.</div>';
+    return;
+  }
+  var slug = op.lead.slug;
+  list.innerHTML = '<div class="mb-result-empty">Cargando...</div>';
+  fetch(MB_URL + '/rest/v1/favoritos?select=prop_id&origen=eq.broker&cliente=eq.' + encodeURIComponent(slug), {
+    headers: { 'apikey': MB_KEY, 'Authorization': 'Bearer ' + MB_KEY }
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(favs) {
+    if (!Array.isArray(favs) || favs.length === 0) {
+      list.innerHTML = '<div class="mb-result-empty" style="padding:20px 0;">No tenés propiedades seleccionadas para este cliente en MB Propy.</div>';
+      return;
+    }
+    var ids = favs.map(function(f){ return f.prop_id; }).filter(Boolean);
+    return fetch(MB_URL + '/rest/v1/propiedades?select=*&id=in.(' + ids.join(',') + ')', {
+      headers: { 'apikey': MB_KEY, 'Authorization': 'Bearer ' + MB_KEY }
+    }).then(function(r){ return r.json(); });
+  })
+  .then(function(props) {
+    if (!props || !props.length) {
+      list.innerHTML = '<div class="mb-result-empty" style="padding:20px 0;">No se encontraron propiedades.</div>';
+      return;
+    }
+    renderMpropList(list, props);
+  })
+  .catch(function(e) {
+    list.innerHTML = '<div class="mb-result-empty">Error: ' + e.message + '</div>';
+  });
+}
+
+var _mpropSearchTimer = null;
+function onMpropSearchInput(val) {
+  clearTimeout(_mpropSearchTimer);
+  var list = document.getElementById('mprop-search-list');
+  if (!val || val.length < 3) { list.innerHTML = ''; return; }
+  list.innerHTML = '<div class="mb-result-empty">Buscando...</div>';
+  _mpropSearchTimer = setTimeout(function() {
+    var q = encodeURIComponent('%' + val + '%');
+    fetch(MB_URL + '/rest/v1/propiedades?select=*&or=(direccion.ilike.' + q + ',barrio.ilike.' + q + ')&activa=eq.true&limit=20', {
+      headers: { 'apikey': MB_KEY, 'Authorization': 'Bearer ' + MB_KEY }
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(props) {
+      if (!props || !props.length) { list.innerHTML = '<div class="mb-result-empty">Sin resultados.</div>'; return; }
+      renderMpropList(list, props);
+    })
+    .catch(function(e) { list.innerHTML = '<div class="mb-result-empty">Error.</div>'; });
+  }, 350);
+}
+
+function renderMpropList(container, props) {
+  // Exclude already-linked main prop and already-added extra props
+  var op = operaciones.find(function(o){ return o.id === currentOpId; });
+  var excludeIds = [];
+  if (op && op.prop && op.prop.id) excludeIds.push(String(op.prop.id));
+  if (op && op.props) op.props.forEach(function(p){ if (p.id) excludeIds.push(String(p.id)); });
+
+  var html = '';
+  props.forEach(function(p) {
+    if (excludeIds.includes(String(p.id))) return;
+    _mpropPropsMap[String(p.id)] = p; // cache for toggle
+    var precio = p.precio ? (p.moneda === 'USD' ? 'USD ' : '$') + Number(p.precio).toLocaleString('es-AR') : '';
+    var meta = [p.tipo || '', p.dormitorios ? p.dormitorios + ' dorm' : '', p.sup_cub ? p.sup_cub + ' m²' : '', precio].filter(Boolean).join(' · ');
+    var isChecked = !!_mpropSelected[String(p.id)];
+    html += '<div class="mprop-item" onclick="toggleMpropItem(\'' + p.id + '\')">' +
+      '<div class="mprop-check' + (isChecked ? ' checked' : '') + '" id="mpchk-' + p.id + '">' +
+        (isChecked ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--neon-blue)" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' : '') +
+      '</div>' +
+      '<div style="flex:1;min-width:0;">' +
+        '<div style="font-size:13px;font-weight:500;color:var(--text-display);">' + escHtml(p.direccion || '') + '</div>' +
+        '<div style="font-size:10px;color:var(--text-secondary);font-family:\'Space Mono\',monospace;">' + escHtml(p.barrio || '') + '</div>' +
+        '<div style="font-size:10px;color:var(--text-disabled);font-family:\'Space Mono\',monospace;">' + escHtml(meta) + '</div>' +
+      '</div>' +
+    '</div>';
+  });
+  container.innerHTML = html || '<div class="mb-result-empty">Sin resultados.</div>';
+}
+
+function toggleMpropItem(id) {
+  var sid = String(id);
+  var prop = _mpropPropsMap[sid];
+  if (!prop) return;
+  if (_mpropSelected[sid]) {
+    delete _mpropSelected[sid];
+  } else {
+    _mpropSelected[sid] = prop;
+  }
+  // Update checkbox UI
+  var chk = document.getElementById('mpchk-' + id);
+  if (chk) {
+    var isChecked = !!_mpropSelected[sid];
+    chk.classList.toggle('checked', isChecked);
+    chk.innerHTML = isChecked ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--neon-blue)" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' : '';
+  }
+  updateMpropFooter();
+}
+
+function updateMpropFooter() {
+  var count = Object.keys(_mpropSelected).length;
+  var countEl = document.getElementById('mprop-sel-count');
+  var btn = document.getElementById('mprop-confirm-btn');
+  if (countEl) countEl.textContent = count > 0 ? count + ' propiedad' + (count > 1 ? 'es' : '') + ' seleccionada' + (count > 1 ? 's' : '') : '';
+  if (btn) btn.disabled = count === 0;
+}
+
+function confirmarMprops() {
+  var op = operaciones.find(function(o){ return o.id === currentOpId; });
+  if (!op) return;
+  if (!op.props) op.props = [];
+  Object.values(_mpropSelected).forEach(function(p) {
+    // Avoid duplicates
+    if (!op.props.find(function(x){ return String(x.id) === String(p.id); })) {
+      op.props.push(p);
+    }
+  });
+  saveOps();
+  closeAllSheets();
+  renderOpDetail();
+  var count = Object.keys(_mpropSelected).length;
+  showStatus('[' + count + ' PROPIEDAD' + (count > 1 ? 'ES' : '') + ' AGREGADA' + (count > 1 ? 'S' : '') + ']');
+  _mpropSelected = {};
 }
 
 /* ── GENERAR RESUMEN ── */
