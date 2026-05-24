@@ -1901,6 +1901,14 @@ body {
   <button class="btn-outline" onclick="closeAllSheets()">Cancelar</button>
 </div>
 
+<!-- SHEET: Acciones sobre propiedad -->
+<div class="sheet" id="prop-action-sheet">
+  <div class="sheet-handle"></div>
+  <p class="sheet-label" id="prop-action-label">Propiedad</p>
+  <div id="prop-action-options"></div>
+  <button class="btn-outline" onclick="closeAllSheets()" style="margin-top:8px;">Cancelar</button>
+</div>
+
 <!-- SHEET: Agregar propiedades -->
 <div class="sheet" id="mprops-sheet" style="max-height:88vh;display:flex;flex-direction:column;">
   <div class="sheet-handle"></div>
@@ -2984,10 +2992,10 @@ function mbPropCardHtml(prop, op) {
   }
   // Guardamos la prop en el mapa global para accederla desde el onclick por id
   _mpropPropsMap[String(prop.id)] = prop;
-  var calBtn = '<button onclick="event.stopPropagation();openVisitaSheetForPropId(\'' + prop.id + '\')" ' +
-    'style="background:none;border:1px solid rgba(0,210,255,0.3);border-radius:6px;padding:5px 8px;cursor:pointer;color:var(--neon-blue);display:flex;align-items:center;gap:4px;font-size:10px;font-family:\'Space Mono\',monospace;">' +
-    '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>' +
-    'Visita</button>';
+  var menuBtn = '<button onclick="event.stopPropagation();openPropActionSheet(\'' + prop.id + '\')" ' +
+    'style="background:none;border:1px solid var(--border-visible);border-radius:6px;width:28px;height:28px;cursor:pointer;color:var(--text-secondary);display:flex;align-items:center;justify-content:center;flex-shrink:0;">' +
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>' +
+    '</button>';
   return '<div class="mb-prop-card">' +
     '<div class="mb-prop-card-top">' +
       '<div style="flex:1;min-width:0;">' +
@@ -2996,7 +3004,7 @@ function mbPropCardHtml(prop, op) {
         '<div class="mb-prop-meta">' + escHtml(meta) + '</div>' +
         (hasVisita ? '<div style="margin-top:6px;"><span class="mprop-badge-visita">✓ Visita programada</span></div>' : '') +
       '</div>' +
-      '<div style="flex-shrink:0;margin-left:8px;">' + calBtn + '</div>' +
+      '<div style="flex-shrink:0;margin-left:8px;">' + menuBtn + '</div>' +
     '</div>' +
     (fichaUrl ? '<a class="mb-prop-link" href="' + fichaUrl + '" target="_blank" rel="noopener">' +
       '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>' +
@@ -3315,9 +3323,107 @@ async function confirmarVisita() {
   }
 }
 
+/* ── ACCIONES POR PROPIEDAD ── */
+var _propActionId = null;
+
+function openPropActionSheet(propId) {
+  var op = operaciones.find(function(o){ return o.id === currentOpId; });
+  if (!op) return;
+  var prop = _mpropPropsMap[String(propId)];
+  if (!prop) return;
+  _propActionId = String(propId);
+
+  var isPrincipal = op.prop && String(op.prop.id) === String(propId);
+  var stage = op.stage;
+
+  document.getElementById('prop-action-label').textContent = prop.direccion || 'Propiedad';
+
+  var opts = '';
+
+  // Agendar visita — siempre
+  opts += '<button class="sheet-option" onclick="closeAllSheets();setTimeout(function(){openVisitaSheetForPropId(\'' + propId + '\');},80);">' +
+    '<div class="opt-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>' +
+    '<span class="sheet-option-label">Agendar visita</span>' +
+  '</button>';
+
+  // Negociar — si stage es contacto o visita
+  if (stage === 'contacto' || stage === 'visita') {
+    opts += '<button class="sheet-option" onclick="propActionAvanzar(\'' + propId + '\',\'negociacion\')">' +
+      '<div class="opt-icon" style="color:var(--neon-blue)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>' +
+      '<span class="sheet-option-label">Pasar a Negociación con esta prop</span>' +
+    '</button>';
+  }
+
+  // Reservar — si stage es negociacion o anterior
+  if (stage === 'contacto' || stage === 'visita' || stage === 'negociacion') {
+    opts += '<button class="sheet-option" onclick="propActionAvanzar(\'' + propId + '\',\'reserva\')">' +
+      '<div class="opt-icon" style="color:var(--neon-green)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>' +
+      '<span class="sheet-option-label">Reservar esta propiedad</span>' +
+    '</button>';
+  }
+
+  // Descartar
+  opts += '<button class="sheet-option" onclick="propActionDescartar(\'' + propId + '\')" style="color:var(--accent)">' +
+    '<div class="opt-icon" style="color:var(--accent)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>' +
+    '<span class="sheet-option-label">No gustó — descartar</span>' +
+  '</button>';
+
+  document.getElementById('prop-action-options').innerHTML = opts;
+  document.getElementById('prop-action-sheet').classList.add('open');
+  document.getElementById('overlay').classList.add('open');
+}
+
+function propActionAvanzar(propId, targetStage) {
+  var op = operaciones.find(function(o){ return o.id === currentOpId; });
+  if (!op) return;
+  var prop = _mpropPropsMap[String(propId)];
+  if (!prop) return;
+
+  var wasPrincipal = op.prop && String(op.prop.id) === String(propId);
+  if (!wasPrincipal) {
+    // Mover la prop principal actual a adicionales
+    if (op.prop) {
+      if (!op.props) op.props = [];
+      if (!op.props.find(function(p){ return String(p.id) === String(op.prop.id); })) {
+        op.props.push(op.prop);
+      }
+    }
+    // Sacar la nueva principal de adicionales
+    if (op.props) op.props = op.props.filter(function(p){ return String(p.id) !== String(propId); });
+    op.prop = prop;
+  }
+
+  // Solo avanzar si la etapa target es mayor a la actual
+  var currentIdx = OP_STAGES.findIndex(function(s){ return s.id === op.stage; });
+  var targetIdx  = OP_STAGES.findIndex(function(s){ return s.id === targetStage; });
+  if (targetIdx > currentIdx) op.stage = targetStage;
+
+  saveOps();
+  closeAllSheets();
+  renderOpDetail();
+  var stageLabel = (OP_STAGES.find(function(s){ return s.id === op.stage; }) || {}).label || op.stage;
+  showStatus('[' + stageLabel.toUpperCase() + ' · ' + (prop.direccion || '').slice(0,22).toUpperCase() + ']');
+}
+
+function propActionDescartar(propId) {
+  var op = operaciones.find(function(o){ return o.id === currentOpId; });
+  if (!op) return;
+  var isPrincipal = op.prop && String(op.prop.id) === String(propId);
+  if (isPrincipal) {
+    // Promover la primera adicional como principal, si hay
+    op.prop = (op.props && op.props.length) ? op.props.shift() : null;
+  } else {
+    if (op.props) op.props = op.props.filter(function(p){ return String(p.id) !== String(propId); });
+  }
+  saveOps();
+  closeAllSheets();
+  renderOpDetail();
+  showStatus('[PROPIEDAD DESCARTADA]');
+}
+
 /* ── MULTI-PROPS ── */
 var _mpropSelected = {}; // { propId: propObject }
-var _mpropPropsMap = {}; // { propId: propObject } — cache for toggle
+var _mpropPropsMap = {}; // { propId: propObject } — cache para toggle
 
 function openMpropsSheet() {
   _mpropSelected = {};
