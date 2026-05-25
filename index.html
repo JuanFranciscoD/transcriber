@@ -3686,12 +3686,16 @@ function generarResumenOp(opId) {
 
 /* ── SINCRONIZAR OPS CON FIREBASE ── */
 function saveOpsToFirebase() {
-  if (!db || !currentUser) return;
+  if (!db || !currentUser) {
+    // Si no hay usuario aún, reintentar en 2 segundos
+    setTimeout(saveOpsToFirebase, 2000);
+    return;
+  }
+  var snapshot = JSON.parse(JSON.stringify(operaciones)); // copia inmutable
   import('https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js').then(function(fbm) {
     var ref = fbm.doc(fbm.getFirestore(), 'users', currentUser.uid);
-    fbm.updateDoc(ref, { operaciones: operaciones, updatedAt: Date.now() }).catch(function() {
-      fbm.setDoc(ref, { operaciones: operaciones, updatedAt: Date.now() }, { merge: true });
-    });
+    fbm.setDoc(ref, { operaciones: snapshot, updatedAt: Date.now() }, { merge: true })
+      .catch(function(err) { console.warn('[OPS] Firebase write error:', err); });
   });
 }
 function saveOps() {
@@ -4929,12 +4933,46 @@ function cancelRecorder() {
         var _unsubscribe = onSnapshot(userDocRef, function(snap) {
           var remoteNotes = snap.exists() ? (snap.data().notes || []) : [];
           var remoteFolders = snap.exists() ? (snap.data().folders || []) : [];
-          // Operaciones: Firestore siempre gana (fuente de verdad)
-          var remoteOps = snap.exists() ? (snap.data().operaciones || null) : null;
-          if (remoteOps !== null) {
-            operaciones = remoteOps;
-            localStorage.setItem('transcriber-ops', JSON.stringify(operaciones));
+          // Operaciones: merge bidireccional igual que las notas
+          // Remoto + local por id, el más reciente updatedAt gana
+          var remoteOps = snap.exists() ? (snap.data().operaciones || []) : [];
+          var opsMap = {};
+          // 1. Cargar remotas
+          remoteOps.forEach(function(op) { opsMap[op.id] = op; });
+          // 2. Locales en memoria que no estén en remoto (ej: creadas offline o recién)
+          operaciones.forEach(function(op) {
+            if (!opsMap[op.id]) {
+              opsMap[op.id] = op;
+            } else {
+              // Si la local es más nueva que la remota, ganar local
+              var localTs = op.updatedAt || op.createdAt || 0;
+              var remoteTs = opsMap[op.id].updatedAt || opsMap[op.id].createdAt || 0;
+              if (localTs > remoteTs) opsMap[op.id] = op;
+            }
+          });
+          // 3. En el primer sync también traer las que estaban en localStorage
+          if (_firstSync) {
+            var _localOpsAtLogin = JSON.parse(localStorage.getItem('transcriber-ops') || '[]');
+            _localOpsAtLogin.forEach(function(op) {
+              if (!opsMap[op.id]) {
+                opsMap[op.id] = op;
+              }
+            });
           }
+          var mergedOps = Object.values(opsMap).sort(function(a, b) {
+            return (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0);
+          });
+          // Si hubo cambios locales que no estaban en remoto, subir a Firestore
+          if (mergedOps.length > remoteOps.length) {
+            import('https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js').then(function(fbm) {
+              var ref = fbm.doc(fbm.getFirestore(), 'users', currentUser.uid);
+              fbm.updateDoc(ref, { operaciones: mergedOps, updatedAt: Date.now() }).catch(function() {
+                fbm.setDoc(ref, { operaciones: mergedOps, updatedAt: Date.now() }, { merge: true });
+              });
+            });
+          }
+          operaciones = mergedOps;
+          localStorage.setItem('transcriber-ops', JSON.stringify(operaciones));
 
           // Merge: SIEMPRE combinar remoto + local actual
           // Así notas del bot, de otro dispositivo, o grabadas offline nunca se pierden
